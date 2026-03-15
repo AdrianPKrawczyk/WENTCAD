@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "konva": "^10.2.1",
     "psychrolib": "^1.1.1",
     "react": "^19.2.4",

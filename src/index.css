@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+@theme {
+  --color-brand-supply: #0000ff;
+  --color-brand-exhaust: #ff0000;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}

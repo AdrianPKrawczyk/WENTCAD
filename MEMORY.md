@@ -24,3 +24,5 @@
 
 * **Frontend Stack:** React 18+, TypeScript, TailwindCSS, Konva.js
 * **Physics Engine:** Refer strictly to `HVAC_FORMULAS.md`.
+* **Database Schema (Iteration 0):** Decided to use `JSONB` to store the DAG structure (states from Zustand stores like `useDuctStore` or `useZoneStore`). Tables: `projects`, `zones`, `duct_network`. Enable RLS.
+* **UI Layout (Iteration 0):** React + Tailwind CSS with a 3-pane layout (Sidebar = Project Tree/Properties, Header = Toolbar, Main = Konva Canvas). Supply ducts use `#0000ff`, Exhaust uses `#ff0000`.
