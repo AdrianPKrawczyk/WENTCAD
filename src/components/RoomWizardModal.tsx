@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ZoneData, ActivityType, CalculationMode } from '../types';
 import { ROOM_PRESETS, DEFAULT_ACTIVITY_TYPE } from '../lib/hvacConstants';
+import { useZoneStore } from '../stores/useZoneStore';
 
 interface RoomWizardModalProps {
   isOpen: boolean;
@@ -9,7 +10,11 @@ interface RoomWizardModalProps {
 }
 
 export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProps) {
+  const floors = useZoneStore((s) => s.floors);
+  const activeFloorId = useZoneStore((s) => s.activeFloorId);
+
   const [activityType, setActivityType] = useState<ActivityType>(DEFAULT_ACTIVITY_TYPE);
+  const [floorId, setFloorId] = useState<string>('');
   const [nr, setNr] = useState('');
   const [name, setName] = useState('');
   const [area, setArea] = useState(15);
@@ -59,7 +64,14 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
     setIsMaxDbAManual(val !== defaultDbA);
   };
 
-  if (!isOpen) return null;
+  // Set default floorId when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const sortedFloors = Object.values(floors).sort((a, b) => a.order - b.order);
+      const defaultFloor = activeFloorId !== '__all__' ? activeFloorId : sortedFloors[0]?.id ?? '';
+      setFloorId(defaultFloor);
+    }
+  }, [isOpen, activeFloorId]);
 
   const handleSave = () => {
     let calculationMode: CalculationMode = 'AUTO_MAX';
@@ -105,6 +117,7 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
       maxAllowedDbA: dbAInput,
       isMaxDbAManual,
       manualMaxAllowedDbA: isMaxDbAManual ? dbAInput : null,
+      floorId: floorId || Object.keys(floors)[0] || 'floor-parter',
       transferIn: [],
       transferOut: [],
       calculatedVolume: 0,
@@ -119,12 +132,31 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
     onClose();
   };
 
+  if (!isOpen) return null;
+  
+  const sortedFloors = Object.values(floors).sort((a, b) => a.order - b.order);
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-[600px] shadow-xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">Kreator Pomieszczenia</h2>
         
         <div className="space-y-4">
+          {/* Floor Picker */}
+          <div className="bg-blue-50 rounded-md p-3 border border-blue-200">
+            <label className="block text-sm font-medium text-blue-800 mb-1">📐 Kondygnacja</label>
+            <select
+              value={floorId}
+              onChange={(e) => setFloorId(e.target.value)}
+              className="block w-full border border-blue-300 rounded-md p-2 text-sm bg-white focus:border-blue-500 focus:ring-blue-500"
+            >
+              {sortedFloors.map((floor) => (
+                <option key={floor.id} value={floor.id}>
+                  {floor.name} ({floor.elevation.toFixed(2)} m n.p.m.)
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Rodzaj Pomieszczenia</label>
             <select 

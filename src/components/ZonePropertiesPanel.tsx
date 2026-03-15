@@ -6,6 +6,7 @@ import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicat
 export function ZonePropertiesPanel() {
   const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
   const zones = useZoneStore((state) => state.zones);
+  const floors = useZoneStore((state) => state.floors);
   const updateZone = useZoneStore((state) => state.updateZone);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
@@ -89,6 +90,20 @@ export function ZonePropertiesPanel() {
               >
                 {Object.keys(ROOM_TYPE_ACH_MAPPING).map((type) => (
                   <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Kondygnacja */}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">📐 Kondygnacja</label>
+              <select 
+                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
+                value={activeZone.floorId || ''}
+                onChange={(e) => handleChange('floorId', e.target.value)}
+              >
+                {Object.values(floors).sort((a, b) => a.order - b.order).map((floor) => (
+                  <option key={floor.id} value={floor.id}>{floor.name}</option>
                 ))}
               </select>
             </div>

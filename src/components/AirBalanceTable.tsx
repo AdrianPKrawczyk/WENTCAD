@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { RoomWizardModal } from './RoomWizardModal';
 import { CsvMappingModal } from './CsvMappingModal';
 import { SystemManagerModal } from './SystemManagerModal';
+import { FloorManagerBar } from './FloorManagerBar';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
@@ -21,8 +22,13 @@ export function AirBalanceTable() {
   const removeZone = useZoneStore((state) => state.removeZone);
   const setSelectedZone = useZoneStore((state) => state.setSelectedZone);
   const systems = useZoneStore((state) => state.systems);
+  const activeFloorId = useZoneStore((state) => state.activeFloorId);
 
-  const rowData = useMemo(() => Object.values(zones), [zones]);
+  const rowData = useMemo(() => {
+    const allZones = Object.values(zones);
+    if (activeFloorId === '__all__') return allZones;
+    return allZones.filter((z) => z.floorId === activeFloorId);
+  }, [zones, activeFloorId]);
 
   const supplySystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'SUPPLY').map(s => s.id)], [systems]);
   const exhaustSystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'EXHAUST').map(s => s.id)], [systems]);
@@ -271,7 +277,8 @@ export function AirBalanceTable() {
       transferInSum: 0,
       transferOutSum: 0,
       netBalance: 0,
-      realACH: 0
+      realACH: 0,
+      floorId: activeFloorId === '__all__' ? 'floor-parter' : activeFloorId,
     });
   };
 
@@ -333,7 +340,8 @@ export function AirBalanceTable() {
         transferInSum: 0,
         transferOutSum: 0,
         netBalance: 0,
-        realACH: 0
+        realACH: 0,
+        floorId: activeFloorId === '__all__' ? 'floor-parter' : activeFloorId,
       });
     });
     
@@ -344,7 +352,9 @@ export function AirBalanceTable() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-4">
+    <div className="flex flex-col h-full w-full">
+      <FloorManagerBar />
+      <div className="flex flex-col flex-1 p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
         <div className="flex gap-2">
@@ -433,6 +443,7 @@ export function AirBalanceTable() {
         csvData={csvRawData}
         headers={csvHeaders}
       />
+      </div>
     </div>
   );
 }

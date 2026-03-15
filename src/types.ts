@@ -51,6 +51,14 @@ export interface AirTransfer {
   roomId: string; // ID of the connected room
 }
 
+// Kondygnacja (piętro budynku)
+export interface Floor {
+  id: string;
+  name: string;      // np. "Parter", "+1 Piętro"
+  elevation: number; // Rzędna terenu [m], np. 0.0, 3.5
+  order: number;     // Kolejność wyświetlania
+}
+
 export interface ZoneData {
   id: string;
   nr: string;
@@ -60,7 +68,7 @@ export interface ZoneData {
   // Systems
   systemSupplyId?: string; // e.g. 'NW1'
   systemExhaustId?: string; // e.g. 'WW1'
-  floorId?: string;
+  floorId: string; // REQUIRED - must belong to a floor
   
   // Geometry
   area: number;   // m^2
@@ -159,6 +167,7 @@ export interface DuctSegment {
 // ============================================
 
 export interface ProjectStateData {
+  floors: Record<string, Floor>;
   zones: Record<string, ZoneData>;
   nodes: Record<string, DuctNode>;
   edges: Record<string, DuctSegment>;
