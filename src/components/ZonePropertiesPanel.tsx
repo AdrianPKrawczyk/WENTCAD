@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
+import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
 
 export function ZonePropertiesPanel() {
@@ -60,9 +60,30 @@ export function ZonePropertiesPanel() {
                 value={activeZone.activityType}
                 onChange={(e) => {
                   const newType = e.target.value as ActivityType;
+                  const preset = ROOM_PRESETS[newType];
+                  const hasManualOverrides = activeZone.isTargetACHManual || activeZone.isMaxDbAManual;
+                  
+                  // Update room type always
                   handleChange('activityType', newType);
-                  if (!activeZone.isTargetACHManual) {
-                    handleChange('targetACH', ROOM_TYPE_ACH_MAPPING[newType]);
+                  
+                  if (preset) {
+                    if (hasManualOverrides) {
+                      const ok = window.confirm(
+                        `Zmieniono typ na "${newType}".\nCzy zaktualizować domyślne wartości?\n` +
+                        `Krotność: ${preset.ach} [1/h], Limit hałasu: ${preset.maxDbA} [dB(A)]\n` +
+                        `(Manualne nadpisania zostaną wyłączone)`
+                      );
+                      if (ok) {
+                        handleChange('targetACH', preset.ach);
+                        handleChange('isTargetACHManual', false);
+                        handleChange('maxAllowedDbA', preset.maxDbA);
+                        handleChange('isMaxDbAManual', false);
+                        handleChange('manualMaxAllowedDbA', null);
+                      }
+                    } else {
+                      handleChange('targetACH', preset.ach);
+                      handleChange('maxAllowedDbA', preset.maxDbA);
+                    }
                   }
                 }}
               >
@@ -288,14 +309,40 @@ export function ZonePropertiesPanel() {
         <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
           <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Akustyka</h3>
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Maks. poziom hałasu [dB(A)]</label>
-              <input 
-                type="number" 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                value={activeZone.maxAllowedDbA}
-                onChange={(e) => handleChange('maxAllowedDbA', Number(e.target.value))}
-              />
+            <div className="pt-2 border-t border-gray-100">
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs text-gray-500 font-medium">Maks. poziom hałasu [dB(A)]</label>
+                <label className="flex items-center space-x-1 cursor-pointer">
+                   <input 
+                     type="checkbox" 
+                     checked={activeZone.isMaxDbAManual} 
+                     onChange={(e) => {
+                       const isManual = e.target.checked;
+                       handleChange('isMaxDbAManual', isManual);
+                       if (isManual && activeZone.manualMaxAllowedDbA === null) {
+                          handleChange('manualMaxAllowedDbA', activeZone.maxAllowedDbA);
+                       }
+                     }}
+                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
+                   />
+                   <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                </label>
+              </div>
+              <div className="flex relative">
+                <input 
+                   type="number" 
+                   step="1"
+                   className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isMaxDbAManual ? 'border-gray-500 bg-yellow-50 font-bold' : 'border-gray-300 bg-gray-50 text-gray-500'}`}
+                   value={activeZone.isMaxDbAManual ? (activeZone.manualMaxAllowedDbA ?? activeZone.maxAllowedDbA) : activeZone.maxAllowedDbA}
+                   onChange={(e) => {
+                     if (activeZone.isMaxDbAManual) {
+                       handleChange('manualMaxAllowedDbA', Number(e.target.value));
+                       handleChange('maxAllowedDbA', Number(e.target.value));
+                     }
+                   }}
+                   disabled={!activeZone.isMaxDbAManual}
+                />
+              </div>
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Chłonność akustyczna</label>

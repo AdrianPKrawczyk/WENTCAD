@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { ZoneData, ActivityType, CalculationMode } from '../types';
-import { ROOM_TYPE_ACH_MAPPING, DEFAULT_ACTIVITY_TYPE } from '../lib/hvacConstants';
+import { ROOM_PRESETS, DEFAULT_ACTIVITY_TYPE } from '../lib/hvacConstants';
 
 interface RoomWizardModalProps {
   isOpen: boolean;
@@ -25,28 +25,38 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
   const [kitchenExhaust, setKitchenExhaust] = useState(200);
 
   // ACH logic
-  const [achInput, setAchInput] = useState<number>(ROOM_TYPE_ACH_MAPPING[DEFAULT_ACTIVITY_TYPE]);
+  const [achInput, setAchInput] = useState<number>(ROOM_PRESETS[DEFAULT_ACTIVITY_TYPE].ach);
   const [isTargetACHManual, setIsTargetACHManual] = useState(false);
+
+  // Noise limit logic
+  const [dbAInput, setDbAInput] = useState<number>(ROOM_PRESETS[DEFAULT_ACTIVITY_TYPE].maxDbA);
+  const [isMaxDbAManual, setIsMaxDbAManual] = useState(false);
 
   // Zmiana typu pomieszczenia
   useEffect(() => {
+    const preset = ROOM_PRESETS[activityType];
     if (!isTargetACHManual) {
-      setAchInput(ROOM_TYPE_ACH_MAPPING[activityType] || 0);
+      setAchInput(preset?.ach ?? 1.5);
+    }
+    if (!isMaxDbAManual) {
+      setDbAInput(preset?.maxDbA ?? 35);
     }
     // Auto-wypełnianie nazwy na podstawie typu jeśli jest pusta lub była równa poprzedniemu typowi
-    if (!name || Object.keys(ROOM_TYPE_ACH_MAPPING).includes(name)) {
+    if (!name || Object.keys(ROOM_PRESETS).includes(name)) {
       setName(activityType === 'CUSTOM' ? 'Pomieszczenie' : activityType);
     }
   }, [activityType]);
 
   const handleAchChange = (val: number) => {
     setAchInput(val);
-    const defaultAch = ROOM_TYPE_ACH_MAPPING[activityType] || 0;
-    if (val !== defaultAch) {
-      setIsTargetACHManual(true);
-    } else {
-      setIsTargetACHManual(false);
-    }
+    const defaultAch = ROOM_PRESETS[activityType]?.ach ?? 0;
+    setIsTargetACHManual(val !== defaultAch);
+  };
+
+  const handleDbAChange = (val: number) => {
+    setDbAInput(val);
+    const defaultDbA = ROOM_PRESETS[activityType]?.maxDbA ?? 35;
+    setIsMaxDbAManual(val !== defaultDbA);
   };
 
   if (!isOpen) return null;
@@ -92,7 +102,9 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
       supplyTemp: 16,
       supplyRH: 80,
       acousticAbsorption: 'MEDIUM',
-      maxAllowedDbA: 35,
+      maxAllowedDbA: dbAInput,
+      isMaxDbAManual,
+      manualMaxAllowedDbA: isMaxDbAManual ? dbAInput : null,
       transferIn: [],
       transferOut: [],
       calculatedVolume: 0,
@@ -120,11 +132,11 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
               onChange={(e) => setActivityType(e.target.value as ActivityType)}
               className="mt-1 block w-full border border-gray-300 rounded-md p-2 bg-blue-50 focus:border-blue-500 focus:ring-blue-500"
             >
-              {Object.keys(ROOM_TYPE_ACH_MAPPING).map((type) => (
+              {Object.keys(ROOM_PRESETS).map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">Domyślna krotność z dyrektywy: {ROOM_TYPE_ACH_MAPPING[activityType]} [1/h]</p>
+            <p className="text-xs text-gray-500 mt-1">Krotność: {ROOM_PRESETS[activityType]?.ach} [1/h], Hałas max.: {ROOM_PRESETS[activityType]?.maxDbA} dB(A)</p>
           </div>
 
           <div className="flex gap-4">
@@ -206,6 +218,19 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
                   className="mt-1 block w-full border border-gray-300 rounded-md p-2"
                 />
                 {isTargetACHManual && <span className="absolute right-2 top-8 text-xs bg-yellow-100 text-yellow-800 px-1 rounded font-bold">Manual</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-100">
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700">Max hałas [dB(A)]</label>
+                <input 
+                  type="number" 
+                  min="0" step="1"
+                  value={dbAInput} 
+                  onChange={(e) => handleDbAChange(Number(e.target.value))}
+                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                />
+                {isMaxDbAManual && <span className="absolute right-2 top-8 text-xs bg-yellow-100 text-yellow-800 px-1 rounded font-bold">Manual</span>}
               </div>
             </div>
           </div>

@@ -7,8 +7,8 @@ import { SystemManagerModal } from './SystemManagerModal';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
-import { ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
-import type { ZoneData } from '../types';
+import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
+import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
 
 // Register ALL enterprise modules to avoid version mismatches
@@ -185,7 +185,6 @@ export function AirBalanceTable() {
     const field = colDef.field as keyof ZoneData;
     
     // Rzutowanie na Number jeśli kolumna jest numeryczna
-    // newValue pochodzi ze stringa jeśli było edytowane jako tekst (a nie przez dedykowany edytor numeryczny)
     if (colDef.type === 'numericColumn' || typeof (data as any)[field] === 'number') {
       let parsed = Number(newValue);
       if (typeof newValue === 'string') {
@@ -194,6 +193,19 @@ export function AirBalanceTable() {
       update[field] = isNaN(parsed) ? 0 : parsed;
     } else {
       update[field] = newValue;
+    }
+    
+    // Specjalna logika dla zmiany typu pomieszczenia - aktualizacja presetów
+    if (field === 'activityType') {
+      const preset = ROOM_PRESETS[newValue as ActivityType];
+      if (preset) {
+        if (!data.isTargetACHManual) {
+          update.targetACH = preset.ach;
+        }
+        if (!data.isMaxDbAManual) {
+          update.maxAllowedDbA = preset.maxDbA;
+        }
+      }
     }
     
     updateZone(data.id, update);
@@ -250,6 +262,8 @@ export function AirBalanceTable() {
       supplyRH: 80,
       acousticAbsorption: 'MEDIUM',
       maxAllowedDbA: 35,
+      isMaxDbAManual: false,
+      manualMaxAllowedDbA: null,
       transferIn: [],
       transferOut: [],
       calculatedVolume: 0,
@@ -310,6 +324,8 @@ export function AirBalanceTable() {
         supplyRH: 80,
         acousticAbsorption: 'MEDIUM',
         maxAllowedDbA: 35,
+        isMaxDbAManual: false,
+        manualMaxAllowedDbA: null,
         transferIn: [],
         transferOut: [],
         calculatedVolume: 0,

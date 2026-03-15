@@ -91,7 +91,9 @@ export interface ZoneData {
   
   // Acoustics
   acousticAbsorption: AcousticAbsorptionIndicator;
-  maxAllowedDbA: number; // Graniczny hałas dla pomieszczenia [dB(A)]
+  isMaxDbAManual: boolean;     // If true, use manualMaxAllowedDbA instead of preset
+  manualMaxAllowedDbA: number | null; // User-overridden noise limit
+  maxAllowedDbA: number; // Preset/computed noise limit [dB(A)]
 
   // Outputs (Calculated results)
   calculatedVolume: number;  // m^3/h (V_final nawiew)
