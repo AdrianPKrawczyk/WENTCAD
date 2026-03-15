@@ -1,24 +1,44 @@
-# Logs
-logs
-*.log
+# Zależności (Dependencies)
+/node_modules
+/.pnp
+.pnp.js
+
+# Build i kompilacja (Testing & Production)
+/dist
+/build
+/.next
+/out
+coverage/
+
+# Pliki środowiskowe i sekrety (CRITICAL!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# Logi błędów
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Konfiguracja Supabase (Ignoruj lokalne pliki tymczasowe)
+supabase/.temp/
+supabase/.branch/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Pliki systemowe (Mac/Windows)
 .DS_Store
+Thumbs.db
+
+# Pliki edytorów i IDE
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
-*.sw?
+
+# UWAGA DLA AGENTA AI:
+# Nie ignorujemy plików .cursorrules, MEMORY.md ani HVAC_FORMULAS.md
+# Te pliki muszą trafić do repozytorium, aby zachować ciągłość pracy.
