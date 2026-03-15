@@ -19,6 +19,7 @@ export interface ZoneData {
   // Geometry
   area: number;   // m^2
   height: number; // m
+  isAreaLinkedToGeometry: boolean; // Flaga blokady ręcznej edycji powierzchni
   
   // Air Volume Inputs (V_hig, V_krotnosc, V_norm)
   occupants: number;
@@ -35,6 +36,7 @@ export interface ZoneData {
   
   // Acoustics
   acousticAbsorption: AcousticAbsorptionIndicator;
+  maxAllowedDbA: number; // Graniczny hałas dla pomieszczenia [dB(A)]
 
   // Outputs (Calculated results)
   calculatedVolume: number; // m^3/h (V_final)
@@ -52,6 +54,8 @@ export interface DuctNode {
   id: string;
   type: NodeType;
   zoneId?: string; // If node connects to a Zone
+  systemId: string; // np. 'NW1', 'WW1'
+  ahuId: string;    // Powiązanie z konkretną centralą wentylacyjną
   
   // Aerodynamics
   flow: number; // m^3/h (calculated or input)
@@ -65,6 +69,8 @@ export interface DuctSegment {
   id: string;
   sourceNodeId: string; // From Node
   targetNodeId: string; // To Node
+  systemId: string;
+  ahuId: string;
   
   // Geometry
   length: number; // m
@@ -78,8 +84,8 @@ export interface DuctSegment {
   
   // Materials & Insulation
   roughness: number;                   // m (e.g. 0.00015 for galv. steel)
-  internalInsulationThickness: number; // m
-  externalInsulationThickness: number; // m
+  internalInsulationThickness: number; // mm
+  externalInsulationThickness: number; // mm
   
   // Outputs
   velocity: number;        // m/s
