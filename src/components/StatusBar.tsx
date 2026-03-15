@@ -1,37 +1,75 @@
 import { useZoneStore } from '../stores/useZoneStore';
 
+
 export function StatusBar() {
-  // UWAGA: wybieramy tylko potrzebne obiekty aby uniknąć nieskończonej pętli re-renderów w Zustand
   const zones = useZoneStore((state) => state.zones);
+  const zonesArray = Object.values(zones);
 
-  // Placeholder na sumę bilansu
-  // W idealnym scenariuszu będziemy mieli oddzielny stan na "Nawiew" i "Wyciąg" pochodzący z `useDuctStore`
-  const totalSupply = Object.values(zones).reduce((sum, zone) => sum + zone.calculatedVolume, 0);
+  // Group by supply systems
+  const supplyBySystem = zonesArray.reduce((acc, zone) => {
+    const sysId = zone.systemSupplyId || 'Brak_Naw';
+    const vol = zone.calculatedVolume + zone.transferInSum;
+    if (vol > 0) {
+      acc[sysId] = (acc[sysId] || 0) + vol;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Group by exhaust systems
+  const exhaustBySystem = zonesArray.reduce((acc, zone) => {
+    const sysId = zone.systemExhaustId || 'Brak_Wyc';
+    const vol = zone.calculatedExhaust + zone.transferOutSum;
+    if (vol > 0) {
+      acc[sysId] = (acc[sysId] || 0) + vol;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalSupply = Object.values(supplyBySystem).reduce((a, b) => a + b, 0);
+  const totalExhaust = Object.values(exhaustBySystem).reduce((a, b) => a + b, 0);
+
+  const netBalance = totalSupply - totalExhaust;
   
-  // W przypadku braku instalacji wyciągowej na razie robimy 0, albo kopiujemy nawiew dla równowagi (mocked for UI balance)
-  const totalExhaust = Math.round(totalSupply * 0.9); // Zazwyczaj wyciąg to 90-100% nawiewu
-
-  const isBalanced = Math.abs(totalSupply - totalExhaust) < 50; // Oczywiste uproszczenie
+  const balanceText = netBalance > 0 ? `+${netBalance} m³/h (Nadciśnienie)` : 
+                      netBalance < 0 ? `${netBalance} m³/h (Podciśnienie)` : 
+                      `0 m³/h (Zrównoważony)`;
 
   return (
     <div className="h-8 bg-gray-800 text-gray-300 flex items-center px-4 text-xs font-medium justify-between shadow-inner z-20">
-      <div className="flex space-x-6">
+      <div className="flex space-x-6 items-center">
+        
+        {/* Nawiew Badges */}
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-[var(--color-brand-supply)]"></span>
-          <span>Całkowity Nawiew (V_sup):</span>
-          <span className="text-white font-bold">{totalSupply} m³/h</span>
+          <span>Nawiew:</span>
+          {Object.entries(supplyBySystem).map(([sysId, vol]) => (
+            <span key={`sup-${sysId}`} className="bg-gray-700 px-2 py-0.5 rounded text-blue-300 border border-gray-600">
+              {sysId}: {vol} m³/h
+            </span>
+          ))}
+          {Object.keys(supplyBySystem).length === 0 && <span className="text-gray-500">Brak</span>}
         </div>
+
+        <div className="w-px h-4 bg-gray-600"></div>
+
+        {/* Wyciąg Badges */}
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-[var(--color-brand-exhaust)]"></span>
-          <span>Całkowity Wyciąg (V_exh):</span>
-          <span className="text-white font-bold">{totalExhaust} m³/h</span>
+          <span>Wyciąg:</span>
+          {Object.entries(exhaustBySystem).map(([sysId, vol]) => (
+            <span key={`exh-${sysId}`} className="bg-gray-700 px-2 py-0.5 rounded text-red-300 border border-gray-600">
+              {sysId}: {vol} m³/h
+            </span>
+          ))}
+          {Object.keys(exhaustBySystem).length === 0 && <span className="text-gray-500">Brak</span>}
         </div>
+
       </div>
       
       <div className="flex items-center space-x-2">
-        <span>Bilans Sieci:</span>
-        <span className={`px-2 py-0.5 rounded text-white ${isBalanced ? 'bg-green-600' : 'bg-red-600'}`}>
-          {isBalanced ? 'Zrównoważony' : 'Niezrównoważony'}
+        <span>Bilans obiegu:</span>
+        <span className={`px-2 py-0.5 rounded text-white ${netBalance > 0 ? 'bg-blue-600' : netBalance < 0 ? 'bg-yellow-600 text-black' : 'bg-green-600'}`}>
+          {balanceText}
         </span>
       </div>
     </div>

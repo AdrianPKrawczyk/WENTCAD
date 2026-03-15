@@ -23,7 +23,10 @@ export function ZonePropertiesPanel() {
     <div className="flex flex-col h-full bg-white border-l border-gray-200 shadow-sm w-80 overflow-y-auto">
       <div className="p-4 border-b border-gray-100 bg-gray-50">
         <h2 className="text-lg font-bold text-gray-800">Właściwości Strefy</h2>
-        <p className="text-xs text-gray-500 font-mono mt-1">ID: {activeZone.id}</p>
+        <p className="text-xs text-gray-500 flex justify-between mt-1">
+          <span className="font-mono">ID: {activeZone.id}</span>
+          <span className="bg-gray-200 px-1.5 py-0.5 rounded text-gray-700 font-bold">{activeZone.nr}</span>
+        </p>
       </div>
 
       <div className="p-4 space-y-6">
@@ -155,9 +158,52 @@ export function ZonePropertiesPanel() {
               <span className="text-sm font-medium text-blue-800">V_final (Nawiew)</span>
               <span className="text-lg font-bold text-blue-900">{activeZone.calculatedVolume} <span className="text-xs font-normal">m³/h</span></span>
             </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-red-800">V_final (Wyciąg)</span>
+              <span className="text-lg font-bold text-red-900">{activeZone.calculatedExhaust} <span className="text-xs font-normal">m³/h</span></span>
+            </div>
             <div className="flex justify-between items-center">
-              <span className="text-xs text-blue-700">Realna Krotność Wymian</span>
-              <span className="text-sm font-semibold text-blue-900">{activeZone.realACH} <span className="text-xs font-normal">1/h</span></span>
+              <span className="text-xs text-gray-600">Net Balance</span>
+              <span className={`text-sm font-bold ${activeZone.netBalance > 0 ? 'text-blue-600' : activeZone.netBalance < 0 ? 'text-yellow-600' : 'text-green-600'}`}>
+                {activeZone.netBalance} <span className="text-xs font-normal">m³/h</span>
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Sekcja: Transfery */}
+        <section className="mt-8 pt-4 border-t border-gray-200">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Transfery Przepływu</h3>
+          <div className="space-y-4">
+            <div>
+              <span className="text-xs font-medium text-blue-600 mb-1 block">Wlatuje z innych (IN): {activeZone.transferInSum} m³/h</span>
+              {activeZone.transferIn.length === 0 ? (
+                <span className="text-xs text-gray-400 italic">Brak transferów do tego pokoju.</span>
+              ) : (
+                <ul className="text-xs space-y-1 bg-gray-50 p-2 rounded border border-gray-100">
+                  {activeZone.transferIn.map((t, idx) => (
+                    <li key={idx} className="flex justify-between">
+                      <span className="text-gray-600">Z: {zones[t.roomId]?.name || t.roomId}</span>
+                      <span className="font-medium text-blue-700">+{t.volume}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <span className="text-xs font-medium text-red-600 mb-1 block">Wylatuje stąd (OUT): {activeZone.transferOutSum} m³/h</span>
+              {activeZone.transferOut.length === 0 ? (
+                <span className="text-xs text-gray-400 italic">Brak transferów z tego pokoju.</span>
+              ) : (
+                <ul className="text-xs space-y-1 bg-gray-50 p-2 rounded border border-gray-100">
+                  {activeZone.transferOut.map((t, idx) => (
+                    <li key={idx} className="flex justify-between">
+                      <span className="text-gray-600">Do: {zones[t.roomId]?.name || t.roomId}</span>
+                      <span className="font-medium text-red-700">-{t.volume}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </section>

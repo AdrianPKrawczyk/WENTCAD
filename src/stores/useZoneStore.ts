@@ -2,6 +2,52 @@ import { create } from 'zustand';
 import type { ZoneData } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
+function resolveZonesState(zones: Record<string, ZoneData>): Record<string, ZoneData> {
+  const newZones = { ...zones };
+
+  // 1. Clear all transferIn
+  Object.keys(newZones).forEach(id => {
+    if (newZones[id]) {
+      newZones[id] = { ...newZones[id], transferIn: [] };
+    }
+  });
+
+  // 2. Rebuild transferIn from transferOut
+  Object.values(newZones).forEach(sourceZone => {
+    if (sourceZone.transferOut && sourceZone.transferOut.length > 0) {
+      sourceZone.transferOut.forEach(tOut => {
+        const targetId = tOut.roomId;
+        if (newZones[targetId]) {
+          newZones[targetId].transferIn.push({
+            roomId: sourceZone.id,
+            volume: tOut.volume
+          });
+        }
+      });
+    }
+  });
+
+  // 3. Recalculate physics for all zones
+  Object.keys(newZones).forEach(id => {
+    const zone = newZones[id];
+    const results = calculateZoneAirBalance(zone);
+
+    // Check if anything changed to avoid unnecessary object mutations
+    if (
+      zone.calculatedVolume !== results.calculatedVolume ||
+      zone.calculatedExhaust !== results.calculatedExhaust ||
+      zone.transferInSum !== results.transferInSum ||
+      zone.transferOutSum !== results.transferOutSum ||
+      zone.netBalance !== results.netBalance ||
+      zone.realACH !== results.realACH
+    ) {
+      newZones[id] = { ...zone, ...results };
+    }
+  });
+
+  return newZones;
+}
+
 interface ZoneStore {
   activeProjectId: string | null;
   selectedZoneId: string | null;
@@ -11,10 +57,10 @@ interface ZoneStore {
   addZone: (zone: ZoneData) => void;
   updateZone: (id: string, updates: Partial<ZoneData>) => void;
   removeZone: (id: string) => void;
-  recalculateAirBalance: (id: string) => void;
+  recalculateAirBalance: (id?: string) => void;
 }
 
-export const useZoneStore = create<ZoneStore>((set, get) => ({
+export const useZoneStore = create<ZoneStore>((set) => ({
   activeProjectId: null,
   selectedZoneId: null,
   zones: {},
@@ -23,53 +69,35 @@ export const useZoneStore = create<ZoneStore>((set, get) => ({
   setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
 
   addZone: (zone) => {
-    set((state) => ({
-      zones: { ...state.zones, [zone.id]: zone }
-    }));
-    get().recalculateAirBalance(zone.id);
+    set((state) => {
+      const nextZones = { ...state.zones, [zone.id]: zone };
+      return { zones: resolveZonesState(nextZones) };
+    });
   },
 
   updateZone: (id, updates) => {
     set((state) => {
       const existingZone = state.zones[id];
       if (!existingZone) return state;
-      return {
-        zones: {
-          ...state.zones,
-          [id]: { ...existingZone, ...updates }
-        }
+      const nextZones = {
+        ...state.zones,
+        [id]: { ...existingZone, ...updates }
       };
+      return { zones: resolveZonesState(nextZones) };
     });
-    // Zawsze recalculate po update
-    get().recalculateAirBalance(id);
   },
 
   removeZone: (id) => {
     set((state) => {
-      const newZones = { ...state.zones };
-      delete newZones[id];
-      return { zones: newZones };
+      const nextZones = { ...state.zones };
+      delete nextZones[id];
+      // Sync transfers to remove orphan transferIns
+      return { zones: resolveZonesState(nextZones) };
     });
   },
 
-  recalculateAirBalance: (id) => {
-    set((state) => {
-      const zone = state.zones[id];
-      if (!zone) return state;
-
-      const { calculatedVolume, realACH } = calculateZoneAirBalance(zone);
-      
-      // Optymalizacja renderów Reacta - nie nadpisuj jeśli wyniki równe
-      if (zone.calculatedVolume === calculatedVolume && zone.realACH === realACH) {
-        return state;
-      }
-
-      return {
-        zones: {
-          ...state.zones,
-          [id]: { ...zone, calculatedVolume, realACH } // Only override computed results
-        }
-      };
-    });
+  recalculateAirBalance: () => {
+    // Resolve robustly applies logic to all zones
+    set((state) => ({ zones: resolveZonesState(state.zones) }));
   }
 }));

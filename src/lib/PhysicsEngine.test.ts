@@ -5,8 +5,10 @@ import type { ZoneData } from '../types';
 describe('PhysicsEngine - Air Balance (TDD)', () => {
   const createMockZone = (overrides: Partial<ZoneData> = {}): ZoneData => ({
     id: 'z1',
+    nr: 'P-01',
     name: 'Test Room',
     activityType: 'OFFICE',
+    calculationMode: 'AUTO_MAX',
     area: 20,
     height: 3,
     isAreaLinkedToGeometry: false,
@@ -15,13 +17,20 @@ describe('PhysicsEngine - Air Balance (TDD)', () => {
     dosePerOccupant: 30,
     targetACH: 0,
     normativeVolume: 0,
+    normativeExhaust: 0,
     totalHeatGain: 0,
     roomTemp: 24,
     roomRH: 50,
     supplyTemp: 16,
     supplyRH: 80,
     acousticAbsorption: 'MEDIUM',
+    transferIn: [],
+    transferOut: [],
     calculatedVolume: 0,
+    calculatedExhaust: 0,
+    transferInSum: 0,
+    transferOutSum: 0,
+    netBalance: 0,
     realACH: 0,
     ...overrides
   });
@@ -83,5 +92,35 @@ describe('PhysicsEngine - Air Balance (TDD)', () => {
     const zone = createMockZone({ totalHeatGain: 1000, roomTemp: 20, supplyTemp: 22, normativeVolume: 150 });
     const result = calculateZoneAirBalance(zone);
     expect(result.calculatedVolume).toBe(150); // V_term ignored
+  });
+
+  it('should calculate transfers, manual volume and specific modes correctly', () => {
+    const zone = createMockZone({ 
+      calculationMode: 'MANUAL', 
+      normativeVolume: 100,
+      normativeExhaust: 80,
+      manualVolume: 50, // zamiast area*height (60)
+      transferIn: [{ volume: 40, roomId: 'z2' }],
+      transferOut: [{ volume: 20, roomId: 'z3' }]
+    });
+    
+    const result = calculateZoneAirBalance(zone);
+    
+    // MANUAL mode ignores vHig/vKrot, uses normativeVolume directly
+    expect(result.calculatedVolume).toBe(100);
+    expect(result.calculatedExhaust).toBe(80);
+    
+    // Transfers sums
+    expect(result.transferInSum).toBe(40);
+    expect(result.transferOutSum).toBe(20);
+    
+    // Net Balance = (100 + 40) - (80 + 20) = 140 - 100 = 40
+    expect(result.netBalance).toBe(40);
+    
+    // realACH considers max(Supply, Exhaust) / volume
+    // Supply side total = 140
+    // Exhaust side total = 100
+    // Max = 140. Volume = 50. 140 / 50 = 2.8
+    expect(result.realACH).toBe(2.8);
   });
 });

@@ -8,24 +8,44 @@
 // 1. ZONES & AIR BALANCE
 // ============================================
 
-export type ActivityType = 'OFFICE' | 'CONFERENCE' | 'TOILET' | 'CORRIDOR' | 'CUSTOM'
+export type ActivityType = 'OFFICE' | 'CONFERENCE' | 'TOILET' | 'KITCHEN' | 'CORRIDOR' | 'CUSTOM'
 export type AcousticAbsorptionIndicator = 'HARD' | 'MEDIUM' | 'SOFT'
+
+export type CalculationMode = 'AUTO_MAX' | 'MANUAL' | 'HYGIENIC_ONLY' | 'ACH_ONLY' | 'THERMAL_ONLY';
+
+export interface AirTransfer {
+  volume: number;
+  roomId: string; // ID of the connected room
+}
 
 export interface ZoneData {
   id: string;
+  nr: string;
   name: string;
   activityType: ActivityType;
+  
+  // Systems
+  systemSupplyId?: string; // e.g. 'NW1'
+  systemExhaustId?: string; // e.g. 'WW1'
+  floorId?: string;
   
   // Geometry
   area: number;   // m^2
   height: number; // m
   isAreaLinkedToGeometry: boolean; // Flaga blokady ręcznej edycji powierzchni
+  manualVolume?: number | null; // kubatura podana ręcznie
   
-  // Air Volume Inputs (V_hig, V_krotnosc, V_norm)
+  // Air Volume Inputs
+  calculationMode: CalculationMode;
   occupants: number;
   dosePerOccupant: number; // m^3/h 
   targetACH: number;       // 1/h
-  normativeVolume: number; // m^3/h 
+  normativeVolume: number; // m^3/h (używane jako manual supply w MANUAL mode)
+  normativeExhaust: number; // m^3/h (dla potrzeb kuchni, toalet)
+  
+  // Transfers
+  transferIn: AirTransfer[];
+  transferOut: AirTransfer[];
   
   // Thermodynamics (V_term)
   totalHeatGain: number; // W (Total heat gains, jawne + utajone)
@@ -39,8 +59,12 @@ export interface ZoneData {
   maxAllowedDbA: number; // Graniczny hałas dla pomieszczenia [dB(A)]
 
   // Outputs (Calculated results)
-  calculatedVolume: number; // m^3/h (V_final)
-  realACH: number;          // 1/h (ACH_real)
+  calculatedVolume: number;  // m^3/h (V_final nawiew)
+  calculatedExhaust: number; // m^3/h (V_final wyciąg)
+  transferInSum: number;     // m^3/h
+  transferOutSum: number;    // m^3/h
+  netBalance: number;        // m^3/h: (Nawiew + Transfer IN) - (Wyciąg + Transfer OUT)
+  realACH: number;           // 1/h (ACH_real)
 }
 
 // ============================================

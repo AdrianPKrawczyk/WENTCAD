@@ -29,16 +29,19 @@ export function calculateEnthalpy(temp: number, rh: number): number {
  * Oblicza ostateczny bilans powietrza dla strefy (Air Balance)
  * Implementuje Zasadę Maximum oraz TDD z docs/05-hvac-formulas.md
  */
-export function calculateZoneAirBalance(zone: ZoneData): { calculatedVolume: number; realACH: number } {
+export function calculateZoneAirBalance(zone: ZoneData) {
   // 1. Zapotrzebowanie higieniczne
   const vHig = zone.occupants * zone.dosePerOccupant;
 
   // 2. Krotność wymian
-  const volume = zone.area * zone.height;
+  const volume = (zone.manualVolume !== null && zone.manualVolume !== undefined && zone.manualVolume > 0) 
+    ? zone.manualVolume 
+    : (zone.area * zone.height);
+    
   const vKrotnosc = zone.targetACH * volume;
 
   // 3. Normatywne
-  const vNorm = zone.normativeVolume;
+  const vNorm = zone.normativeVolume || 0;
 
   // 4. Termodynamiczne (Chłodzenie)
   let vTerm = 0;
@@ -53,18 +56,54 @@ export function calculateZoneAirBalance(zone: ZoneData): { calculatedVolume: num
     }
   }
 
-  // Wydatek końcowy - Maximum
-  const calculatedVolume = Math.max(vHig, vKrotnosc, vNorm, vTerm);
+  // Wydatek końcowy - zależny od trybu obliczeń
+  let calculatedVolumeRaw = 0;
+  const mode = zone.calculationMode || 'AUTO_MAX';
+  
+  switch (mode) {
+    case 'HYGIENIC_ONLY':
+      calculatedVolumeRaw = vHig;
+      break;
+    case 'ACH_ONLY':
+      calculatedVolumeRaw = vKrotnosc;
+      break;
+    case 'THERMAL_ONLY':
+      calculatedVolumeRaw = vTerm;
+      break;
+    case 'MANUAL':
+      calculatedVolumeRaw = vNorm;
+      break;
+    case 'AUTO_MAX':
+    default:
+      calculatedVolumeRaw = Math.max(vHig, vKrotnosc, vNorm, vTerm);
+      break;
+  }
 
-  // Rzeczywista krotność wymian
-  // Handle edge case division by zero
+  const calculatedVolume = Math.ceil(calculatedVolumeRaw);
+  
+  // Wyciąg (na razie bazuje na normatywnym wyciągu)
+  const calculatedExhaust = Math.ceil(zone.normativeExhaust || 0);
+
+  // Transfery
+  const transferInSum = zone.transferIn ? zone.transferIn.reduce((sum, t) => sum + t.volume, 0) : 0;
+  const transferOutSum = zone.transferOut ? zone.transferOut.reduce((sum, t) => sum + t.volume, 0) : 0;
+
+  // Net Balance
+  const netBalance = (calculatedVolume + transferInSum) - (calculatedExhaust + transferOutSum);
+
+  // Rzeczywista krotność wymian (największa z dostarczonego lub wyciąganego dla krotności)
   let realACH = 0;
   if (volume > 0) {
-    realACH = calculatedVolume / volume;
+    const dominantFlow = Math.max(calculatedVolume + transferInSum, calculatedExhaust + transferOutSum);
+    realACH = dominantFlow / volume;
   }
 
   return {
-    calculatedVolume: Math.ceil(calculatedVolume), // Wartość zaokrąglona w górę dla wygody inżynierskiej, chociaż można zostawić float
+    calculatedVolume,
+    calculatedExhaust,
+    transferInSum,
+    transferOutSum,
+    netBalance,
     realACH: parseFloat(realACH.toFixed(2))
   };
 }
