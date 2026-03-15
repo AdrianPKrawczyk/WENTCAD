@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
+    "ag-grid-community": "^35.1.0",
+    "ag-grid-react": "^35.1.0",
     "konva": "^10.2.1",
+    "lucide-react": "^0.577.0",
     "psychrolib": "^1.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

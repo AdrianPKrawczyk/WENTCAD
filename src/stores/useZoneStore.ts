@@ -3,7 +3,11 @@ import type { ZoneData } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
 interface ZoneStore {
+  activeProjectId: string | null;
+  selectedZoneId: string | null;
   zones: Record<string, ZoneData>;
+  setActiveProject: (projectId: string | null) => void;
+  setSelectedZone: (zoneId: string | null) => void;
   addZone: (zone: ZoneData) => void;
   updateZone: (id: string, updates: Partial<ZoneData>) => void;
   removeZone: (id: string) => void;
@@ -11,8 +15,13 @@ interface ZoneStore {
 }
 
 export const useZoneStore = create<ZoneStore>((set, get) => ({
+  activeProjectId: null,
+  selectedZoneId: null,
   zones: {},
   
+  setActiveProject: (projectId) => set({ activeProjectId: projectId }),
+  setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
+
   addZone: (zone) => {
     set((state) => ({
       zones: { ...state.zones, [zone.id]: zone }
