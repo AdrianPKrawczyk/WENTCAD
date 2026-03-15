@@ -4,12 +4,12 @@
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
 ## CURRENT STATE: INITIATION
-* **Active Step:** KROK 0 (App Shell & Data Persistence)
-* **Pending Task:** Setup React project, UI layout (Tailwind), and initial Zustand stores.
+* **Active Step:** KROK 1 (Air Balance Data Foundation)
+* **Pending Task:** Setting up physics formulas, Zustand state models.
 * **Architecture Rules Validated:** State First, Strict TypeScript, TDD for Physics, No Math Hallucinations (use `HVAC_FORMULAS.md`).
 
 ## PROGRESS LOG
-* [ ] **KROK 0: App Shell & Data Persistence** - Pending
+* [x] **KROK 0: App Shell & Data Persistence** - Done
 * [ ] **KROK 1: Air Balance & Thermodynamics** - Pending
 * [ ] **KROK 2: Architecture Underlays (PDF/DXF)** - Pending
 * [ ] **KROK 3: UI & Konva.js Canvas Engine** - Pending
