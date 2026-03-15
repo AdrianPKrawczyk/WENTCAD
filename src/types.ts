@@ -8,7 +8,40 @@
 // 1. ZONES & AIR BALANCE
 // ============================================
 
-export type ActivityType = 'OFFICE' | 'CONFERENCE' | 'TOILET' | 'KITCHEN' | 'CORRIDOR' | 'CUSTOM'
+export type ActivityType = 
+  | 'Akumulatornia'
+  | 'Apteka: Izba recepturowa'
+  | 'Apteka: Izba homeopatyczna'
+  | 'Apteka: Zmywalnia'
+  | 'Apteka: Pozostałe'
+  | 'Archiwum'
+  | 'Garaż zamknięty (<10 stan.)'
+  | 'Gastronomia: Kuchnia'
+  | 'Gastronomia: Obieralnia'
+  | 'Gastronomia: Zmywalnia'
+  | 'Gastronomia: Przygotowalnia'
+  | 'Gastronomia: Rozdzielnia kelnerska'
+  | 'Gastronomia: Magazyn produktów suchych'
+  | 'Gastronomia: Magazyn napojów'
+  | 'Gastronomia: Magazyn bielizny czystej'
+  | 'Jadalnia'
+  | 'Komunikacja / Korytarz'
+  | 'Laboratorium chemiczne'
+  | 'Magazyn oleju opałowego'
+  | 'Komora malowania / natryskowa'
+  | 'Natryski'
+  | 'Palarnia'
+  | 'Służba zdrowia: Gabinet lekarski'
+  | 'Służba zdrowia: Gabinet zabiegowy'
+  | 'Służba zdrowia: Zabiegowy (znieczulenie)'
+  | 'Służba zdrowia: Sterylizatornia'
+  | 'Służba zdrowia: Gabinet RTG'
+  | 'Pomieszczenie socjalne'
+  | 'Szatnia okryć wierzchnich'
+  | 'Szatnia personelu (pozostałe)'
+  | 'Umywalnia'
+  | 'CUSTOM';
+
 export type AcousticAbsorptionIndicator = 'HARD' | 'MEDIUM' | 'SOFT'
 
 export type CalculationMode = 'AUTO_MAX' | 'MANUAL' | 'HYGIENIC_ONLY' | 'ACH_ONLY' | 'THERMAL_ONLY';
@@ -39,7 +72,9 @@ export interface ZoneData {
   calculationMode: CalculationMode;
   occupants: number;
   dosePerOccupant: number; // m^3/h 
-  targetACH: number;       // 1/h
+  isTargetACHManual: boolean; // Flaga określająca, czy użytkownik ręcznie podał krotność
+  manualTargetACH: number | null; // Wartość wpisana ręcznie przez inżyniera [1/h]
+  targetACH: number;       // 1/h (Legacy/Computed - W oparciu o normy i flagę)
   normativeVolume: number; // m^3/h (używane jako manual supply w MANUAL mode)
   normativeExhaust: number; // m^3/h (dla potrzeb kuchni, toalet)
   
@@ -65,6 +100,7 @@ export interface ZoneData {
   transferOutSum: number;    // m^3/h
   netBalance: number;        // m^3/h: (Nawiew + Transfer IN) - (Wyciąg + Transfer OUT)
   realACH: number;           // 1/h (ACH_real)
+  thermodynamicError?: boolean; // True if enthalpy difference is <= 0 while cooling
 }
 
 // ============================================

@@ -3,9 +3,11 @@ import Papa from 'papaparse';
 import { AgGridReact } from 'ag-grid-react';
 import { RoomWizardModal } from './RoomWizardModal';
 import { CsvMappingModal } from './CsvMappingModal';
+import { SystemManagerModal } from './SystemManagerModal';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
+import { ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData } from '../types';
 import type { ColDef } from 'ag-grid-community';
 
@@ -18,41 +20,27 @@ export function AirBalanceTable() {
   const updateZone = useZoneStore((state) => state.updateZone);
   const removeZone = useZoneStore((state) => state.removeZone);
   const setSelectedZone = useZoneStore((state) => state.setSelectedZone);
+  const systems = useZoneStore((state) => state.systems);
 
   const rowData = useMemo(() => Object.values(zones), [zones]);
+
+  const supplySystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'SUPPLY').map(s => s.id)], [systems]);
+  const exhaustSystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'EXHAUST').map(s => s.id)], [systems]);
 
   const columnDefs = useMemo<ColDef<ZoneData>[]>(() => [
     { field: 'nr', headerName: 'Nr', editable: true, width: 80, pinned: 'left' },
     { field: 'name', headerName: 'Nazwa', editable: true, flex: 1, minWidth: 150 },
     { 
-      field: 'calculationMode', 
-      headerName: 'Tryb Obliczeń', 
+      field: 'activityType', 
+      headerName: 'Rodzaj pomieszczenia', 
       editable: true, 
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        values: ['AUTO_MAX', 'MANUAL', 'HYGIENIC_ONLY', 'ACH_ONLY', 'THERMAL_ONLY']
+        values: [
+          ...Object.keys(ROOM_TYPE_ACH_MAPPING)
+        ]
       },
-      minWidth: 130
-    },
-    { 
-      field: 'systemSupplyId', 
-      headerName: 'Sys. Nawiew', 
-      editable: true, 
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['NW1', 'NW2', 'Brak']
-      },
-      minWidth: 120 
-    },
-    { 
-      field: 'systemExhaustId', 
-      headerName: 'Sys. Wyciąg', 
-      editable: true, 
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['WW1', 'WW2', 'Brak']
-      },
-      minWidth: 120 
+      minWidth: 160
     },
     { 
       field: 'area', 
@@ -70,28 +58,75 @@ export function AirBalanceTable() {
       width: 90,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
+    {
+      headerName: 'Kubatura [m³]',
+      valueGetter: (params) => {
+        if (!params.data) return 0;
+        return params.data.manualVolume !== null && params.data.manualVolume !== undefined 
+            ? params.data.manualVolume 
+            : params.data.area * params.data.height;
+      },
+      editable: false,
+      type: 'numericColumn',
+      width: 110,
+      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
+    },
+    {
+      field: 'manualTargetACH',
+      headerName: 'Krotność zadana',
+      editable: (params) => !!params.data?.isTargetACHManual,
+      type: 'numericColumn',
+      width: 130,
+      valueFormatter: params => {
+        if (!params.data?.isTargetACHManual) {
+           return `(Auto) ${params.data?.targetACH?.toFixed(2) || '0.00'}`;
+        }
+        return params.value ? parseFloat(params.value).toFixed(2) : '0.00';
+      },
+      cellStyle: (params) => {
+        return params.data?.isTargetACHManual ? { backgroundColor: '#fff', color: 'inherit' } : { backgroundColor: '#f3f4f6', color: '#9ca3af' };
+      }
+    },
     { field: 'occupants', headerName: 'Osoby', editable: true, type: 'numericColumn', width: 90 },
-    { field: 'normativeVolume', headerName: 'V_norm [m³/h]', editable: true, type: 'numericColumn', width: 110 },
-    { field: 'normativeExhaust', headerName: 'V_wyc_norm', editable: true, type: 'numericColumn', width: 110 },
     {
       field: 'calculatedVolume',
-      headerName: 'V_sup [m³/h]',
+      headerName: 'Nawiew [m³/h]',
       editable: false,
       cellStyle: { backgroundColor: '#e0f2fe', fontWeight: 'bold' } as any,
-      width: 110
+      width: 120
+    },
+    { 
+      field: 'systemSupplyId', 
+      headerName: 'System N', 
+      editable: true, 
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: supplySystems
+      },
+      minWidth: 100 
     },
     {
       field: 'calculatedExhaust',
-      headerName: 'V_exh [m³/h]',
+      headerName: 'Wywiew [m³/h]',
       editable: false,
       cellStyle: { backgroundColor: '#fee2e2', fontWeight: 'bold' } as any,
-      width: 110
+      width: 120
     },
-    { field: 'transferInSum', headerName: 'Trans. IN', editable: false, width: 100 },
-    { field: 'transferOutSum', headerName: 'Trans. OUT', editable: false, width: 100 },
+    { 
+      field: 'systemExhaustId', 
+      headerName: 'System W', 
+      editable: true, 
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: exhaustSystems
+      },
+      minWidth: 100 
+    },
+    { field: 'transferInSum', headerName: 'Dopływ IN', editable: false, width: 100 },
+    { field: 'transferOutSum', headerName: 'Odpływ OUT', editable: false, width: 100 },
     {
       field: 'netBalance',
-      headerName: 'Net Balance',
+      headerName: 'Bilans netto',
       editable: false,
       cellStyle: (params) => {
         const val = params.value;
@@ -103,28 +138,44 @@ export function AirBalanceTable() {
     },
     {
       field: 'realACH',
-      headerName: 'Real ACH [1/h]',
+      headerName: 'Krotność rzecz. [1/h]',
       editable: false,
-      cellStyle: { backgroundColor: '#f3f4f6' } as any,
+      cellStyle: { backgroundColor: '#f3f4f6', fontWeight: 'bold' } as any,
+      width: 140,
+      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
+    },
+    { 
+      field: 'calculationMode', 
+      headerName: 'Tryb Obliczeń', 
+      editable: true, 
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: {
+        values: ['AUTO_MAX', 'MANUAL', 'HYGIENIC_ONLY', 'ACH_ONLY', 'THERMAL_ONLY']
+      },
+      minWidth: 130
+    },
+    { field: 'normativeVolume', headerName: 'V. norm [m³/h]', editable: true, type: 'numericColumn', width: 110 },
+    { field: 'normativeExhaust', headerName: 'V. wyw norm', editable: true, type: 'numericColumn', width: 110 },
+    {
+      field: 'isTargetACHManual',
+      headerName: 'Manual ACH',
+      editable: true,
+      cellEditor: 'agCheckboxCellEditor',
       width: 110
     },
     { 
-      headerName: '', 
+      headerName: 'Akcje', 
       colId: 'delete', 
-      width: 50, 
+      width: 90, 
       pinned: 'right', 
       editable: false, 
       sortable: false, 
       filter: false,
-      cellRenderer: () => '<span class="cursor-pointer text-red-500 hover:text-red-700 bg-white p-1 rounded">🗑️</span>',
-      onCellClicked: (params) => {
-        if (params.data && confirm('Czy na pewno chcesz usunąć tę strefę? (Zostaną usunięte także powiązane transfery w innych pokojach)')) {
-          // call delete function 
-          params.context?.removeZone(params.data.id);
-        }
+      cellRenderer: () => {
+         return <button className="pointer-events-none text-red-600 font-bold bg-white px-2 py-0.5 rounded border border-red-200 shadow-sm text-xs">Usuń 🗑️</button>
       }
     }
-  ], []);
+  ], [supplySystems, exhaustSystems]);
 
   const handleCellValueChanged = useCallback((event: any) => {
     const { data, colDef, newValue } = event;
@@ -153,18 +204,19 @@ export function AirBalanceTable() {
   const onColumnResized = useCallback((params: any) => {
     if (params.finished) {
       const columnState = params.api.getColumnState();
-      localStorage.setItem('wentcad_column_state', JSON.stringify(columnState));
+      localStorage.setItem('wentcad_col_state_v3', JSON.stringify(columnState));
     }
   }, []);
 
   const onGridReady = useCallback((params: any) => {
-    const savedState = localStorage.getItem('wentcad_column_state');
+    const savedState = localStorage.getItem('wentcad_col_state_v3');
     if (savedState) {
       params.api.applyColumnState({ state: JSON.parse(savedState), applyOrder: true });
     }
   }, []);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isSystemModalOpen, setIsSystemModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvRawData, setCsvRawData] = useState<any[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -177,7 +229,7 @@ export function AirBalanceTable() {
       id: newId,
       nr: `P-${newIndex.toString().padStart(2, '0')}`,
       name: `Nowy Pokój`,
-      activityType: 'OFFICE',
+      activityType: 'CUSTOM',
       calculationMode: 'AUTO_MAX',
       systemSupplyId: 'NW1',
       systemExhaustId: 'WW1',
@@ -186,6 +238,8 @@ export function AirBalanceTable() {
       isAreaLinkedToGeometry: false,
       occupants: 2,
       dosePerOccupant: 30,
+      isTargetACHManual: false,
+      manualTargetACH: null,
       targetACH: 0,
       normativeVolume: 0,
       normativeExhaust: 0,
@@ -235,7 +289,7 @@ export function AirBalanceTable() {
         id: `zone-${Date.now()}-${index}`,
         nr,
         name,
-        activityType: 'OFFICE',
+        activityType: 'CUSTOM',
         calculationMode: 'AUTO_MAX',
         systemSupplyId: 'NW1',
         systemExhaustId: 'WW1',
@@ -244,6 +298,8 @@ export function AirBalanceTable() {
         isAreaLinkedToGeometry: false,
         occupants: 0,
         dosePerOccupant: 30,
+        isTargetACHManual: false,
+        manualTargetACH: null,
         targetACH: 0,
         normativeVolume: 0,
         normativeExhaust: 0,
@@ -290,6 +346,12 @@ export function AirBalanceTable() {
             Import CSV
           </button>
           <button 
+            onClick={() => setIsSystemModalOpen(true)}
+            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors"
+          >
+            ⚙️ Systemy
+          </button>
+          <button 
             onClick={() => setIsWizardOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors"
           >
@@ -323,7 +385,12 @@ export function AirBalanceTable() {
             filter: true,
             resizable: true,
             onCellClicked: (params: any) => {
-              console.log('[WENTCAD] defaultColDef onCellClicked', params?.data?.id);
+              if (params.column.colId === 'delete') {
+                if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
+                  removeZone(params.data.id);
+                }
+                return;
+              }
               if (params.data) {
                 setSelectedZone(params.data.id);
               }
@@ -336,6 +403,11 @@ export function AirBalanceTable() {
         isOpen={isWizardOpen} 
         onClose={() => setIsWizardOpen(false)} 
         onSave={addZone} 
+      />
+
+      <SystemManagerModal 
+        isOpen={isSystemModalOpen}
+        onClose={() => setIsSystemModalOpen(false)}
       />
 
       <CsvMappingModal

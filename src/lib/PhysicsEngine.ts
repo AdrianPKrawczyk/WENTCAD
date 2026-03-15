@@ -1,5 +1,6 @@
 import psychrolib from 'psychrolib';
 import type { ZoneData } from '../types';
+import { ROOM_TYPE_ACH_MAPPING, DEFAULT_ACTIVITY_TYPE } from './hvacConstants';
 
 // Inicjalizacja biblioteki psychrolib do jednostek SI
 psychrolib.SetUnitSystem(psychrolib.SI);
@@ -33,18 +34,23 @@ export function calculateZoneAirBalance(zone: ZoneData) {
   // 1. Zapotrzebowanie higieniczne
   const vHig = zone.occupants * zone.dosePerOccupant;
 
-  // 2. Krotność wymian
+  // 2. Krotność wymian (Wyznaczenie docelowej krotności z uwzględnieniem flagi Manual)
+  const computedACH = zone.isTargetACHManual 
+    ? (zone.manualTargetACH ?? 0) 
+    : (ROOM_TYPE_ACH_MAPPING[zone.activityType] ?? ROOM_TYPE_ACH_MAPPING[DEFAULT_ACTIVITY_TYPE]);
+
   const volume = (zone.manualVolume !== null && zone.manualVolume !== undefined && zone.manualVolume > 0) 
     ? zone.manualVolume 
     : (zone.area * zone.height);
     
-  const vKrotnosc = zone.targetACH * volume;
+  const vKrotnosc = computedACH * volume;
 
   // 3. Normatywne
   const vNorm = zone.normativeVolume || 0;
 
   // 4. Termodynamiczne (Chłodzenie)
   let vTerm = 0;
+  let thermodynamicError = false;
   if (zone.totalHeatGain > 0 && zone.supplyTemp < zone.roomTemp) {
     const hp = calculateEnthalpy(zone.roomTemp, zone.roomRH);
     const hn = calculateEnthalpy(zone.supplyTemp, zone.supplyRH);
@@ -53,6 +59,11 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     if (enthalpyDiff > 0) {
       // V_term = Q_total * 3.6 / (1.2 * (h_p - h_n))
       vTerm = (zone.totalHeatGain * 3.6) / (AIR_DENSITY * enthalpyDiff);
+    } else {
+      // Entalpia nawiewu jest wyższa (lub równa) entalpii w pomieszczeniu mimo niższej temperatury.
+      // Powietrze nawiewane wprowadza więcej ciepła utajonego (wilgoci) niż odbiera ciepła jawnego.
+      // Chłodzenie całkowite jest niemożliwe.
+      thermodynamicError = true;
     }
   }
 
@@ -81,12 +92,20 @@ export function calculateZoneAirBalance(zone: ZoneData) {
 
   const calculatedVolume = Math.ceil(calculatedVolumeRaw);
   
-  // Wyciąg (na razie bazuje na normatywnym wyciągu)
-  const calculatedExhaust = Math.ceil(zone.normativeExhaust || 0);
-
-  // Transfery
+  // Transfery (potrzebne do auto-bilansowania wyciągu)
   const transferInSum = zone.transferIn ? zone.transferIn.reduce((sum, t) => sum + t.volume, 0) : 0;
   const transferOutSum = zone.transferOut ? zone.transferOut.reduce((sum, t) => sum + t.volume, 0) : 0;
+
+  // Wyciąg (Exhaust)
+  // Jeśli użytkownik zdefiniował jawnie wydatek wyciągowy normatywny (>0), używamy go.
+  // W przeciwnym razie, jeśli strefa ma przypisany system wyciągowy, automatycznie bilansujemy pomieszczenie do 0.
+  let calculatedExhaustRaw = zone.normativeExhaust || 0;
+  
+  if (calculatedExhaustRaw === 0 && zone.systemExhaustId && zone.systemExhaustId !== 'Brak') {
+    calculatedExhaustRaw = Math.max(0, calculatedVolume + transferInSum - transferOutSum);
+  }
+  
+  const calculatedExhaust = Math.ceil(calculatedExhaustRaw);
 
   // Net Balance
   const netBalance = (calculatedVolume + transferInSum) - (calculatedExhaust + transferOutSum);
@@ -104,6 +123,8 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     transferInSum,
     transferOutSum,
     netBalance,
-    realACH: parseFloat(realACH.toFixed(2))
+    realACH: parseFloat(realACH.toFixed(2)),
+    targetACH: computedACH,
+    thermodynamicError
   };
 }
