@@ -1,111 +1,138 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+import { get, set, del } from 'idb-keyval';
 
-interface CanvasPosition {
-  x: number;
-  y: number;
-}
+/**
+ * Custom storage for Zustand using idb-keyval to bypass the 5MB localStorage limit.
+ * This is crucial for storing Base64 encoded underlay images.
+ */
+const idbStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return (await get(name)) || null;
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await set(name, value);
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await del(name);
+  },
+};
 
 export interface Point {
   x: number;
   y: number;
 }
 
-interface UnderlaySize {
-  width: number;
-  height: number;
+export interface FloorCanvasState {
+  underlayUrl: string | null;
+  underlaySize: { width: number; height: number } | null;
+  underlayName: string | null;
+  scaleFactor: number | null; // meters per pixel
+  referenceOrigin: Point | null; // (0,0) point on building
+  panPosition: Point;
+  zoomLevel: number;
 }
 
 interface CanvasState {
-  // Camera state
-  scale: number;
-  position: CanvasPosition;
-  // Underlay state
-  underlayUrl: string | null;
-  underlaySize: UnderlaySize | null;
-  underlayName: string | null;
-  // Actions
-  setScale: (scale: number) => void;
-  setPosition: (position: CanvasPosition) => void;
-  setScaleAndPosition: (scale: number, position: CanvasPosition) => void;
-  setUnderlay: (url: string, size: UnderlaySize, name: string) => void;
-  clearUnderlay: () => void;
-  // Calibration state
+  floors: Record<string, FloorCanvasState>;
+  
+  // Ephemeral UI state (not persisted per floor, or globally relevant)
   isCalibrating: boolean;
   calibrationPoints: Point[];
-  scaleFactor: number | null; // meters per pixel
-  // Calibration actions
+  isMeasuring: boolean;
+  isSettingOrigin: boolean;
+
+  // Actions
+  getFloorState: (floorId: string) => FloorCanvasState;
+  updateFloorState: (floorId: string, updates: Partial<FloorCanvasState>) => void;
+  
+  // Global/Ephemeral actions
   setIsCalibrating: (value: boolean) => void;
   setCalibrationPoints: (points: Point[]) => void;
-  setScaleFactor: (factor: number | null) => void;
-  resetCalibration: () => void;
-  // Measurement state
-  isMeasuring: boolean;
   setIsMeasuring: (value: boolean) => void;
-  reset: () => void;
+  setIsSettingOrigin: (value: boolean) => void;
+  
+  resetFloor: (floorId: string) => void;
+  resetAll: () => void;
 }
 
-// NOTE: This store is intentionally NOT wrapped with zundo temporal middleware.
-// Camera position, zoom level, and underlay state are UI state, not project data.
-// Undo/Redo (zundo) only applies to useZoneStore (zone/floor/system data).
-export const useCanvasStore = create<CanvasState>((set) => ({
-  scale: 1,
-  position: { x: 0, y: 0 },
+const DEFAULT_FLOOR_STATE: FloorCanvasState = {
   underlayUrl: null,
   underlaySize: null,
   underlayName: null,
-
-  setScale: (scale) => set({ scale }),
-  setPosition: (position) => set({ position }),
-  setScaleAndPosition: (scale, position) => set({ scale, position }),
-  
-  setUnderlay: (url, size, name) => set({ 
-    underlayUrl: url, 
-    underlaySize: size, 
-    underlayName: name 
-  }),
-  
-  clearUnderlay: () => set({ 
-    underlayUrl: null, 
-    underlaySize: null,
-    underlayName: null 
-  }),
-
-  // Calibration defaults
-  isCalibrating: false,
-  calibrationPoints: [],
   scaleFactor: null,
+  referenceOrigin: null,
+  panPosition: { x: 0, y: 0 },
+  zoomLevel: 1
+};
 
-  setIsCalibrating: (isCalibrating) => set((state) => ({ 
-    isCalibrating,
-    // Turn off measuring if calibration starts
-    isMeasuring: isCalibrating ? false : state.isMeasuring 
-  })),
-  setCalibrationPoints: (calibrationPoints) => set({ calibrationPoints }),
-  setScaleFactor: (scaleFactor) => set({ scaleFactor }),
-  resetCalibration: () => set({ 
-    isCalibrating: false, 
-    calibrationPoints: [], 
-    scaleFactor: null,
-    isMeasuring: false
-  }),
+export const useCanvasStore = create<CanvasState>()(
+  persist(
+    (set, get) => ({
+      floors: {},
+      
+      isCalibrating: false,
+      calibrationPoints: [],
+      isMeasuring: false,
+      isSettingOrigin: false,
 
-  // Measurement state
-  isMeasuring: false,
-  setIsMeasuring: (isMeasuring) => set((state) => ({ 
-    isMeasuring,
-    // Turn off calibration if measuring starts
-    isCalibrating: isMeasuring ? false : state.isCalibrating 
-  })),
+      getFloorState: (floorId: string) => {
+        return get().floors[floorId] || DEFAULT_FLOOR_STATE;
+      },
 
-  reset: () => set({
-    scale: 1,
-    position: { x: 0, y: 0 },
-    underlayUrl: null,
-    underlaySize: null,
-    underlayName: null,
-    isCalibrating: false,
-    calibrationPoints: [],
-    scaleFactor: null,
-    isMeasuring: false,
-  }),
-}));
+      updateFloorState: (floorId, updates) => {
+        set((state) => ({
+          floors: {
+            ...state.floors,
+            [floorId]: {
+              ...(state.floors[floorId] || DEFAULT_FLOOR_STATE),
+              ...updates
+            }
+          }
+        }));
+      },
+
+      setIsCalibrating: (isCalibrating) => set((state) => ({ 
+        isCalibrating,
+        isMeasuring: isCalibrating ? false : state.isMeasuring,
+        isSettingOrigin: isCalibrating ? false : state.isSettingOrigin
+      })),
+
+      setCalibrationPoints: (calibrationPoints) => set({ calibrationPoints }),
+
+      setIsMeasuring: (isMeasuring) => set((state) => ({ 
+        isMeasuring,
+        isCalibrating: isMeasuring ? false : state.isCalibrating,
+        isSettingOrigin: isMeasuring ? false : state.isSettingOrigin
+      })),
+
+      setIsSettingOrigin: (isSettingOrigin) => set((state) => ({
+        isSettingOrigin,
+        isCalibrating: isSettingOrigin ? false : state.isCalibrating,
+        isMeasuring: isSettingOrigin ? false : state.isMeasuring
+      })),
+
+      resetFloor: (floorId) => {
+        set((state) => {
+          const newFloors = { ...state.floors };
+          delete newFloors[floorId];
+          return { floors: newFloors };
+        });
+      },
+
+      resetAll: () => set({
+        floors: {},
+        isCalibrating: false,
+        calibrationPoints: [],
+        isMeasuring: false,
+        isSettingOrigin: false
+      }),
+    }),
+    {
+      name: 'wentcad-canvas-storage-v2',
+      storage: createJSONStorage(() => idbStorage),
+      // Only persist the floors data, ephemeral UI state like 'isCalibrating' should reset on reload
+      partialize: (state) => ({ floors: state.floors }),
+    }
+  )
+);

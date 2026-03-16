@@ -1,8 +1,9 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag } from 'react-konva';
 import Konva from 'konva';
-import { useCanvasStore, type Point } from '../stores/useCanvasStore';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler } from 'lucide-react';
+import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
+import { useZoneStore } from '../stores/useZoneStore';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 
@@ -47,36 +48,70 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   const { width: containerWidth, height: containerHeight } = useContainerSize(containerRef);
 
-  const scale = useCanvasStore((s) => s.scale);
-  const position = useCanvasStore((s) => s.position);
-  const setScaleAndPosition = useCanvasStore((s) => s.setScaleAndPosition);
+  // Floor context from Project/Zone store
+  const activeFloorId = useZoneStore((s) => s.activeFloorId || 'floor-parter');
 
-  // Calibration store
+  // Canvas store - Global/Ephemeral state
   const isCalibrating = useCanvasStore((s) => s.isCalibrating);
   const calibrationPoints = useCanvasStore((s) => s.calibrationPoints);
-  const scaleFactor = useCanvasStore((s) => s.scaleFactor);
+  const isMeasuring = useCanvasStore((s) => s.isMeasuring);
+  const isSettingOrigin = useCanvasStore((s) => s.isSettingOrigin);
+
   const setIsCalibrating = useCanvasStore((s) => s.setIsCalibrating);
   const setCalibrationPoints = useCanvasStore((s) => s.setCalibrationPoints);
-  const setScaleFactor = useCanvasStore((s) => s.setScaleFactor);
-
-  const isMeasuring = useCanvasStore((s) => s.isMeasuring);
   const setIsMeasuring = useCanvasStore((s) => s.setIsMeasuring);
+  const setIsSettingOrigin = useCanvasStore((s) => s.setIsSettingOrigin);
 
-  // Local state for UI
+  // Canvas store - Floor specific state
+  const floors = useCanvasStore((s) => s.floors);
+  const updateFloorState = useCanvasStore((s) => s.updateFloorState);
+  const resetFloor = useCanvasStore((s) => s.resetFloor);
+
+  // Current floor computed state
+  const floorState: FloorCanvasState = floors[activeFloorId] || {
+    underlayUrl: null,
+    underlaySize: null,
+    underlayName: null,
+    scaleFactor: null,
+    referenceOrigin: null,
+    panPosition: { x: 0, y: 0 },
+    zoomLevel: 1
+  };
+
+  const {
+    underlayUrl,
+    underlaySize,
+    underlayName,
+    scaleFactor,
+    referenceOrigin,
+    panPosition: position,
+    zoomLevel: scale
+  } = floorState;
+
+  // Local state for UI feedback
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [pixelDistance, setPixelDistance] = useState(0);
   const [measurePoints, setMeasurePoints] = useState<Point[]>([]);
-
-  const underlayUrl = useCanvasStore((s) => s.underlayUrl);
-  const underlaySize = useCanvasStore((s) => s.underlaySize);
-  const underlayName = useCanvasStore((s) => s.underlayName);
-  const setUnderlay = useCanvasStore((s) => s.setUnderlay);
-  const clearUnderlay = useCanvasStore((s) => s.clearUnderlay);
-
   const [isLoading, setIsLoading] = useState(false);
-  // Underlay image HTMLImageElement
   const [underlayImage, setUnderlayImage] = useState<HTMLImageElement | null>(null);
+
+  // Update floor-specific state helpers
+  const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
+    updateFloorState(activeFloorId, { zoomLevel, panPosition });
+  }, [activeFloorId, updateFloorState]);
+
+  const setUnderlay = useCallback((url: string | null, size: { width: number; height: number } | null, name: string | null) => {
+    updateFloorState(activeFloorId, { underlayUrl: url, underlaySize: size, underlayName: name });
+  }, [activeFloorId, updateFloorState]);
+
+  const setScaleFactor = useCallback((factor: number | null) => {
+    updateFloorState(activeFloorId, { scaleFactor: factor });
+  }, [activeFloorId, updateFloorState]);
+
+  const setReferenceOrigin = useCallback((point: Point | null) => {
+    updateFloorState(activeFloorId, { referenceOrigin: point });
+  }, [activeFloorId, updateFloorState]);
 
   useEffect(() => {
     if (!underlayUrl) {
@@ -88,17 +123,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
     img.onload = () => setUnderlayImage(img);
   }, [underlayUrl]);
 
-  // Fit underlay to screen when it loads, or when container resizes
-  useEffect(() => {
-    if (!underlayImage || !underlaySize) return;
-    fitUnderlayToScreen();
-  }, [underlayImage, containerWidth, containerHeight]);
-
-  // Pan state
-  const isPanning = useRef(false);
-  const isSpaceDown = useRef(false);
-  const lastPointerPos = useRef({ x: 0, y: 0 });
-
   const fitUnderlayToScreen = useCallback(() => {
     if (!underlaySize) return;
     const padding = 40;
@@ -107,16 +131,27 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const newScale = Math.min(scaleX, scaleY, 1);
     const newX = (containerWidth - underlaySize.width * newScale) / 2;
     const newY = (containerHeight - underlaySize.height * newScale) / 2;
-    setScaleAndPosition(newScale, { x: newX, y: newY });
-  }, [underlaySize, containerWidth, containerHeight, setScaleAndPosition]);
+    setFloorPositionAndScale(newScale, { x: newX, y: newY });
+  }, [underlaySize, containerWidth, containerHeight, setFloorPositionAndScale]);
+
+  // Fit underlay to screen when it loads, or when container resizes
+  useEffect(() => {
+    if (!underlayImage || !underlaySize) return;
+    fitUnderlayToScreen();
+  }, [underlayImage, containerWidth, containerHeight, fitUnderlayToScreen]);
 
   const fitToScreen = useCallback(() => {
     if (underlaySize) {
       fitUnderlayToScreen();
     } else {
-      setScaleAndPosition(1, { x: 0, y: 0 });
+      setFloorPositionAndScale(1, { x: 0, y: 0 });
     }
-  }, [underlaySize, fitUnderlayToScreen, setScaleAndPosition]);
+  }, [underlaySize, fitUnderlayToScreen, setFloorPositionAndScale]);
+
+  // Pan state
+  const isPanning = useRef(false);
+  const isSpaceDown = useRef(false);
+  const lastPointerPos = useRef({ x: 0, y: 0 });
 
   // Zoom to pointer
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -143,28 +178,27 @@ export function Workspace2D({ className }: Workspace2DProps) {
       y: pointer.y - mousePointTo.y * newScale,
     };
 
-    setScaleAndPosition(newScale, newPos);
-  }, [scale, position, setScaleAndPosition]);
+    setFloorPositionAndScale(newScale, newPos);
+  }, [scale, position, setFloorPositionAndScale]);
 
   // Pan via middle button or Space + Left click
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const stagePos = stage.getPointerPosition();
+    if (!stagePos) return;
+
+    const canvasPos = {
+      x: (stagePos.x - position.x) / scale,
+      y: (stagePos.y - position.y) / scale,
+    };
+
     if (isCalibrating) {
-      const stage = stageRef.current;
-      if (!stage) return;
-      const stagePos = stage.getPointerPosition();
-      if (!stagePos) return;
-
-      const canvasPos = {
-        x: (stagePos.x - position.x) / scale,
-        y: (stagePos.y - position.y) / scale,
-      };
-
       if (calibrationPoints.length < 2) {
         const newPoints = [...calibrationPoints, canvasPos];
         setCalibrationPoints(newPoints);
 
         if (newPoints.length === 2) {
-          // Calculate distance
           const dx = newPoints[1].x - newPoints[0].x;
           const dy = newPoints[1].y - newPoints[0].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -176,21 +210,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
     }
 
     if (isMeasuring) {
-      const stage = stageRef.current;
-      if (!stage) return;
-      const stagePos = stage.getPointerPosition();
-      if (!stagePos) return;
-
-      const canvasPos = {
-        x: (stagePos.x - position.x) / scale,
-        y: (stagePos.y - position.y) / scale,
-      };
-
       if (measurePoints.length === 0 || measurePoints.length === 2) {
         setMeasurePoints([canvasPos]);
       } else if (measurePoints.length === 1) {
         setMeasurePoints([...measurePoints, canvasPos]);
       }
+      return;
+    }
+
+    if (isSettingOrigin) {
+      setReferenceOrigin(canvasPos);
+      setIsSettingOrigin(false);
+      toast.success('Pomyślnie ustawiono punkt bazowy (0,0) dla tej kondygnacji.');
       return;
     }
 
@@ -201,7 +232,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       const container = stageRef.current?.container();
       if (container) container.style.cursor = 'grabbing';
     }
-  }, [isCalibrating, calibrationPoints, setCalibrationPoints, position, scale]);
+  }, [isCalibrating, calibrationPoints, setCalibrationPoints, position, scale, isMeasuring, isSettingOrigin, measurePoints, setIsSettingOrigin, setReferenceOrigin]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
@@ -214,7 +245,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       y: (stagePos.y - position.y) / scale,
     };
 
-    if (isCalibrating || isMeasuring) {
+    if (isCalibrating || isMeasuring || isSettingOrigin) {
       setMousePos(canvasPos);
       return;
     }
@@ -223,8 +254,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const dx = e.evt.clientX - lastPointerPos.current.x;
     const dy = e.evt.clientY - lastPointerPos.current.y;
     lastPointerPos.current = { x: e.evt.clientX, y: e.evt.clientY };
-    setScaleAndPosition(scale, { x: position.x + dx, y: position.y + dy });
-  }, [isPanning, scale, position, setScaleAndPosition, isCalibrating]);
+    setFloorPositionAndScale(scale, { x: position.x + dx, y: position.y + dy });
+  }, [isPanning, scale, position, setFloorPositionAndScale, isCalibrating, isMeasuring, isSettingOrigin]);
 
   const handleMouseUp = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
     if (isPanning.current) {
@@ -234,7 +265,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
     }
   }, []);
 
-  // Space key for pan mode
+  // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !e.repeat) {
@@ -251,6 +282,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
           setIsMeasuring(false);
           setMeasurePoints([]);
         }
+        if (isSettingOrigin) {
+          setIsSettingOrigin(false);
+        }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -266,13 +300,13 @@ export function Workspace2D({ className }: Workspace2DProps) {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, []);
+  }, [isCalibrating, isMeasuring, isSettingOrigin, setIsCalibrating, setCalibrationPoints, setIsMeasuring, setIsSettingOrigin]);
 
-  // Update cursor during calibration
+  // Update cursor
   useEffect(() => {
     const container = stageRef.current?.container();
     if (container) {
-      if (isCalibrating || isMeasuring) {
+      if (isCalibrating || isMeasuring || isSettingOrigin) {
         container.style.cursor = 'crosshair';
       } else if (isSpaceDown.current) {
         container.style.cursor = 'grab';
@@ -280,7 +314,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         container.style.cursor = 'default';
       }
     }
-  }, [isCalibrating, isMeasuring]);
+  }, [isCalibrating, isMeasuring, isSettingOrigin]);
 
   // Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,22 +330,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
           const typedarray = new Uint8Array(ev.target?.result as ArrayBuffer);
           const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
           const page = await pdf.getPage(1);
-          
-          // Render at high resolution
           const viewport = page.getViewport({ scale: 2.0 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
-          
           if (!context) throw new Error('Could not create canvas context');
-          
           canvas.height = viewport.height;
           canvas.width = viewport.width;
 
           await page.render({
             canvasContext: context,
             viewport: viewport,
-            // @ts-ignore - Some versions of pdfjs-dist types require canvas
-            canvas: canvas,
           }).promise;
 
           const dataUrl = canvas.toDataURL('image/png');
@@ -322,7 +350,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           };
           img.src = dataUrl;
         } catch (error) {
-          console.error('Błąd przetwarzania PDF:', error);
+          console.error('Błąd PDF:', error);
           toast.error('Wystąpił błąd podczas przetwarzania pliku PDF.');
           setIsLoading(false);
         }
@@ -338,25 +366,23 @@ export function Workspace2D({ className }: Workspace2DProps) {
             setIsLoading(false);
           };
           img.onerror = () => {
-            toast.error('Błąd podczas wczytywania obrazu.');
+            toast.error('Błąd wczytywania obrazu.');
             setIsLoading(false);
           };
           img.src = url;
         } catch (error) {
-          console.error('Błąd wczytywania obrazu:', error);
+          console.error('Błąd obrazu:', error);
           toast.error('Wystąpił błąd podczas wczytywania obrazu.');
           setIsLoading(false);
         }
       };
       reader.readAsDataURL(file);
     }
-    // Reset input so the same file can be re-loaded
     e.target.value = '';
   }, [setUnderlay]);
 
   const zoomPercent = Math.round(scale * 100);
 
-  // Grid lines for empty canvas
   const drawGrid = () => {
     const gridSize = 50;
     const lines = [];
@@ -366,21 +392,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const endY = startY + containerHeight / scale + gridSize * 2;
 
     for (let x = startX; x < endX; x += gridSize) {
-      lines.push(
-        <Line key={`v${x}`} points={[x, startY, x, endY]} stroke="#e5e7eb" strokeWidth={1 / scale} />
-      );
+      lines.push(<Line key={`v${x}`} points={[x, startY, x, endY]} stroke="#e5e7eb" strokeWidth={1 / scale} />);
     }
     for (let y = startY; y < endY; y += gridSize) {
-      lines.push(
-        <Line key={`h${y}`} points={[startX, y, endX, y]} stroke="#e5e7eb" strokeWidth={1 / scale} />
-      );
+      lines.push(<Line key={`h${y}`} points={[startX, y, endX, y]} stroke="#e5e7eb" strokeWidth={1 / scale} />);
     }
     return lines;
   };
 
   return (
     <div ref={containerRef} className={`relative w-full h-full bg-[#f0f2f5] overflow-hidden select-none ${className ?? ''}`}>
-      {/* CANVAS */}
       <Stage
         ref={stageRef}
         width={containerWidth}
@@ -395,12 +416,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onMouseUp={handleMouseUp}
         style={{ background: '#f0f2f5' }}
       >
-        {/* BACKGROUND LAYER */}
         <Layer name="background">
-          {/* Grid */}
           {drawGrid()}
-
-          {/* Underlay Image */}
           {underlayImage && underlaySize && (
             <KonvaImage
               image={underlayImage}
@@ -410,6 +427,32 @@ export function Workspace2D({ className }: Workspace2DProps) {
               height={underlaySize.height}
               listening={false}
             />
+          )}
+
+          {/* Reference Origin Marker */}
+          {referenceOrigin && (
+            <>
+              <Line
+                points={[referenceOrigin.x - 20 / scale, referenceOrigin.y, referenceOrigin.x + 20 / scale, referenceOrigin.y]}
+                stroke="#ef4444"
+                strokeWidth={1 / scale}
+              />
+              <Line
+                points={[referenceOrigin.x, referenceOrigin.y - 20 / scale, referenceOrigin.x, referenceOrigin.y + 20 / scale]}
+                stroke="#ef4444"
+                strokeWidth={1 / scale}
+              />
+              <Circle x={referenceOrigin.x} y={referenceOrigin.y} radius={8 / scale} stroke="#ef4444" strokeWidth={1 / scale} />
+              <Text x={referenceOrigin.x + 10 / scale} y={referenceOrigin.y + 10 / scale} text="PUNKT 0,0" fontSize={10 / scale} fill="#ef4444" fontStyle="bold" />
+            </>
+          )}
+
+          {/* Setting Origin Visual */}
+          {isSettingOrigin && (
+            <>
+              <Line points={[mousePos.x - 10 / scale, mousePos.y, mousePos.x + 10 / scale, mousePos.y]} stroke="#ef4444" strokeWidth={2 / scale} />
+              <Line points={[mousePos.x, mousePos.y - 10 / scale, mousePos.x, mousePos.y + 10 / scale]} stroke="#ef4444" strokeWidth={2 / scale} />
+            </>
           )}
 
           {/* Calibration Line Visual */}
@@ -427,15 +470,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             />
           )}
           {isCalibrating && calibrationPoints.map((p, i) => (
-            <Circle
-              key={i}
-              x={p.x}
-              y={p.y}
-              radius={4 / scale}
-              fill="#4f46e5"
-              stroke="white"
-              strokeWidth={1 / scale}
-            />
+            <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
           ))}
 
           {/* Measuring Line Visual */}
@@ -452,25 +487,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 strokeWidth={2 / scale}
                 dash={[5 / scale, 5 / scale]}
               />
-              <Circle
-                x={measurePoints[0].x}
-                y={measurePoints[0].y}
-                radius={4 / scale}
-                fill="#f97316"
-                stroke="white"
-                strokeWidth={1 / scale}
-              />
+              <Circle x={measurePoints[0].x} y={measurePoints[0].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
               {measurePoints.length === 2 && (
-                <Circle
-                  x={measurePoints[1].x}
-                  y={measurePoints[1].y}
-                  radius={4 / scale}
-                  fill="#f97316"
-                  stroke="white"
-                  strokeWidth={1 / scale}
-                />
+                <Circle x={measurePoints[1].x} y={measurePoints[1].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
               )}
-              {/* Distance Label */}
               {(() => {
                 const p1 = measurePoints[0];
                 const p2 = measurePoints.length === 2 ? measurePoints[1] : mousePos;
@@ -480,58 +500,27 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 const distM = scaleFactor ? distPx * scaleFactor : 0;
                 
                 return (
-                  <Label
-                    x={(p1.x + p2.x) / 2}
-                    y={(p1.y + p2.y) / 2}
-                    listening={false}
-                  >
-                    <Tag
-                      fill="rgba(249, 115, 22, 0.9)"
-                      pointerDirection="down"
-                      pointerWidth={10 / scale}
-                      pointerHeight={10 / scale}
-                      lineJoin="round"
-                      shadowColor="black"
-                      shadowBlur={10}
-                      shadowOpacity={0.2}
-                      cornerRadius={4 / scale}
-                    />
-                    <Text
-                      text={`${distM.toFixed(2)} m`}
-                      fontFamily="monospace"
-                      fontSize={14 / scale}
-                      padding={5 / scale}
-                      fill="white"
-                      fontStyle="bold"
-                    />
+                  <Label x={(p1.x + p2.x) / 2} y={(p1.y + p2.y) / 2} listening={false}>
+                    <Tag fill="rgba(249, 115, 22, 0.9)" pointerDirection="down" pointerWidth={10 / scale} pointerHeight={10 / scale} lineJoin="round" shadowColor="black" shadowBlur={10} shadowOpacity={0.2} cornerRadius={4 / scale} />
+                    <Text text={`${distM.toFixed(2)} m`} fontFamily="monospace" fontSize={14 / scale} padding={5 / scale} fill="white" fontStyle="bold" />
                   </Label>
                 );
               })()}
             </>
           )}
         </Layer>
-
-        {/* CONTENT LAYER - Reserved for Zones, etc. */}
-        <Layer name="content">
-          {/* Future zone polygons will go here */}
-        </Layer>
+        <Layer name="content" />
       </Stage>
 
-      {/* FLOATING TOOLBAR */}
+      {/* TOOLBAR */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg px-2 py-1.5 z-10">
-        {/* Upload button */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          title="Wczytaj podkład (PNG/JPG)"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all"
-        >
+        <button onClick={() => fileInputRef.current?.click()} title="Wczytaj podkład" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
           <ImageIcon className="w-4 h-4" />
           Podkład
         </button>
 
         <div className="h-4 w-px bg-gray-200" />
 
-        {/* Calibration button */}
         <button
           onClick={() => {
             if (isCalibrating) {
@@ -540,21 +529,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
             } else {
               setIsCalibrating(true);
               setCalibrationPoints([]);
-              toast.info('Tryb kalibracji: Kliknij dwa punkty na podkładzie, aby zdefiniować skalę.');
+              toast.info('Tryb kalibracji: Kliknij dwa punkty na podkładzie.');
             }
           }}
-          title="Kalibruj skalę (wyznacz rzeczywisty wymiar)"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-            isCalibrating 
-              ? 'bg-indigo-600 text-white shadow-inner' 
-              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'
-          }`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isCalibrating ? 'bg-indigo-600 text-white shadow-inner' : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'}`}
         >
           <Ruler className="w-4 h-4" />
           Kalibruj
         </button>
 
-        {/* Measuring button */}
         <button
           onClick={() => {
             if (!scaleFactor && !isMeasuring) {
@@ -567,39 +550,41 @@ export function Workspace2D({ className }: Workspace2DProps) {
             } else {
               setIsMeasuring(true);
               setMeasurePoints([]);
-              toast.info('Tryb pomiaru: Kliknij dwa punkty, aby zmierzyć odległość.');
+              toast.info('Tryb pomiaru: Kliknij dwa punkty.');
             }
           }}
-          title="Zmierz odległość"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-            isMeasuring 
-              ? 'bg-orange-600 text-white shadow-inner' 
-              : 'text-gray-600 hover:bg-orange-50 hover:text-orange-700'
-          }`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isMeasuring ? 'bg-orange-600 text-white shadow-inner' : 'text-gray-600 hover:bg-orange-50 hover:text-orange-700'}`}
         >
           <PencilRuler className="w-4 h-4" />
           Zmierz
         </button>
 
+        <button
+          onClick={() => {
+            if (isSettingOrigin) {
+              setIsSettingOrigin(false);
+            } else {
+              setIsSettingOrigin(true);
+              toast.info('Ustaw Punkt Bazowy budynku.');
+            }
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSettingOrigin ? 'bg-red-600 text-white shadow-inner' : 'text-gray-600 hover:bg-red-50 hover:text-red-700'}`}
+        >
+          <Crosshair className="w-4 h-4" />
+          Punkt 0,0
+        </button>
+
         {scaleFactor && (
           <div className="flex items-center px-2 py-1 bg-green-50 rounded-lg border border-green-100">
-            <span className="text-[10px] font-mono font-bold text-green-700">
-              1px = {(scaleFactor * 1000).toFixed(1)}mm
-            </span>
+            <span className="text-[10px] font-mono font-bold text-green-700">1px = {(scaleFactor * 1000).toFixed(1)}mm</span>
           </div>
         )}
 
         {underlayName && (
           <>
             <div className="h-4 w-px bg-gray-200" />
-            <span className="text-xs text-gray-500 max-w-[120px] truncate" title={underlayName}>
-              {underlayName}
-            </span>
-            <button
-              onClick={clearUnderlay}
-              title="Usuń podkład"
-              className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
-            >
+            <span className="text-xs text-gray-500 max-w-[120px] truncate" title={underlayName}>{underlayName}</span>
+            <button onClick={() => resetFloor(activeFloorId)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </>
@@ -607,50 +592,29 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         <div className="h-4 w-px bg-gray-200" />
 
-        {/* Zoom controls */}
-        <button
-          onClick={() => {
-            const newScale = Math.max(scale / ZOOM_SENSITIVITY, MIN_SCALE);
-            const cx = containerWidth / 2;
-            const cy = containerHeight / 2;
-            const newPos = {
-              x: cx - (cx - position.x) * (newScale / scale),
-              y: cy - (cy - position.y) * (newScale / scale),
-            };
-            setScaleAndPosition(newScale, newPos);
-          }}
-          title="Oddal"
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all"
-        >
+        <button onClick={() => {
+          const newScale = Math.max(scale / ZOOM_SENSITIVITY, MIN_SCALE);
+          const cx = containerWidth / 2;
+          const cy = containerHeight / 2;
+          const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+          setFloorPositionAndScale(newScale, newPos);
+        }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
           <ZoomOut className="w-4 h-4" />
         </button>
 
-        <span className="text-xs font-mono font-bold text-gray-600 w-12 text-center">
-          {zoomPercent}%
-        </span>
+        <span className="text-xs font-mono font-bold text-gray-600 w-12 text-center">{zoomPercent}%</span>
 
-        <button
-          onClick={() => {
-            const newScale = Math.min(scale * ZOOM_SENSITIVITY, MAX_SCALE);
-            const cx = containerWidth / 2;
-            const cy = containerHeight / 2;
-            const newPos = {
-              x: cx - (cx - position.x) * (newScale / scale),
-              y: cy - (cy - position.y) * (newScale / scale),
-            };
-            setScaleAndPosition(newScale, newPos);
-          }}
-          title="Przybliż"
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all"
-        >
+        <button onClick={() => {
+          const newScale = Math.min(scale * ZOOM_SENSITIVITY, MAX_SCALE);
+          const cx = containerWidth / 2;
+          const cy = containerHeight / 2;
+          const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+          setFloorPositionAndScale(newScale, newPos);
+        }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
           <ZoomIn className="w-4 h-4" />
         </button>
 
-        <button
-          onClick={fitToScreen}
-          title="Dopasuj do okna"
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all"
-        >
+        <button onClick={fitToScreen} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
           <Maximize2 className="w-4 h-4" />
         </button>
 
@@ -658,44 +622,31 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         <div className="flex items-center gap-1 px-1 py-1 text-[10px] text-gray-400">
           <Move className="w-3 h-3" />
-          <span>Scroll=Zoom, MMB/Spacja=Pan</span>
+          <span>Scroll=Zoom, MMB=Pan</span>
         </div>
       </div>
 
-      {/* Empty state hint */}
       {!underlayImage && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center opacity-30">
             <div className="text-6xl mb-3">🗺️</div>
-            <p className="text-sm font-bold text-gray-500">Przestrzeń Robocza 2D</p>
-            <p className="text-xs text-gray-400 mt-1">Wczytaj podkład architektoniczny lub użyj Kreatora Stref</p>
+            <p className="text-sm font-bold text-gray-500">Kondygnacja: {activeFloorId}</p>
+            <p className="text-xs text-gray-400 mt-1">Wczytaj podkład dla tego piętra</p>
           </div>
         </div>
       )}
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp,.pdf"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp,.pdf" className="hidden" onChange={handleFileChange} />
 
-      {/* LOADING OVERLAY */}
       {isLoading && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
           <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center space-y-4">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            <div className="text-center">
-              <p className="font-semibold text-gray-900">Przetwarzanie dokumentu...</p>
-              <p className="text-sm text-gray-500">Renderowanie strony PDF</p>
-            </div>
+            <p className="font-semibold text-gray-900">Renderowanie...</p>
           </div>
         </div>
       )}
 
-      {/* CALIBRATION MODAL */}
       <CalibrationModal
         isOpen={showCalibrationModal}
         pixelDistance={pixelDistance}
@@ -706,11 +657,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
           setIsCalibrating(false);
           setCalibrationPoints([]);
           toast.success(`Skalibrowano: 1px = ${(factor * 1000).toFixed(2)}mm`);
-        } }
+        }}
         onCancel={() => {
           setShowCalibrationModal(false);
           setCalibrationPoints([]);
-        } }
+        }}
       />
     </div>
   );
