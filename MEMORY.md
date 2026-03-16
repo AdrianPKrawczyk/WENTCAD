@@ -44,6 +44,9 @@
 - **Interfejs:** Implementacja `BulkEditModal` z systemem "Change" checkboxes pozwala na selektywną aktualizację pól.
 - **Logika:** Zmiana typu pomieszczenia w edycji masowej automatycznie przelicza `targetACH` i `maxAllowedDbA` zgodnie z `ROOM_PRESETS`.
 
+### Krok 1.7 (Dashboard Analizy): Wprowadzono dolny panel KPI agregujący dane systemowe z obsługą scenariuszy (Analysis Presets).
+### Krok 1.8: Wizualne kodowanie systemów (Hex/RGBA) z wzorami (CSS patterns). Implementacja logicznych priorytetów (P/W).
+- **Poprawki 1.8b/c**: Wprowadzenie globalnej i lokalnej przezroczystości (konwersja na RGBA). Naprawa odświeżania wzorów przez `gridApi.redrawRows()` oraz stabilizacja szerokości kolumn (dedykowany przycisk Autosize z persystencją w `localStorage`).
 ### Krok 1.7: Zaawansowana Analiza Systemowa
 - **Scenariusze (Presets):** Możliwość zapisywania filtrów (systemy + kondygnacje) jako nazwane scenariusze w `ProjectStateData`.
 - **Agregacja:** Nowy panel `AnalysisDashboard` wyliczający sumaryczne wydatki $\sum N, \sum W$ dla wybranych grup.

@@ -171,6 +171,11 @@ export interface SystemDef {
   id: string;
   name: string;
   type: 'SUPPLY' | 'EXHAUST' | 'INTAKE' | 'OUTTAKE';
+  color?: string; // HEX color for visualization
+  patternId?: string; // Optional hatch pattern ID
+  isColorPriority?: boolean;
+  isPatternPriority?: boolean;
+  opacity?: number; // 0-100
 }
 
 // Scenariusz Analizy (Krok 1.7)
@@ -182,11 +187,28 @@ export interface AnalysisPreset {
   description?: string;
 }
 
+// System Style Preset (Krok 1.8)
+export interface StylePreset {
+  id: string;
+  name: string;
+  systemStyles: {
+    systemId: string;
+    color?: string;
+    patternId?: string;
+    isColorPriority: boolean;
+    isPatternPriority: boolean;
+    opacity?: number; // 0-100
+  }[];
+}
+
 export interface ProjectStateData {
   floors: Record<string, Floor>;
   zones: Record<string, ZoneData>;
   systems: SystemDef[];
-  analysisPresets?: AnalysisPreset[];
+  analysisPresets: AnalysisPreset[];
+  stylePresets: StylePreset[];
+  isSystemColoringEnabled: boolean;
+  globalSystemOpacity: number;
 }
 
 // Rekord Projektu

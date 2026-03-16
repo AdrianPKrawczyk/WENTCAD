@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
 const DEFAULT_FLOOR_ID = 'floor-parter';
@@ -65,6 +65,9 @@ interface ZoneStore {
   zones: Record<string, ZoneData>;
   floors: Record<string, Floor>;
   systems: SystemDef[];
+  stylePresets: StylePreset[];
+  isSystemColoringEnabled: boolean;
+  globalSystemOpacity: number;
   setActiveProject: (projectId: string | null) => void;
   setSelectedZone: (zoneId: string | null) => void;
   setActiveFloor: (floorId: string) => void;
@@ -75,7 +78,13 @@ interface ZoneStore {
   bulkDeleteZones: (ids: string[]) => void;
   recalculateAirBalance: (id?: string) => void;
   addSystem: (system: SystemDef) => void;
+  updateSystem: (id: string, updates: Partial<SystemDef>) => void;
   removeSystem: (id: string) => void;
+  setIsSystemColoringEnabled: (enabled: boolean) => void;
+  setGlobalSystemOpacity: (val: number) => void;
+  generateAutoColors: () => void;
+  saveStylePreset: (preset: StylePreset) => void;
+  removeStylePreset: (id: string) => void;
   loadState: (state: ProjectStateData) => void;
   addFloor: (floor: Omit<Floor, 'id' | 'order'>) => string;
   updateFloor: (id: string, updates: Partial<Floor>) => void;
@@ -99,6 +108,9 @@ export const useZoneStore = create<ZoneStore>()(
         { id: 'W2', name: 'Wywiew 2', type: 'EXHAUST' },
       ],
       analysisPresets: [],
+      stylePresets: [],
+      isSystemColoringEnabled: false,
+      globalSystemOpacity: 20,
       
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
@@ -175,6 +187,12 @@ export const useZoneStore = create<ZoneStore>()(
         });
       },
 
+      updateSystem: (id, updates) => {
+        set((state) => ({
+          systems: state.systems.map(s => s.id === id ? { ...s, ...updates } : s)
+        }));
+      },
+
       removeSystem: (id) => {
         set((state) => {
           const newSystems = state.systems.filter(s => s.id !== id);
@@ -193,8 +211,43 @@ export const useZoneStore = create<ZoneStore>()(
           floors: stateData.floors || {},
           systems: stateData.systems || [],
           analysisPresets: stateData.analysisPresets || [],
+          stylePresets: stateData.stylePresets || [],
+          isSystemColoringEnabled: stateData.isSystemColoringEnabled ?? false,
+          globalSystemOpacity: stateData.globalSystemOpacity ?? 20,
           activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter'
         });
+      },
+
+      setIsSystemColoringEnabled: (enabled) => set({ isSystemColoringEnabled: enabled }),
+      setGlobalSystemOpacity: (val) => set({ globalSystemOpacity: val }),
+
+      generateAutoColors: () => {
+        const hvacPallete = [
+          '#4e79a7', '#f28e2c', '#e15759', '#76b7b2', '#59a14f', 
+          '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'
+        ];
+        set((state) => ({
+          systems: state.systems.map((s, i) => ({
+            ...s,
+            color: s.color || hvacPallete[i % hvacPallete.length]
+          }))
+        }));
+      },
+
+      saveStylePreset: (preset) => {
+        set((state) => {
+          const index = state.stylePresets.findIndex(p => p.id === preset.id);
+          const nextPresets = [...state.stylePresets];
+          if (index >= 0) nextPresets[index] = preset;
+          else nextPresets.push(preset);
+          return { stylePresets: nextPresets };
+        });
+      },
+
+      removeStylePreset: (id) => {
+        set((state) => ({
+          stylePresets: state.stylePresets.filter(p => p.id !== id)
+        }));
       },
 
       // ===== FLOOR CRUD =====

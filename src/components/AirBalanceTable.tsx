@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import { AgGridReact } from 'ag-grid-react';
 import { RoomWizardModal } from './RoomWizardModal';
@@ -12,6 +12,7 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
+import { resolveZoneStyle } from '../lib/VisualStyles';
 
 // Register ALL enterprise modules to avoid version mismatches
 ModuleRegistry.registerModules([ClientSideRowModelModule, ValidationModule, RowSelectionModule, AllEnterpriseModule]);
@@ -25,6 +26,9 @@ export function AirBalanceTable() {
   const systems = useZoneStore((state) => state.systems);
   const activeFloorId = useZoneStore((state) => state.activeFloorId);
   const bulkDeleteZones = useZoneStore((state) => state.bulkDeleteZones);
+  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
+  const setIsSystemColoringEnabled = useZoneStore((s) => s.setIsSystemColoringEnabled);
+  const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -248,6 +252,26 @@ export function AirBalanceTable() {
     }
   };
 
+  const getRowStyle = (params: any) => {
+    if (!isSystemColoringEnabled || !params.data) return undefined;
+    const { color } = resolveZoneStyle(params.data, systems, globalSystemOpacity);
+    if (!color) return undefined;
+    return { backgroundColor: color };
+  };
+
+  const getRowClass = (params: any) => {
+    if (!isSystemColoringEnabled || !params.data) return undefined;
+    const { patternId } = resolveZoneStyle(params.data, systems, globalSystemOpacity);
+    return patternId || undefined;
+  };
+
+  // Wymuszenie odświeżenia wierszy po zmianie ustawień wizualnych
+  useEffect(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.redrawRows();
+    }
+  }, [isSystemColoringEnabled, globalSystemOpacity, systems]);
+
 
   // Pomocnicza funkcja do zapisu szerokości kolumn (zapobieganie resetowaniu)
   const onColumnResized = useCallback((params: any) => {
@@ -261,8 +285,19 @@ export function AirBalanceTable() {
     const savedState = localStorage.getItem('wentcad_col_state_v3');
     if (savedState) {
       params.api.applyColumnState({ state: JSON.parse(savedState), applyOrder: true });
+    } else {
+      params.api.sizeColumnsToFit();
     }
   }, []);
+
+  const handleAutosize = () => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.sizeColumnsToFit();
+      // Zapisujemy nowy stan po dopasowaniu
+      const columnState = gridRef.current.api.getColumnState();
+      localStorage.setItem('wentcad_col_state_v3', JSON.stringify(columnState));
+    }
+  };
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSystemModalOpen, setIsSystemModalOpen] = useState(false);
@@ -405,6 +440,25 @@ export function AirBalanceTable() {
               </button>
             </>
           )}
+
+          <label className="flex items-center gap-2 mr-2 bg-gray-100 px-3 py-2 rounded-md border border-gray-300 shadow-sm cursor-pointer hover:bg-gray-200 transition-colors">
+            <input 
+              type="checkbox" 
+              checked={isSystemColoringEnabled} 
+              onChange={(e) => setIsSystemColoringEnabled(e.target.checked)}
+              className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+            />
+            <span className="text-sm font-bold text-gray-700">Widok Systemowy</span>
+          </label>
+
+          <button 
+            onClick={handleAutosize}
+            className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-md border border-gray-300 shadow-sm text-sm font-medium transition-colors flex items-center gap-1.5"
+            title="Dopasuj szerokość kolumn do okna"
+          >
+            ↔️ Autosize
+          </button>
+
           <input 
             type="file" 
             accept=".csv" 
@@ -449,6 +503,8 @@ export function AirBalanceTable() {
           context={{ removeZone }}
           onCellValueChanged={handleCellValueChanged}
           onSelectionChanged={onSelectionChanged}
+          getRowStyle={getRowStyle}
+          getRowClass={getRowClass}
           onColumnResized={onColumnResized}
           onColumnMoved={onColumnResized}  
           onDisplayedColumnsChanged={onColumnResized}

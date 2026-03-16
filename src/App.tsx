@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import './styles/patterns.css';
 import { useZoneStore } from './stores/useZoneStore';
 import { useProjectStore } from './stores/useProjectStore';
 import { AirBalanceTable } from './components/AirBalanceTable';
@@ -30,6 +31,8 @@ function App() {
   const floors = useZoneStore((s) => s.floors);
   const systems = useZoneStore((s) => s.systems);
   const analysisPresets = useZoneStore((s) => s.analysisPresets);
+  const stylePresets = useZoneStore((s) => s.stylePresets);
+  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
 
   const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
 
@@ -44,10 +47,17 @@ function App() {
 
   useEffect(() => {
     if (activeProject) {
-      const stateToSync = { zones, floors, systems, analysisPresets };
+      const stateToSync = { 
+        zones, 
+        floors, 
+        systems, 
+        analysisPresets, 
+        stylePresets, 
+        isSystemColoringEnabled 
+      };
       debouncedSync(activeProject.id, stateToSync);
     }
-  }, [zones, floors, systems, analysisPresets, activeProject, debouncedSync]);
+  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, activeProject, debouncedSync]);
 
   // If no project is selected, show Dashboard
   if (!activeProject) {

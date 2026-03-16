@@ -1,0 +1,26 @@
+/* HVAC Hatch Patterns (Step 1.8) */
+
+.hvac-pattern-diagonal {
+  background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1) 2px, transparent 2px, transparent 8px);
+}
+
+.hvac-pattern-dots {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1.5px, transparent 1.5px);
+  background-size: 6px 6px;
+}
+
+.hvac-pattern-crosshatch {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.hvac-pattern-vertical {
+  background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1) 1px, transparent 1px, transparent 6px);
+}
+
+/* Light mode overrides if needed, but we targeting Dark Mode primarily as per user request */
+.dark-mode-pattern {
+  background-blend-mode: overlay;
+}
