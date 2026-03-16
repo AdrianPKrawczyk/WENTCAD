@@ -63,12 +63,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setIsSettingOrigin = useCanvasStore((s) => s.setIsSettingOrigin);
 
   // Canvas store - Floor specific state
-  const floors = useCanvasStore((s) => s.floors);
+  const canvasFloors = useCanvasStore((s) => s.floors);
   const updateFloorState = useCanvasStore((s) => s.updateFloorState);
   const resetFloor = useCanvasStore((s) => s.resetFloor);
 
+  // Zone store - Floor definitions
+  const projectFloors = useZoneStore((s) => s.floors);
+  const setActiveFloor = useZoneStore((s) => s.setActiveFloor);
+
+  const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
+
   // Current floor computed state
-  const floorState: FloorCanvasState = floors[activeFloorId] || {
+  const floorState: FloorCanvasState = canvasFloors[activeFloorId] || {
     underlayUrl: null,
     underlaySize: null,
     underlayName: null,
@@ -340,6 +346,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           await page.render({
             canvasContext: context,
             viewport: viewport,
+            canvas: canvas,
           }).promise;
 
           const dataUrl = canvas.toDataURL('image/png');
@@ -402,6 +409,31 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   return (
     <div ref={containerRef} className={`relative w-full h-full bg-[#f0f2f5] overflow-hidden select-none ${className ?? ''}`}>
+      {/* FLOATING FLOOR SWITCHER */}
+      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 p-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl pointer-events-auto">
+        <span className="text-[10px] font-bold text-slate-500 uppercase px-1 tracking-wider">Kondygnacje</span>
+        <div className="flex flex-col gap-1">
+          {sortedFloors.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFloor(f.id)}
+              className={`flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeFloorId === f.id
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span>{f.name}</span>
+              </div>
+              {canvasFloors[f.id]?.underlayUrl && (
+                <div className={`w-1.5 h-1.5 rounded-full ${activeFloorId === f.id ? 'bg-white animate-pulse' : 'bg-green-500'}`} />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Stage
         ref={stageRef}
         width={containerWidth}
