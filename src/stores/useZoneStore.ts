@@ -81,6 +81,7 @@ interface ZoneStore {
   bulkDeleteZones: (ids: string[]) => void;
   recalculateAirBalance: (id?: string) => void;
   addSystem: (system: SystemDef) => void;
+  addSystems: (systems: SystemDef[]) => void;
   updateSystem: (id: string, updates: Partial<SystemDef>) => void;
   removeSystem: (id: string) => void;
   setIsSystemColoringEnabled: (enabled: boolean) => void;
@@ -190,6 +191,14 @@ export const useZoneStore = create<ZoneStore>()(
         set((state) => {
           if (state.systems.some(s => s.id === system.id)) return state;
           return { systems: [...state.systems, system] };
+        });
+      },
+      addSystems: (newSystems) => {
+        set((state) => {
+          const existingIds = new Set(state.systems.map(s => s.id));
+          const filteredNew = newSystems.filter(s => !existingIds.has(s.id));
+          if (filteredNew.length === 0) return state;
+          return { systems: [...state.systems, ...filteredNew] };
         });
       },
 

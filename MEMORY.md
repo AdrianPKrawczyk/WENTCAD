@@ -13,6 +13,9 @@
 * [x] **KROK 1.7: Zaawansowana analizy systemowa i scenariusze** - Done
 * [x] **KROK 1.11: Floor Manager Module** - Done
 * [x] **KROK 1.12: Multi-Room Selection & Bulk Editing** - Done
+* [x] **KROK 2.0: System Undo/Redo** - Done
+* [x] **KROK 2.3: System Manager Enhancements** - Done
+* [x] **KROK 2.4: Multi-step System Wizard** - Done
 * [ ] **KROK 2: Architecture Underlays (PDF/DXF)** - Pending
 * [ ] **KROK 3: UI & Konva.js Canvas Engine** - Pending
 * [ ] **KROK 4: Aerodynamics & Fluid Dynamics (DAG)** - Pending
@@ -50,7 +53,7 @@
 - **[CRITICAL] Stabilizacja Kolumn (Fix 1.8f)**: Rozwiązano problem resetowania szerokości kolumn poprzez memoizację `columnDefs` i `defaultColDef`.
 ### Krok 1.7: Zaawansowana Analiza Systemowa
 - **Scenariusze (Presets):** Możliwość zapisywania filtrów (systemy + kondygnacje) jako nazwane scenariusze w `ProjectStateData`.
-- **Agregacja:** Nowy panel `AnalysisDashboard` wyliczający sumaryczne wydatki $\sum N, \sum W$ dla wybranych grup.
+- **Agregacja:** Nowy panel `AnalysisDashboard` wyliczający sumaryczne wydatki dla wybranych grup.
 - **Reporting:** Funkcja kopiowania raportu tekstowego do schowka dla szybkich konsultacji.
 - **KPI Cards:** Wizualne podsumowanie bilansu i transferów.
 *   **Project Management & Versioning (KROK 0):** Implemented `useProjectStore.ts` for multi-project CRUD and snapshot management. 
@@ -79,3 +82,12 @@
 - **Zasada**: Aby edycja komórek działała płynnie, a mechanizm `zundo` nie był nadpisywany mutacjami, AG Grid musi operować na sklonowanych danych.
 - **Rozwiązanie**: Przekazuj do `rowData` sklonowane obiekty stanu (np. `zones.map(z => ({...z}))` w `useMemo`). Pozwól gridowi natywnie mutować ten klon, a następnie użyj `onCellValueChanged` do zsynchronizowania nowej wartości do store'a Zustand.
 - **Wymagania**: Obowiązkowe użycie `getRowId` dla stabilności odświeżania.
+
+### Iteracja 2.3: Ulepszenia Menadżera Systemów
+- **UI**: Modal powiększony do `max-w-6xl`. Implementacja edycji inline (ID, Pełna Nazwa) poprzez pola input z funkcją `onBlur` synchronizującą stan `useZoneStore.updateSystem`.
+- **UX**: Inteligentne domyślne nazwy (smart defaults) – wybór typu systemu automatycznie wypełnia pole nazwy odpowiednim prefiksem (np. "Wentylacja ogólna nawiewna: ").
+
+### Iteracja 2.4: Kreator Systemów (System Wizard)
+- **Logika**: 5-krokowy kreator (`SystemWizardModal.tsx`) automatyzujący generowanie par Nawiew/Wywiew dla central (AHU) wraz z wentylatorami.
+- **Stylizacja Rodzin (Family Styling)**: Systemy powiązane (np. N1, W1, W1.1) otrzymują ten sam kolor bazowy. Wentylatory dodatkowo otrzymują deseń (pattern), co pozwala na wizualną hierarchizację.
+- **Undo/Redo Stability**: Wszystkie systemy generowane w kreatorze są dodawane do store'a za pomocą jednej akcji `addSystems`, co gwarantuje, że cała operacja zajmuje dokładnie JEDEN krok w historii (`zundo`).
