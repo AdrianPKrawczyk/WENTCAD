@@ -10,6 +10,8 @@ import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
+import { useUIStore } from './stores/useUIStore';
+import { Table2, Square, PanelTop, PanelLeft } from 'lucide-react';
 import { customDebounce } from './lib/utils';
 
 function App() {
@@ -27,24 +29,33 @@ function App() {
   const loadWorkspaceState = useZoneStore((s) => s.loadState);
 
   const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
-  // Split-screen state: percentage of height allocated to the table (top)
+  // Split-screen state
   const [splitPercent, setSplitPercent] = useState(55);
+  const { viewMode, setViewMode } = useUIStore();
+  
   const isDragging = useRef(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   const handleDividerMouseDown = useCallback(() => {
     isDragging.current = true;
-    document.body.style.cursor = 'row-resize';
+    document.body.style.cursor = viewMode === 'split-vertical' ? 'col-resize' : 'row-resize';
     document.body.style.userSelect = 'none';
-  }, []);
+  }, [viewMode]);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!isDragging.current || !workspaceRef.current) return;
       const rect = workspaceRef.current.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
-      const newPercent = Math.max(20, Math.min(80, (relativeY / rect.height) * 100));
-      setSplitPercent(newPercent);
+      
+      if (viewMode === 'split-horizontal') {
+        const relativeY = e.clientY - rect.top;
+        const newPercent = Math.max(10, Math.min(90, (relativeY / rect.height) * 100));
+        setSplitPercent(newPercent);
+      } else if (viewMode === 'split-vertical') {
+        const relativeX = e.clientX - rect.left;
+        const newPercent = Math.max(10, Math.min(90, (relativeX / rect.width) * 100));
+        setSplitPercent(newPercent);
+      }
     };
     const onMouseUp = () => {
       if (isDragging.current) {
@@ -137,29 +148,100 @@ function App() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           </div>
+
+          <div className="w-8 h-px bg-gray-100 my-2" />
+
+          {/* VIEW MODE SELECTORS */}
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={() => setViewMode('table')}
+              title="Tylko Tabela"
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'table' ? 'bg-indigo-100 text-indigo-600 shadow-sm' : 'text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <Table2 className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode('canvas')}
+              title="Tylko Rysunek"
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'canvas' ? 'bg-indigo-100 text-indigo-600 shadow-sm' : 'text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <Square className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                setViewMode('split-vertical');
+                setSplitPercent(50);
+              }}
+              title="Podział Pionowy"
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'split-vertical' ? 'bg-indigo-100 text-indigo-600 shadow-sm' : 'text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <PanelLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                setViewMode('split-horizontal');
+                setSplitPercent(50);
+              }}
+              title="Podział Poziomy"
+              className={`p-2 rounded-lg transition-all ${
+                viewMode === 'split-horizontal' ? 'bg-indigo-100 text-indigo-600 shadow-sm' : 'text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <PanelTop className="w-5 h-5" />
+            </button>
+          </div>
         </aside>
 
-        {/* CENTRUM: Split-Screen (Tabela + Canvas 2D) */}
-        <main ref={workspaceRef} className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* CENTRUM: Dynamiczny Layout */}
+        <main ref={workspaceRef} className={`flex-1 flex min-w-0 overflow-hidden relative ${viewMode === 'split-vertical' ? 'flex-row' : 'flex-col'}`}>
 
-          {/* GÓRNA SEKCJA: Tabela Bilansu */}
-          <div className="overflow-hidden flex-shrink-0" style={{ height: `${splitPercent}%` }}>
-            <AirBalanceTable />
-          </div>
+          {/* TABELA */}
+          {(viewMode === 'table' || viewMode.startsWith('split')) && (
+            <div 
+              className="overflow-hidden flex-shrink-0" 
+              style={{ 
+                height: viewMode === 'split-horizontal' ? `${splitPercent}%` : viewMode === 'table' ? '100%' : 'auto',
+                width: viewMode === 'split-vertical' ? `${splitPercent}%` : 'auto',
+                flex: viewMode === 'split-vertical' ? 'none' : (viewMode === 'table' ? '1' : 'none')
+              }}
+            >
+              <AirBalanceTable />
+            </div>
+          )}
 
-          {/* DIVIDER: Drag Handle */}
-          <div
-            onMouseDown={handleDividerMouseDown}
-            className="h-2 bg-gray-200 hover:bg-indigo-300 active:bg-indigo-400 cursor-row-resize flex items-center justify-center shrink-0 transition-colors z-10 group"
-            title="Przeciągnij, aby zmienić podział ekranu"
-          >
-            <div className="w-16 h-0.5 rounded-full bg-gray-400 group-hover:bg-indigo-500 transition-colors" />
-          </div>
+          {/* DIVIDER */}
+          {viewMode.startsWith('split') && (
+            <div
+              onMouseDown={handleDividerMouseDown}
+              className={`bg-gray-200 hover:bg-indigo-300 active:bg-indigo-400 flex items-center justify-center shrink-0 transition-colors z-10 group ${
+                viewMode === 'split-horizontal' ? 'h-2 w-full cursor-row-resize' : 'w-2 h-full cursor-col-resize'
+              }`}
+              title="Przeciągnij, aby zmienić podział ekranu"
+            >
+              <div className={`bg-gray-400 group-hover:bg-indigo-500 transition-colors rounded-full ${
+                viewMode === 'split-horizontal' ? 'w-16 h-0.5' : 'h-16 w-0.5'
+              }`} />
+            </div>
+          )}
 
-          {/* DOLNA SEKCJA: Przestrzeń Robocza 2D */}
-          <div className="overflow-hidden flex-1 min-h-0" style={{ height: `${100 - splitPercent}%` }}>
-            <Workspace2D />
-          </div>
+          {/* CANVAS */}
+          {(viewMode === 'canvas' || viewMode.startsWith('split')) && (
+            <div 
+              className="overflow-hidden flex-1 min-h-0 min-w-0" 
+              style={{ 
+                height: viewMode === 'split-horizontal' ? `${100 - splitPercent}%` : viewMode === 'canvas' ? '100%' : 'auto',
+                width: viewMode === 'split-vertical' ? `${100 - splitPercent}%` : 'auto'
+              }}
+            >
+              <Workspace2D />
+            </div>
+          )}
 
         </main>
 

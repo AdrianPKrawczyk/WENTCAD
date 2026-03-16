@@ -2,7 +2,11 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore } from '../stores/useCanvasStore';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2 } from 'lucide-react';
+
+// PDF.js configuration
+import * as pdfjsLib from 'pdfjs-dist';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
@@ -50,6 +54,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setUnderlay = useCanvasStore((s) => s.setUnderlay);
   const clearUnderlay = useCanvasStore((s) => s.clearUnderlay);
 
+  const [isLoading, setIsLoading] = useState(false);
   // Underlay image HTMLImageElement
   const [underlayImage, setUnderlayImage] = useState<HTMLImageElement | null>(null);
 
@@ -176,16 +181,60 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setIsLoading(true);
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string;
-      const img = new window.Image();
-      img.onload = () => {
-        setUnderlay(url, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+
+    if (file.type === 'application/pdf') {
+      reader.onload = async (ev) => {
+        try {
+          const typedarray = new Uint8Array(ev.target?.result as ArrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          const page = await pdf.getPage(1);
+          
+          // Render at high resolution
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          
+          if (!context) throw new Error('Could not create canvas context');
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          await page.render({
+            canvasContext: context,
+            viewport: viewport,
+            // @ts-ignore - Some versions of pdfjs-dist types require canvas
+            canvas: canvas,
+          }).promise;
+
+          const dataUrl = canvas.toDataURL('image/png');
+          const img = new window.Image();
+          img.onload = () => {
+            setUnderlay(dataUrl, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+            setIsLoading(false);
+          };
+          img.src = dataUrl;
+        } catch (error) {
+          console.error('Error processing PDF:', error);
+          alert('Błąd podczas przetwarzania pliku PDF.');
+          setIsLoading(false);
+        }
       };
-      img.src = url;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (ev) => {
+        const url = ev.target?.result as string;
+        const img = new window.Image();
+        img.onload = () => {
+          setUnderlay(url, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+          setIsLoading(false);
+        };
+        img.src = url;
+      };
+      reader.readAsDataURL(file);
+    }
     // Reset input so the same file can be re-loaded
     e.target.value = '';
   }, [setUnderlay]);
@@ -355,10 +404,23 @@ export function Workspace2D({ className }: Workspace2DProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp"
+        accept="image/png,image/jpeg,image/jpg,image/webp,.pdf"
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {/* LOADING OVERLAY */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center space-y-4">
+            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            <div className="text-center">
+              <p className="font-semibold text-gray-900">Przetwarzanie dokumentu...</p>
+              <p className="text-sm text-gray-500">Renderowanie strony PDF</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
