@@ -75,7 +75,7 @@
 - **Implementacja**: Integracja `zundo` w `useZoneStore` (limit 50 kroków).
 - **Grupowanie**: W Inspektorze (`ZonePropertiesPanel.tsx`) zastosowano wzorzec `pause()` / `resume()` na focus/blur, aby uniknąć spamu historii podczas pisania.
 
-### Iteracja 2.1: AG Grid Immutability (One-Way Data Flow)
-- **Zasada**: Aby `zundo` działało poprawnie, AG Grid nie może mutować `params.data`.
-- **Rozwiązanie**: Użyto `valueSetter` zwracającego `false` w `defaultColDef` oraz dla specyficznych kolumn (np. `activityType`).
-- **Przepływ**: Zmiana w gridzie -> `valueSetter` -> akcja Zustand -> nowa referencja `rowData` -> odświeżenie komórki przez `getRowId`.
+### Iteracja 2.2: AG Grid Clone & Sync (Isolated Mutation)
+- **Zasada**: Aby edycja komórek działała płynnie, a mechanizm `zundo` nie był nadpisywany mutacjami, AG Grid musi operować na sklonowanych danych.
+- **Rozwiązanie**: Przekazuj do `rowData` sklonowane obiekty stanu (np. `zones.map(z => ({...z}))` w `useMemo`). Pozwól gridowi natywnie mutować ten klon, a następnie użyj `onCellValueChanged` do zsynchronizowania nowej wartości do store'a Zustand.
+- **Wymagania**: Obowiązkowe użycie `getRowId` dla stabilności odświeżania.

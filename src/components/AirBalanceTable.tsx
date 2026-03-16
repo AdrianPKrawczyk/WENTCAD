@@ -42,8 +42,10 @@ export function AirBalanceTable() {
 
   const rowData = useMemo(() => {
     const allZones = Object.values(zones);
-    if (activeFloorId === '__all__') return allZones;
-    return allZones.filter((z) => z.floorId === activeFloorId);
+    const filtered = activeFloorId === '__all__' ? allZones : allZones.filter((z) => z.floorId === activeFloorId);
+    // KRYTYCZNE: Klonujemy obiekty przed przekazaniem do AG Grid (Clone & Sync pattern),
+    // aby grid mógł bezpiecznie mutować swoje kopie bez wpływu na historię Zustand/zundo.
+    return filtered.map(z => ({ ...z }));
   }, [zones, activeFloorId]);
 
   const supplySystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'SUPPLY').map(s => s.id)], [systems]);
@@ -55,25 +57,6 @@ export function AirBalanceTable() {
     resizable: true,
     wrapHeaderText: true,
     autoHeaderHeight: true,
-    valueSetter: (params) => {
-      const { oldValue, newValue, colDef, data } = params;
-      if (oldValue === newValue || !colDef.field || !data) return false;
-
-      const field = colDef.field as keyof ZoneData;
-      let finalValue: any = newValue;
-
-      // Type casting for numeric columns
-      if (colDef.type === 'numericColumn' || typeof (data as any)[field] === 'number') {
-        let parsed = Number(newValue);
-        if (typeof newValue === 'string') {
-          parsed = Number(newValue.replace(',', '.'));
-        }
-        finalValue = isNaN(parsed) ? 0 : parsed;
-      }
-
-      updateZone(data.id, { [field]: finalValue });
-      return false; // Prevent AG Grid from mutating the data directly
-    },
     onCellClicked: (params: any) => {
       if (params.column.colId === 'delete') {
         if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
@@ -108,25 +91,6 @@ export function AirBalanceTable() {
         values: [...Object.keys(ROOM_TYPE_ACH_MAPPING)]
       },
       minWidth: 200,
-      valueSetter: (params) => {
-        const { newValue, data } = params;
-        if (!data || data.activityType === newValue) return false;
-
-        const update: Partial<ZoneData> = { activityType: newValue as ActivityType };
-        const preset = ROOM_PRESETS[newValue as ActivityType];
-        
-        if (preset) {
-          if (!data.isTargetACHManual) {
-            update.targetACH = preset.ach;
-          }
-          if (!data.isMaxDbAManual) {
-            update.maxAllowedDbA = preset.maxDbA;
-          }
-        }
-
-        updateZone(data.id, update);
-        return false;
-      }
     },
     { 
       field: 'area', 
@@ -261,6 +225,40 @@ export function AirBalanceTable() {
       }
     }
   ], [supplySystems, exhaustSystems]);
+  
+  const handleCellValueChanged = useCallback((event: any) => {
+    const { data, colDef, newValue, oldValue } = event;
+    if (!data || !colDef || newValue === oldValue) return;
+    
+    const update: any = {};
+    const field = colDef.field as keyof ZoneData;
+    
+    // Rzutowanie na Number jeśli kolumna jest numeryczna lub typ w danych to number
+    if (colDef.type === 'numericColumn' || typeof data[field] === 'number') {
+      let parsed = Number(newValue);
+      if (typeof newValue === 'string') {
+        parsed = Number(newValue.replace(',', '.'));
+      }
+      update[field] = isNaN(parsed) ? 0 : parsed;
+    } else {
+      update[field] = newValue;
+    }
+    
+    // Logika zależna dla activityType (presety)
+    if (field === 'activityType') {
+      const preset = ROOM_PRESETS[newValue as ActivityType];
+      if (preset) {
+        if (!data.isTargetACHManual) {
+          update.targetACH = preset.ach;
+        }
+        if (!data.isMaxDbAManual) {
+          update.maxAllowedDbA = preset.maxDbA;
+        }
+      }
+    }
+    
+    updateZone(data.id, update);
+  }, [updateZone]);
 
   const onSelectionChanged = useCallback(() => {
     if (gridRef.current?.api) {
@@ -544,6 +542,7 @@ export function AirBalanceTable() {
           rowData={rowData}
           columnDefs={columnDefs}
           context={{ removeZone }}
+          onCellValueChanged={handleCellValueChanged}
           onSelectionChanged={onSelectionChanged}
           getRowStyle={getRowStyle}
           getRowClass={getRowClass}
