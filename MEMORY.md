@@ -100,6 +100,12 @@
 - **Ten store NIE jest podpięty pod `zundo`**. Pan, zoom i podkład to stan widoku UI, nie dane projektu.
 - Historia (`zundo`) dotyczy WYŁĄCZNIE `useZoneStore` (dane stref, pomieszczeń, systemów).
 
+### Podkłady PDF (pdfjs-dist)
+- Użyto biblioteki **pdfjs-dist** do renderowania pierwszej strony dokumentu PDF na wirtualnym canvasie po stronie klienta.
+- Wynikowy obraz (Data URL) jest przekazywany do `useCanvasStore` jako standardowy podkład rastrowy.
+- **UWAGA**: Aby biblioteka `pdf.js` działała poprawnie w środowisku Vite, plik `pdf.worker.min.js` musi być skopiowany do folderu `/public` (skopiowano `pdf.worker.min.mjs` jako `.js`) i referencja `GlobalWorkerOptions.workerSrc` musi wskazywać na `/pdf.worker.min.js`.
+- Konfiguracja powiadomień: Zintegrowano `sonner` dla profesjonalnych komunikatów o błędach w procesie wczytywania.
+
 ### Nawigacja CAD — Zoom to Pointer
 - Obsługiwane przez `onWheel` na `<Stage>`. Wzór na nową pozycję (zoom skupiony na kursorze):
   ```typescript

@@ -3,10 +3,11 @@ import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
@@ -217,21 +218,31 @@ export function Workspace2D({ className }: Workspace2DProps) {
           };
           img.src = dataUrl;
         } catch (error) {
-          console.error('Error processing PDF:', error);
-          alert('Błąd podczas przetwarzania pliku PDF.');
+          console.error('Błąd przetwarzania PDF:', error);
+          toast.error('Wystąpił błąd podczas przetwarzania pliku PDF.');
           setIsLoading(false);
         }
       };
       reader.readAsArrayBuffer(file);
     } else {
       reader.onload = (ev) => {
-        const url = ev.target?.result as string;
-        const img = new window.Image();
-        img.onload = () => {
-          setUnderlay(url, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+        try {
+          const url = ev.target?.result as string;
+          const img = new window.Image();
+          img.onload = () => {
+            setUnderlay(url, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+            setIsLoading(false);
+          };
+          img.onerror = () => {
+            toast.error('Błąd podczas wczytywania obrazu.');
+            setIsLoading(false);
+          };
+          img.src = url;
+        } catch (error) {
+          console.error('Błąd wczytywania obrazu:', error);
+          toast.error('Wystąpił błąd podczas wczytywania obrazu.');
           setIsLoading(false);
-        };
-        img.src = url;
+        }
       };
       reader.readAsDataURL(file);
     }

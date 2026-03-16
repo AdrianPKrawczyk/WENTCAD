@@ -12,6 +12,7 @@ import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
 import { Table2, Square, PanelTop, PanelLeft } from 'lucide-react';
+import { Toaster } from 'sonner';
 import { customDebounce } from './lib/utils';
 
 function App() {
@@ -270,6 +271,9 @@ function App() {
 
       {/* PASEK STANU */}
       <StatusBar />
+
+      {/* POWIADOMIENIA */}
+      <Toaster position="top-center" richColors />
       
     </div>
   )
