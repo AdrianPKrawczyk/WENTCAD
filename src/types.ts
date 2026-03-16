@@ -209,6 +209,7 @@ export interface ProjectStateData {
   stylePresets: StylePreset[];
   isSystemColoringEnabled: boolean;
   globalSystemOpacity: number;
+  columnState: any | null;
 }
 
 // Rekord Projektu

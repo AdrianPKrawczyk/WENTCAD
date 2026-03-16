@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabaseClient';
+import { persist } from 'zustand/middleware';
 import type { Project, ProjectVersion, SyncStatus, ProjectStateData } from '../types';
 
 interface ProjectStore {
@@ -26,13 +27,15 @@ interface ProjectStore {
   updateProjectState: (projectId: string, state: ProjectStateData) => Promise<void>;
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-  activeProject: null,
-  projects: [],
-  versions: [],
-  syncStatus: 'SAVED',
-  isLoading: false,
-  error: null,
+export const useProjectStore = create<ProjectStore>()(
+  persist(
+    (set, get) => ({
+      activeProject: null,
+      projects: [],
+      versions: [],
+      syncStatus: 'SAVED',
+      isLoading: false,
+      error: null,
 
   fetchProjects: async () => {
     set({ isLoading: true, error: null });
@@ -204,6 +207,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     } catch (err: any) {
       set({ syncStatus: 'ERROR' });
       console.error('Sync error:', err.message);
+      }
     }
+  }),
+  {
+    name: 'wentcad-project-storage',
+    partialize: (state) => ({ 
+      activeProject: state.activeProject 
+    }),
   }
-}));
+)
+);

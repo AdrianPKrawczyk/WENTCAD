@@ -9,6 +9,8 @@ import { BulkEditModal } from './BulkEditModal';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
+import { useProjectStore } from '../stores/useProjectStore';
+import { customDebounce } from '../lib/utils';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
@@ -29,6 +31,12 @@ export function AirBalanceTable() {
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const setIsSystemColoringEnabled = useZoneStore((s) => s.setIsSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
+  const activeProjectId = useProjectStore((s) => s.activeProject?.id);
+  const columnState = useZoneStore((s) => s.columnState);
+  const setColumnState = useZoneStore((s) => s.setColumnState);
+  const isApplyingStateRef = useRef(false);
+  const lastAppliedStateRef = useRef<string>('');
+  const lastProjectRef = useRef<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
@@ -54,7 +62,7 @@ export function AirBalanceTable() {
       headerCheckboxSelection: true,
       headerCheckboxSelectionFilteredOnly: true,
     },
-    { field: 'name', headerName: 'Nazwa', editable: true, flex: 1, minWidth: 150 },
+    { field: 'name', headerName: 'Nazwa', editable: true, minWidth: 250 },
     { 
       field: 'activityType', 
       headerName: 'Rodzaj pomieszczenia', 
@@ -65,14 +73,14 @@ export function AirBalanceTable() {
           ...Object.keys(ROOM_TYPE_ACH_MAPPING)
         ]
       },
-      minWidth: 160
+      minWidth: 200
     },
     { 
       field: 'area', 
       headerName: 'Pow. [m²]', 
       editable: true, 
       type: 'numericColumn', 
-      width: 100,
+      width: 120,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
     { 
@@ -80,7 +88,7 @@ export function AirBalanceTable() {
       headerName: 'Wys. [m]', 
       editable: true, 
       type: 'numericColumn', 
-      width: 90,
+      width: 110,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
     {
@@ -93,7 +101,7 @@ export function AirBalanceTable() {
       },
       editable: false,
       type: 'numericColumn',
-      width: 110,
+      width: 130,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
     {
@@ -274,28 +282,79 @@ export function AirBalanceTable() {
 
 
   // Pomocnicza funkcja do zapisu szerokości kolumn (zapobieganie resetowaniu)
+  // Używamy dębounca, aby nie zapychać synchronizacji podczas przeciągania
+  const debouncedSaveState = useRef(
+    customDebounce((api: any) => {
+      if (isApplyingStateRef.current) return;
+      
+      const state = api.getColumnState();
+      const stateStr = JSON.stringify(state);
+      
+      if (stateStr === lastAppliedStateRef.current) return;
+      
+      console.log('Saving column state to store (debounced)...');
+      lastAppliedStateRef.current = stateStr; // Update local ref to avoid immediate re-application
+      setColumnState(state);
+    }, 1000)
+  ).current;
+
   const onColumnResized = useCallback((params: any) => {
+    // Zapisujemy tylko po zakończeniu przesuwania (finished)
     if (params.finished) {
-      const columnState = params.api.getColumnState();
-      localStorage.setItem('wentcad_col_state_v3', JSON.stringify(columnState));
+      debouncedSaveState(params.api);
     }
-  }, []);
+  }, [debouncedSaveState]);
+
+  const onColumnVisible = useCallback((params: any) => {
+    debouncedSaveState(params.api);
+  }, [debouncedSaveState]);
+
+  const onColumnMoved = useCallback((params: any) => {
+    // Zapisujemy tylko po zakończeniu przesuwania (finished)
+    if (params.finished) {
+      debouncedSaveState(params.api);
+    }
+  }, [debouncedSaveState]);
 
   const onGridReady = useCallback((params: any) => {
-    const savedState = localStorage.getItem('wentcad_col_state_v3');
-    if (savedState) {
-      params.api.applyColumnState({ state: JSON.parse(savedState), applyOrder: true });
+    if (columnState) {
+      isApplyingStateRef.current = true;
+      lastAppliedStateRef.current = JSON.stringify(columnState);
+      params.api.applyColumnState({ state: columnState, applyOrder: true });
+      setTimeout(() => { isApplyingStateRef.current = false; }, 500);
     } else {
       params.api.sizeColumnsToFit();
     }
-  }, []);
+    lastProjectRef.current = activeProjectId || null;
+  }, [columnState, activeProjectId]);
+
+  // Re-apply column state if it changes from outside (e.g. sync/load)
+  useEffect(() => {
+    if (!gridRef.current?.api || !columnState) return;
+
+    const isNewProject = activeProjectId !== lastProjectRef.current;
+    const stateStr = JSON.stringify(columnState);
+    const isDifferentState = stateStr !== lastAppliedStateRef.current;
+
+    // Aplikujemy tylko jeśli to nowy projekt lub stan faktycznie się zmienił (np. F5)
+    // i NIE jesteśmy w trakcie własnej aplikacji
+    if (isNewProject || isDifferentState) {
+      if (!isApplyingStateRef.current) {
+        console.log('External column state sync detected, applying to grid...');
+        isApplyingStateRef.current = true;
+        lastAppliedStateRef.current = stateStr;
+        gridRef.current.api.applyColumnState({ state: columnState, applyOrder: true });
+        // Dajemy więcej czasu na uspokojenie zdarzeń
+        setTimeout(() => { isApplyingStateRef.current = false; }, 500);
+      }
+      lastProjectRef.current = activeProjectId || null;
+    }
+  }, [columnState, activeProjectId]);
 
   const handleAutosize = () => {
     if (gridRef.current?.api) {
       gridRef.current.api.sizeColumnsToFit();
-      // Zapisujemy nowy stan po dopasowaniu
-      const columnState = gridRef.current.api.getColumnState();
-      localStorage.setItem('wentcad_col_state_v3', JSON.stringify(columnState));
+      debouncedSaveState(gridRef.current.api);
     }
   };
 
@@ -506,8 +565,9 @@ export function AirBalanceTable() {
           getRowStyle={getRowStyle}
           getRowClass={getRowClass}
           onColumnResized={onColumnResized}
-          onColumnMoved={onColumnResized}  
-          onDisplayedColumnsChanged={onColumnResized}
+          onColumnMoved={onColumnMoved}
+          onColumnVisible={onColumnVisible}
+          onDisplayedColumnsChanged={onColumnMoved}
           onGridReady={onGridReady}
           animateRows={true}
           sideBar={'columns'}
@@ -517,10 +577,13 @@ export function AirBalanceTable() {
             checkboxes: true,
           }}
           suppressRowClickSelection={true}
+          headerHeight={48}
           defaultColDef={{
             sortable: true,
             filter: true,
             resizable: true,
+            wrapHeaderText: true,
+            autoHeaderHeight: true,
             onCellClicked: (params: any) => {
               if (params.column.colId === 'delete') {
                 if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {

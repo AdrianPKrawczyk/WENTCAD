@@ -8,19 +8,7 @@ import { StatusBar } from './components/StatusBar';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
-
-// Simple debounce implementation
-function customDebounce(func: Function, wait: number) {
-  let timeout: any;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
+import { customDebounce } from './lib/utils';
 
 function App() {
   const activeProject = useProjectStore((s) => s.activeProject);
@@ -33,14 +21,26 @@ function App() {
   const analysisPresets = useZoneStore((s) => s.analysisPresets);
   const stylePresets = useZoneStore((s) => s.stylePresets);
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
+  const columnState = useZoneStore((s) => s.columnState);
+  const activeProjectIdInZoneStore = useZoneStore((s) => s.activeProjectId);
+  const loadWorkspaceState = useZoneStore((s) => s.loadState); // Renamed for clarity
 
   const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
 
+  // RESTORATION LOGIC (F5 Fix)
+  useEffect(() => {
+    if (activeProject && activeProjectIdInZoneStore !== activeProject.id) {
+      console.log('Restoring project state from activeProject persistence...');
+      loadWorkspaceState(activeProject.id, activeProject.state_data);
+    }
+  }, [activeProject, activeProjectIdInZoneStore, loadWorkspaceState]);
+
   // SILENT SYNC LOGIC
-  // Debounce the update to Supabase to prevent excessive API calls
   const debouncedSync = useCallback(
     customDebounce((projectId: string, state: any) => {
-      updateProjectState(projectId, state);
+      if (projectId) { // Ensure projectId is valid before syncing
+        updateProjectState(projectId, state);
+      }
     }, 3000),
     [updateProjectState]
   );
@@ -53,11 +53,12 @@ function App() {
         systems, 
         analysisPresets, 
         stylePresets, 
-        isSystemColoringEnabled 
+        isSystemColoringEnabled,
+        columnState
       };
       debouncedSync(activeProject.id, stateToSync);
     }
-  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, activeProject, debouncedSync]);
+  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, columnState, activeProject, debouncedSync]);
 
   // If no project is selected, show Dashboard
   if (!activeProject) {

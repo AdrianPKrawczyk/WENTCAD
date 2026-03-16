@@ -68,6 +68,8 @@ interface ZoneStore {
   stylePresets: StylePreset[];
   isSystemColoringEnabled: boolean;
   globalSystemOpacity: number;
+  columnState: any | null;
+  setColumnState: (state: any) => void;
   setActiveProject: (projectId: string | null) => void;
   setSelectedZone: (zoneId: string | null) => void;
   setActiveFloor: (floorId: string) => void;
@@ -85,7 +87,7 @@ interface ZoneStore {
   generateAutoColors: () => void;
   saveStylePreset: (preset: StylePreset) => void;
   removeStylePreset: (id: string) => void;
-  loadState: (state: ProjectStateData) => void;
+  loadState: (projectId: string, state: ProjectStateData) => void;
   addFloor: (floor: Omit<Floor, 'id' | 'order'>) => string;
   updateFloor: (id: string, updates: Partial<Floor>) => void;
   removeFloor: (id: string) => void;
@@ -111,7 +113,9 @@ export const useZoneStore = create<ZoneStore>()(
       stylePresets: [],
       isSystemColoringEnabled: false,
       globalSystemOpacity: 20,
+      columnState: null,
       
+      setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
       setActiveFloor: (floorId) => set({ activeFloorId: floorId }),
@@ -205,8 +209,9 @@ export const useZoneStore = create<ZoneStore>()(
         });
       },
 
-      loadState: (stateData) => {
+      loadState: (projectId, stateData) => {
         set({
+          activeProjectId: projectId,
           zones: resolveZonesState(stateData.zones || {}),
           floors: stateData.floors || {},
           systems: stateData.systems || [],
@@ -214,6 +219,7 @@ export const useZoneStore = create<ZoneStore>()(
           stylePresets: stateData.stylePresets || [],
           isSystemColoringEnabled: stateData.isSystemColoringEnabled ?? false,
           globalSystemOpacity: stateData.globalSystemOpacity ?? 20,
+          columnState: stateData.columnState ?? null,
           activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter'
         });
       },

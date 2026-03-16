@@ -20,7 +20,7 @@ export function ProjectDashboard() {
     setIsCreating(true);
     const project = await createProject(newProjectName.trim());
     if (project) {
-      loadWorkspaceState(project.state_data);
+      loadWorkspaceState(project.id, project.state_data);
       setActiveProject(project);
     }
     setNewProjectName('');
@@ -28,7 +28,7 @@ export function ProjectDashboard() {
   };
 
   const handleOpen = (project: Project) => {
-    loadWorkspaceState(project.state_data);
+    loadWorkspaceState(project.id, project.state_data);
     setActiveProject(project);
   };
 
