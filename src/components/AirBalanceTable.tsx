@@ -34,8 +34,6 @@ export function AirBalanceTable() {
   const activeProjectId = useProjectStore((s) => s.activeProject?.id);
   const columnState = useZoneStore((s) => s.columnState);
   const setColumnState = useZoneStore((s) => s.setColumnState);
-  const isApplyingStateRef = useRef(false);
-  const lastAppliedStateRef = useRef<string>('');
   const lastProjectRef = useRef<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -50,6 +48,25 @@ export function AirBalanceTable() {
 
   const supplySystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'SUPPLY').map(s => s.id)], [systems]);
   const exhaustSystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'EXHAUST').map(s => s.id)], [systems]);
+
+  const defaultColDef = useMemo<ColDef>(() => ({
+    sortable: true,
+    filter: true,
+    resizable: true,
+    wrapHeaderText: true,
+    autoHeaderHeight: true,
+    onCellClicked: (params: any) => {
+      if (params.column.colId === 'delete') {
+        if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
+          removeZone(params.data.id);
+        }
+        return;
+      }
+      if (params.data) {
+        setSelectedZone(params.data.id);
+      }
+    }
+  }), [removeZone, setSelectedZone]);
 
   const columnDefs = useMemo<ColDef<ZoneData>[]>(() => [
     { 
@@ -69,9 +86,7 @@ export function AirBalanceTable() {
       editable: true, 
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        values: [
-          ...Object.keys(ROOM_TYPE_ACH_MAPPING)
-        ]
+        values: [...Object.keys(ROOM_TYPE_ACH_MAPPING)]
       },
       minWidth: 200
     },
@@ -100,7 +115,6 @@ export function AirBalanceTable() {
             : params.data.area * params.data.height;
       },
       editable: false,
-      type: 'numericColumn',
       width: 130,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
@@ -155,8 +169,8 @@ export function AirBalanceTable() {
       },
       minWidth: 100 
     },
-    { field: 'transferInSum', headerName: 'Dopływ IN', editable: false, width: 100 },
-    { field: 'transferOutSum', headerName: 'Odpływ OUT', editable: false, width: 100 },
+    { field: 'transferInSum', headerName: 'Dopływ IN', width: 100 },
+    { field: 'transferOutSum', headerName: 'Odpływ OUT', width: 100 },
     {
       field: 'netBalance',
       headerName: 'Bilans netto',
@@ -187,8 +201,8 @@ export function AirBalanceTable() {
       },
       minWidth: 130
     },
-    { field: 'normativeVolume', headerName: 'V. norm [m³/h]', editable: true, type: 'numericColumn', width: 110 },
-    { field: 'normativeExhaust', headerName: 'V. wyw norm', editable: true, type: 'numericColumn', width: 110 },
+    { field: 'normativeVolume', headerName: 'V. norm [m³/h]', width: 110 },
+    { field: 'normativeExhaust', headerName: 'V. wyw norm', width: 110 },
     {
       field: 'isTargetACHManual',
       headerName: 'Manual ACH',
@@ -281,25 +295,16 @@ export function AirBalanceTable() {
   }, [isSystemColoringEnabled, globalSystemOpacity, systems]);
 
 
-  // Pomocnicza funkcja do zapisu szerokości kolumn (zapobieganie resetowaniu)
-  // Używamy dębounca, aby nie zapychać synchronizacji podczas przeciągania
+  // Pomocnicza funkcja do zapisu szerokości kolumn
   const debouncedSaveState = useRef(
     customDebounce((api: any) => {
-      if (isApplyingStateRef.current) return;
-      
       const state = api.getColumnState();
-      const stateStr = JSON.stringify(state);
-      
-      if (stateStr === lastAppliedStateRef.current) return;
-      
       console.log('Saving column state to store (debounced)...');
-      lastAppliedStateRef.current = stateStr; // Update local ref to avoid immediate re-application
       setColumnState(state);
     }, 1000)
   ).current;
 
   const onColumnResized = useCallback((params: any) => {
-    // Zapisujemy tylko po zakończeniu przesuwania (finished)
     if (params.finished) {
       debouncedSaveState(params.api);
     }
@@ -310,7 +315,6 @@ export function AirBalanceTable() {
   }, [debouncedSaveState]);
 
   const onColumnMoved = useCallback((params: any) => {
-    // Zapisujemy tylko po zakończeniu przesuwania (finished)
     if (params.finished) {
       debouncedSaveState(params.api);
     }
@@ -318,38 +322,14 @@ export function AirBalanceTable() {
 
   const onGridReady = useCallback((params: any) => {
     if (columnState) {
-      isApplyingStateRef.current = true;
-      lastAppliedStateRef.current = JSON.stringify(columnState);
+      console.log('Applying initial column state from store...');
       params.api.applyColumnState({ state: columnState, applyOrder: true });
-      setTimeout(() => { isApplyingStateRef.current = false; }, 500);
-    } else {
-      params.api.sizeColumnsToFit();
     }
     lastProjectRef.current = activeProjectId || null;
   }, [columnState, activeProjectId]);
 
-  // Re-apply column state if it changes from outside (e.g. sync/load)
-  useEffect(() => {
-    if (!gridRef.current?.api || !columnState) return;
-
-    const isNewProject = activeProjectId !== lastProjectRef.current;
-    const stateStr = JSON.stringify(columnState);
-    const isDifferentState = stateStr !== lastAppliedStateRef.current;
-
-    // Aplikujemy tylko jeśli to nowy projekt lub stan faktycznie się zmienił (np. F5)
-    // i NIE jesteśmy w trakcie własnej aplikacji
-    if (isNewProject || isDifferentState) {
-      if (!isApplyingStateRef.current) {
-        console.log('External column state sync detected, applying to grid...');
-        isApplyingStateRef.current = true;
-        lastAppliedStateRef.current = stateStr;
-        gridRef.current.api.applyColumnState({ state: columnState, applyOrder: true });
-        // Dajemy więcej czasu na uspokojenie zdarzeń
-        setTimeout(() => { isApplyingStateRef.current = false; }, 500);
-      }
-      lastProjectRef.current = activeProjectId || null;
-    }
-  }, [columnState, activeProjectId]);
+  // NIE używamy useEffect do wymuszania stanu columnState podczas sesji,
+  // aby AG Grid mógł zarządzać swoim stanem wewnętrznym zgodnie z zaleceniami użytkownika.
 
   const handleAutosize = () => {
     if (gridRef.current?.api) {
@@ -578,24 +558,7 @@ export function AirBalanceTable() {
           }}
           suppressRowClickSelection={true}
           headerHeight={48}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-            wrapHeaderText: true,
-            autoHeaderHeight: true,
-            onCellClicked: (params: any) => {
-              if (params.column.colId === 'delete') {
-                if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
-                  removeZone(params.data.id);
-                }
-                return;
-              }
-              if (params.data) {
-                setSelectedZone(params.data.id);
-              }
-            }
-          }}
+          defaultColDef={defaultColDef}
         />
       </div>
 

@@ -46,14 +46,27 @@
 
 ### Krok 1.7 (Dashboard Analizy): Wprowadzono dolny panel KPI agregujący dane systemowe z obsługą scenariuszy (Analysis Presets).
 ### Krok 1.8: Wizualne kodowanie systemów (Hex/RGBA) z wzorami (CSS patterns). Implementacja logicznych priorytetów (P/W).
-- **Poprawki 1.8b/c**: Wprowadzenie globalnej i lokalnej przezroczystości (konwersja na RGBA). Naprawa odświeżania wzorów przez `gridApi.redrawRows()` oraz stabilizacja szerokości kolumn (dedykowany przycisk Autosize z persystencją w `localStorage`).
+- **Poprawki 1.8b/c/e/f**: Wprowadzenie globalnej i lokalnej przezroczystości (konwersja na RGBA). Naprawa odświeżania wzorów przez `gridApi.redrawRows()`. 
+- **[CRITICAL] Stabilizacja Kolumn (Fix 1.8f)**: Rozwiązano problem resetowania szerokości kolumn poprzez memoizację `columnDefs` i `defaultColDef`.
 ### Krok 1.7: Zaawansowana Analiza Systemowa
 - **Scenariusze (Presets):** Możliwość zapisywania filtrów (systemy + kondygnacje) jako nazwane scenariusze w `ProjectStateData`.
 - **Agregacja:** Nowy panel `AnalysisDashboard` wyliczający sumaryczne wydatki $\sum N, \sum W$ dla wybranych grup.
 - **Reporting:** Funkcja kopiowania raportu tekstowego do schowka dla szybkich konsultacji.
 - **KPI Cards:** Wizualne podsumowanie bilansu i transferów.
-* **Project Management & Versioning (KROK 0):** Implemented `useProjectStore.ts` for multi-project CRUD and snapshot management. 
-    * **Silent Sync**: Automatic debounced (3s) save of `{ zones, floors, systems }` envelope to Supabase. 
-    * **Time Machine**: Snapshots stored in `project_versions` table. 
-    * **Auth Requirement**: Uses Anonymous Sign-ins in Supabase (must be enabled in Dashboard: Auth -> Providers -> Email -> Allow anonymous sign-ins). 
-    * **UI**: `ProjectDashboard.tsx` (Dark Mode start screen) and `VersionHistoryPanel.tsx` (Right slider).
+*   **Project Management & Versioning (KROK 0):** Implemented `useProjectStore.ts` for multi-project CRUD and snapshot management. 
+    *   **Silent Sync**: Automatic debounced (3s) save of `{ zones, floors, systems }` envelope to Supabase. 
+    *   **Time Machine**: Snapshots stored in `project_versions` table. 
+    *   **Auth Requirement**: Uses Anonymous Sign-ins in Supabase (must be enabled in Dashboard: Auth -> Providers -> Email -> Allow anonymous sign-ins). 
+    *   **UI**: `ProjectDashboard.tsx` (Dark Mode start screen) and `VersionHistoryPanel.tsx` (Right slider).
+    *   **Session Continuity**: `useProjectStore` uses `persist` middleware to remember the `activeProject` after F5.
+
+## CRITICAL UI PATTERNS & BUG FIXES
+### AG Grid Column State Persistence (Resolved in 1.8f)
+*   **Problem**: Column widths and order were resetting to defaults during row data updates or state changes.
+*   **Root Cause**: Unstable references for `columnDefs` and `defaultColDef`. If these objects change reference on every render, AG Grid destroys and recreates the column state.
+*   **Solution (The Right Way)**:
+    1.  **Memoization**: Always wrap `columnDefs` and `defaultColDef` in `useMemo(() => [...], [dependencies])`. If they don't depend on sensitive state, keep dependencies empty.
+    2.  **Avoid Triggered Sizing**: Never call `sizeColumnsToFit()` inside a `useEffect` that listens to `rowData`. This will overwrite user adjustments every time data changes.
+    3.  **One-Time Initialization**: Apply external state (from Supabase/Store) ONLY in `onGridReady`.
+    4.  **No Feedback Loops**: Do not use `useEffect` to "force" state back into the grid during a session; AG Grid handles its internal state beautifully if the column definitions are stable.
+*   **Files Affected**: `AirBalanceTable.tsx`, `lib/utils.ts` (shared debounce).
