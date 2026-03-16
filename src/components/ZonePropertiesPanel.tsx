@@ -7,6 +7,7 @@ export function ZonePropertiesPanel() {
   const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
   const zones = useZoneStore((state) => state.zones);
   const floors = useZoneStore((state) => state.floors);
+  const systems = useZoneStore((state) => state.systems);
   const updateZone = useZoneStore((state) => state.updateZone);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
@@ -386,8 +387,9 @@ export function ZonePropertiesPanel() {
                 onChange={(e) => handleChange('systemSupplyId', e.target.value === 'Brak' ? '' : e.target.value)}
               >
                 <option value="Brak">Brak</option>
-                <option value="NW1">NW1</option>
-                <option value="NW2">NW2</option>
+                {systems.filter(s => s.type === 'SUPPLY').map(s => (
+                  <option key={s.id} value={s.id}>{s.id}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -398,8 +400,9 @@ export function ZonePropertiesPanel() {
                 onChange={(e) => handleChange('systemExhaustId', e.target.value === 'Brak' ? '' : e.target.value)}
               >
                 <option value="Brak">Brak</option>
-                <option value="WW1">WW1</option>
-                <option value="WW2">WW2</option>
+                {systems.filter(s => s.type === 'EXHAUST').map(s => (
+                  <option key={s.id} value={s.id}>{s.id}</option>
+                ))}
               </select>
             </div>
           </div>

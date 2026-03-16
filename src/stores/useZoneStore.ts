@@ -70,6 +70,8 @@ interface ZoneStore {
   addZone: (zone: ZoneData) => void;
   updateZone: (id: string, updates: Partial<ZoneData>) => void;
   removeZone: (id: string) => void;
+  bulkUpdateZones: (ids: string[], updates: Partial<ZoneData>) => void;
+  bulkDeleteZones: (ids: string[]) => void;
   recalculateAirBalance: (id?: string) => void;
   addSystem: (system: SystemDef) => void;
   removeSystem: (id: string) => void;
@@ -88,10 +90,10 @@ export const useZoneStore = create<ZoneStore>()(
       zones: {},
       floors: createDefaultFloors(),
       systems: [
-        { id: 'NW1', name: 'Nawiew 1', type: 'SUPPLY' },
-        { id: 'NW2', name: 'Nawiew 2', type: 'SUPPLY' },
-        { id: 'WW1', name: 'Wywiew 1', type: 'EXHAUST' },
-        { id: 'WW2', name: 'Wywiew 2', type: 'EXHAUST' },
+        { id: 'N1', name: 'Nawiew 1', type: 'SUPPLY' },
+        { id: 'N2', name: 'Nawiew 2', type: 'SUPPLY' },
+        { id: 'W1', name: 'Wywiew 1', type: 'EXHAUST' },
+        { id: 'W2', name: 'Wywiew 2', type: 'EXHAUST' },
       ],
       
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -123,7 +125,36 @@ export const useZoneStore = create<ZoneStore>()(
           delete nextZones[id];
           // Sync transfers to remove orphan transferOut references
           Object.keys(nextZones).forEach(zId => {
-            nextZones[zId].transferOut = nextZones[zId].transferOut.filter(t => t.roomId !== id);
+            if (nextZones[zId]) {
+              nextZones[zId].transferOut = nextZones[zId].transferOut.filter(t => t.roomId !== id);
+            }
+          });
+          return { zones: resolveZonesState(nextZones) };
+        });
+      },
+
+      bulkUpdateZones: (ids, updates) => {
+        set((state) => {
+          const nextZones = { ...state.zones };
+          ids.forEach(id => {
+            if (nextZones[id]) {
+              nextZones[id] = { ...nextZones[id], ...updates };
+            }
+          });
+          return { zones: resolveZonesState(nextZones) };
+        });
+      },
+
+      bulkDeleteZones: (ids) => {
+        set((state) => {
+          const nextZones = { ...state.zones };
+          const idsToRemove = new Set(ids);
+          ids.forEach(id => delete nextZones[id]);
+          
+          Object.keys(nextZones).forEach(zId => {
+            if (nextZones[zId]) {
+              nextZones[zId].transferOut = nextZones[zId].transferOut.filter(t => !idsToRemove.has(t.roomId));
+            }
           });
           return { zones: resolveZonesState(nextZones) };
         });

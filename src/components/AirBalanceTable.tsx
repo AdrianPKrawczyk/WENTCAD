@@ -5,6 +5,7 @@ import { RoomWizardModal } from './RoomWizardModal';
 import { CsvMappingModal } from './CsvMappingModal';
 import { SystemManagerModal } from './SystemManagerModal';
 import { FloorManagerBar } from './FloorManagerBar';
+import { BulkEditModal } from './BulkEditModal';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
@@ -23,6 +24,11 @@ export function AirBalanceTable() {
   const setSelectedZone = useZoneStore((state) => state.setSelectedZone);
   const systems = useZoneStore((state) => state.systems);
   const activeFloorId = useZoneStore((state) => state.activeFloorId);
+  const bulkDeleteZones = useZoneStore((state) => state.bulkDeleteZones);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const gridRef = useRef<AgGridReact>(null);
 
   const rowData = useMemo(() => {
     const allZones = Object.values(zones);
@@ -34,7 +40,16 @@ export function AirBalanceTable() {
   const exhaustSystems = useMemo(() => ['Brak', ...systems.filter(s => s.type === 'EXHAUST').map(s => s.id)], [systems]);
 
   const columnDefs = useMemo<ColDef<ZoneData>[]>(() => [
-    { field: 'nr', headerName: 'Nr', editable: true, width: 80, pinned: 'left' },
+    { 
+      field: 'nr', 
+      headerName: 'Nr', 
+      editable: true, 
+      width: 100, 
+      pinned: 'left',
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      headerCheckboxSelectionFilteredOnly: true,
+    },
     { field: 'name', headerName: 'Nazwa', editable: true, flex: 1, minWidth: 150 },
     { 
       field: 'activityType', 
@@ -217,6 +232,22 @@ export function AirBalanceTable() {
     updateZone(data.id, update);
   }, [updateZone]);
 
+  const onSelectionChanged = useCallback(() => {
+    if (gridRef.current?.api) {
+      const selectedNodes = gridRef.current.api.getSelectedNodes();
+      const ids = selectedNodes.map(node => node.data?.id).filter(Boolean);
+      setSelectedIds(ids);
+    }
+  }, []);
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Czy na pewno usunąć zaznaczone pomieszczenia (${selectedIds.length})?`)) {
+      bulkDeleteZones(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
 
   // Pomocnicza funkcja do zapisu szerokości kolumn (zapobieganie resetowaniu)
   const onColumnResized = useCallback((params: any) => {
@@ -358,6 +389,22 @@ export function AirBalanceTable() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
         <div className="flex gap-2">
+          {selectedIds.length > 1 && (
+            <>
+              <button 
+                onClick={() => setIsBulkEditOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                ✏️ Edytuj zaznaczone ({selectedIds.length})
+              </button>
+              <button 
+                onClick={handleBulkDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                🗑️ Usuń zaznaczone ({selectedIds.length})
+              </button>
+            </>
+          )}
           <input 
             type="file" 
             accept=".csv" 
@@ -394,18 +441,26 @@ export function AirBalanceTable() {
       
       <div style={{ height: '100%', width: '100%', flex: 1 }}>
         <AgGridReact
+          ref={gridRef}
           theme={themeQuartz}
           getRowId={(params) => params.data.id}
           rowData={rowData}
           columnDefs={columnDefs}
           context={{ removeZone }}
           onCellValueChanged={handleCellValueChanged}
+          onSelectionChanged={onSelectionChanged}
           onColumnResized={onColumnResized}
           onColumnMoved={onColumnResized}  
           onDisplayedColumnsChanged={onColumnResized}
           onGridReady={onGridReady}
           animateRows={true}
           sideBar={'columns'}
+          rowSelection={{
+            mode: 'multiRow',
+            headerCheckbox: true,
+            checkboxes: true,
+          }}
+          suppressRowClickSelection={true}
           defaultColDef={{
             sortable: true,
             filter: true,
@@ -442,6 +497,12 @@ export function AirBalanceTable() {
         onImport={handleCsvImport}
         csvData={csvRawData}
         headers={csvHeaders}
+      />
+      
+      <BulkEditModal 
+        isOpen={isBulkEditOpen}
+        onClose={() => setIsBulkEditOpen(false)}
+        selectedIds={selectedIds}
       />
       </div>
     </div>
