@@ -27,6 +27,8 @@ export function ZonePropertiesPanel() {
     updateZone(activeZone.id, { [field]: value });
   };
 
+  const { pause, resume } = useZoneStore.temporal.getState();
+
   const calculatedVolRaw = activeZone.area * activeZone.height;
 
   return (
@@ -50,6 +52,8 @@ export function ZonePropertiesPanel() {
               <input 
                 type="text" 
                 className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                onFocus={() => pause()}
+                onBlur={() => resume()}
                 value={activeZone.name}
                 onChange={(e) => handleChange('name', e.target.value)}
               />
@@ -116,6 +120,8 @@ export function ZonePropertiesPanel() {
                   type="number" 
                   min="0" step="0.1"
                   className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.area}
                   onChange={(e) => handleChange('area', Number(e.target.value))}
                 />
@@ -126,6 +132,8 @@ export function ZonePropertiesPanel() {
                   type="number" 
                   min="0" step="0.1"
                   className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.height}
                   onChange={(e) => handleChange('height', Number(e.target.value))}
                 />
@@ -160,6 +168,8 @@ export function ZonePropertiesPanel() {
                   type="number" 
                   min="0" step="0.1"
                   className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-yellow-50 text-yellow-800 px-2 rounded font-bold"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.manualVolume}
                   onChange={(e) => handleChange('manualVolume', Number(e.target.value))}
                   placeholder="Podaj objętość w m³"
@@ -202,6 +212,8 @@ export function ZonePropertiesPanel() {
                 <input 
                   type="number" 
                   className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.dosePerOccupant}
                   onChange={(e) => handleChange('dosePerOccupant', Number(e.target.value))}
                 />
@@ -233,6 +245,8 @@ export function ZonePropertiesPanel() {
                     type="number" 
                     step="0.1"
                     className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isTargetACHManual ? 'border-gray-500 bg-yellow-50 font-bold' : 'border-gray-300 bg-gray-50 text-gray-500'}`}
+                    onFocus={() => pause()}
+                    onBlur={() => resume()}
                     value={activeZone.isTargetACHManual ? (activeZone.manualTargetACH ?? 0) : activeZone.targetACH}
                     onChange={(e) => {
                       if (activeZone.isTargetACHManual) {
@@ -250,6 +264,8 @@ export function ZonePropertiesPanel() {
                 <input 
                   type="number" 
                   className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.normativeVolume}
                   onChange={(e) => handleChange('normativeVolume', Number(e.target.value))}
                 />
@@ -259,6 +275,8 @@ export function ZonePropertiesPanel() {
                 <input 
                   type="number" 
                   className="w-full text-sm border-b border-gray-300 focus:border-red-500 focus:outline-none py-1 bg-transparent border-red-200"
+                  onFocus={() => pause()}
+                  onBlur={() => resume()}
                   value={activeZone.normativeExhaust || 0}
                   onChange={(e) => handleChange('normativeExhaust', Number(e.target.value))}
                 />
@@ -314,6 +332,8 @@ export function ZonePropertiesPanel() {
               <input 
                 type="number" 
                 className="w-full text-sm border-b border-gray-300 focus:border-red-500 focus:outline-none py-1 bg-red-50"
+                onFocus={() => pause()}
+                onBlur={() => resume()}
                 value={activeZone.totalHeatGain}
                 onChange={(e) => handleChange('totalHeatGain', Number(e.target.value))}
               />

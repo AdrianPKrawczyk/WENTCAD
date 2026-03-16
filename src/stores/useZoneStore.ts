@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { temporal } from 'zundo';
 import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
@@ -96,7 +97,8 @@ interface ZoneStore {
 }
 
 export const useZoneStore = create<ZoneStore>()(
-  persist(
+  temporal(
+    persist(
     (set, get) => ({
       activeProjectId: null,
       selectedZoneId: null,
@@ -312,7 +314,6 @@ export const useZoneStore = create<ZoneStore>()(
           };
         });
       },
-
       saveAnalysisPreset: (preset) => {
         set((state) => {
           const index = state.analysisPresets.findIndex(p => p.id === preset.id);
@@ -337,7 +338,6 @@ export const useZoneStore = create<ZoneStore>()(
       version: 2,
       migrate: (persistedState: any, version: number) => {
         if (version < 2) {
-          // Add default floors if they don't exist
           return {
             ...persistedState,
             floors: persistedState.floors || createDefaultFloors(),
@@ -347,5 +347,29 @@ export const useZoneStore = create<ZoneStore>()(
         return persistedState;
       },
     }
-  )
+  ),
+  {
+    limit: 50,
+    partialize: (state: any) => {
+      const { 
+        zones, 
+        floors, 
+        systems, 
+        analysisPresets, 
+        stylePresets, 
+        isSystemColoringEnabled, 
+        globalSystemOpacity 
+      } = state;
+      return { 
+        zones, 
+        floors, 
+        systems, 
+        analysisPresets, 
+        stylePresets, 
+        isSystemColoringEnabled, 
+        globalSystemOpacity 
+      };
+    },
+  }
+)
 );
