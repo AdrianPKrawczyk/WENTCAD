@@ -38,6 +38,9 @@ interface CanvasState {
   setCalibrationPoints: (points: Point[]) => void;
   setScaleFactor: (factor: number | null) => void;
   resetCalibration: () => void;
+  // Measurement state
+  isMeasuring: boolean;
+  setIsMeasuring: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -72,14 +75,27 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   calibrationPoints: [],
   scaleFactor: null,
 
-  setIsCalibrating: (isCalibrating) => set({ isCalibrating }),
+  setIsCalibrating: (isCalibrating) => set((state) => ({ 
+    isCalibrating,
+    // Turn off measuring if calibration starts
+    isMeasuring: isCalibrating ? false : state.isMeasuring 
+  })),
   setCalibrationPoints: (calibrationPoints) => set({ calibrationPoints }),
   setScaleFactor: (scaleFactor) => set({ scaleFactor }),
   resetCalibration: () => set({ 
     isCalibrating: false, 
     calibrationPoints: [], 
-    scaleFactor: null 
+    scaleFactor: null,
+    isMeasuring: false
   }),
+
+  // Measurement state
+  isMeasuring: false,
+  setIsMeasuring: (isMeasuring) => set((state) => ({ 
+    isMeasuring,
+    // Turn off calibration if measuring starts
+    isCalibrating: isMeasuring ? false : state.isCalibrating 
+  })),
 
   reset: () => set({
     scale: 1,
@@ -90,5 +106,6 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     isCalibrating: false,
     calibrationPoints: [],
     scaleFactor: null,
+    isMeasuring: false,
   }),
 }));

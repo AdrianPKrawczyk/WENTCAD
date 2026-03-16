@@ -99,11 +99,11 @@
 - **useCanvasStore.ts** (`src/stores/useCanvasStore.ts`) przechowuje stan kamery (`scale`, `position`) i podkładu (`underlayUrl`, `underlaySize`, `underlayName`).
 - **Ten store NIE jest podpięty pod `zundo`**. Pan, zoom i podkład to stan widoku UI, nie dane projektu.
 - Historia (`zundo`) dotyczy WYŁĄCZNIE `useZoneStore` (dane stref, pomieszczeń, systemów).
-- **Kalibracja Skali (`scaleFactor`)**: 
-  - Przechowywana w `useCanvasStore.ts` jako mnożnik `metry / piksel`.
-  - Obliczana w procesie interaktywnym (2 punkty kliknięte na canvasie + rzeczywista długość w metrach).
-  - Wzór: `scaleFactor = realLengthInMeters / sqrt(dx² + dy²)`.
-  - Służy do przeliczania powierzchni narysowanych poligonów na metry kwadratowe (Krok 2.4+).
+- **Kalibracja i Pomiary**:
+  - `scaleFactor` (metry / piksel) jest podstawą wszystkich obliczeń geometrycznych.
+  - Aktywne narzędzia (`isCalibrating`, `isMeasuring`) wzajemnie się wykluczają.
+  - Narzędzie "Linijka" (`isMeasuring`) rysuje linię pomocniczą i etykietę z wynikiem wyliczonym jako `distPixels * scaleFactor`.
+  - Wyniki są renderowane za pomocą komponentów `Label`, `Tag` i `Text` z `react-konva`.
 
 ### Podkłady PDF (pdfjs-dist)
 - Użyto biblioteki **pdfjs-dist** do renderowania pierwszej strony dokumentu PDF na wirtualnym canvasie po stronie klienta.

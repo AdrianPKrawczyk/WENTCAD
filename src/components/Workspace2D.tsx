@@ -1,8 +1,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line, Circle } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point } from '../stores/useCanvasStore';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 
@@ -59,10 +59,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setCalibrationPoints = useCanvasStore((s) => s.setCalibrationPoints);
   const setScaleFactor = useCanvasStore((s) => s.setScaleFactor);
 
+  const isMeasuring = useCanvasStore((s) => s.isMeasuring);
+  const setIsMeasuring = useCanvasStore((s) => s.setIsMeasuring);
+
   // Local state for UI
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [pixelDistance, setPixelDistance] = useState(0);
+  const [measurePoints, setMeasurePoints] = useState<Point[]>([]);
 
   const underlayUrl = useCanvasStore((s) => s.underlayUrl);
   const underlaySize = useCanvasStore((s) => s.underlaySize);
@@ -171,6 +175,25 @@ export function Workspace2D({ className }: Workspace2DProps) {
       return;
     }
 
+    if (isMeasuring) {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const stagePos = stage.getPointerPosition();
+      if (!stagePos) return;
+
+      const canvasPos = {
+        x: (stagePos.x - position.x) / scale,
+        y: (stagePos.y - position.y) / scale,
+      };
+
+      if (measurePoints.length === 0 || measurePoints.length === 2) {
+        setMeasurePoints([canvasPos]);
+      } else if (measurePoints.length === 1) {
+        setMeasurePoints([...measurePoints, canvasPos]);
+      }
+      return;
+    }
+
     if (e.evt.button === 1 || (e.evt.button === 0 && isSpaceDown.current)) {
       e.evt.preventDefault();
       isPanning.current = true;
@@ -191,7 +214,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       y: (stagePos.y - position.y) / scale,
     };
 
-    if (isCalibrating) {
+    if (isCalibrating || isMeasuring) {
       setMousePos(canvasPos);
       return;
     }
@@ -219,6 +242,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
         const container = stageRef.current?.container();
         if (container) container.style.cursor = 'grab';
       }
+      if (e.code === 'Escape') {
+        if (isCalibrating) {
+          setIsCalibrating(false);
+          setCalibrationPoints([]);
+        }
+        if (isMeasuring) {
+          setIsMeasuring(false);
+          setMeasurePoints([]);
+        }
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -239,7 +272,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   useEffect(() => {
     const container = stageRef.current?.container();
     if (container) {
-      if (isCalibrating) {
+      if (isCalibrating || isMeasuring) {
         container.style.cursor = 'crosshair';
       } else if (isSpaceDown.current) {
         container.style.cursor = 'grab';
@@ -247,7 +280,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         container.style.cursor = 'default';
       }
     }
-  }, [isCalibrating]);
+  }, [isCalibrating, isMeasuring]);
 
   // Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -404,6 +437,78 @@ export function Workspace2D({ className }: Workspace2DProps) {
               strokeWidth={1 / scale}
             />
           ))}
+
+          {/* Measuring Line Visual */}
+          {(isMeasuring || measurePoints.length === 2) && measurePoints.length > 0 && (
+            <>
+              <Line
+                points={[
+                  measurePoints[0].x,
+                  measurePoints[0].y,
+                  measurePoints.length === 2 ? measurePoints[1].x : mousePos.x,
+                  measurePoints.length === 2 ? measurePoints[1].y : mousePos.y
+                ]}
+                stroke="#f97316"
+                strokeWidth={2 / scale}
+                dash={[5 / scale, 5 / scale]}
+              />
+              <Circle
+                x={measurePoints[0].x}
+                y={measurePoints[0].y}
+                radius={4 / scale}
+                fill="#f97316"
+                stroke="white"
+                strokeWidth={1 / scale}
+              />
+              {measurePoints.length === 2 && (
+                <Circle
+                  x={measurePoints[1].x}
+                  y={measurePoints[1].y}
+                  radius={4 / scale}
+                  fill="#f97316"
+                  stroke="white"
+                  strokeWidth={1 / scale}
+                />
+              )}
+              {/* Distance Label */}
+              {(() => {
+                const p1 = measurePoints[0];
+                const p2 = measurePoints.length === 2 ? measurePoints[1] : mousePos;
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const distPx = Math.sqrt(dx * dx + dy * dy);
+                const distM = scaleFactor ? distPx * scaleFactor : 0;
+                
+                return (
+                  <Label
+                    x={(p1.x + p2.x) / 2}
+                    y={(p1.y + p2.y) / 2}
+                    listening={false}
+                  >
+                    <Tag
+                      fill="rgba(249, 115, 22, 0.9)"
+                      pointerDirection="down"
+                      pointerWidth={10 / scale}
+                      pointerHeight={10 / scale}
+                      lineJoin="round"
+                      shadowColor="black"
+                      shadowBlur={10}
+                      shadowOpacity={0.2}
+                      cornerRadius={4 / scale}
+                    />
+                    <Text
+                      text={`${distM.toFixed(2)} m`}
+                      fontFamily="monospace"
+                      fontSize={14 / scale}
+                      padding={5 / scale}
+                      fill="white"
+                      fontStyle="bold"
+                    />
+                  </Label>
+                );
+              })()}
+            </>
+          )}
         </Layer>
 
         {/* CONTENT LAYER - Reserved for Zones, etc. */}
@@ -447,6 +552,33 @@ export function Workspace2D({ className }: Workspace2DProps) {
         >
           <Ruler className="w-4 h-4" />
           Kalibruj
+        </button>
+
+        {/* Measuring button */}
+        <button
+          onClick={() => {
+            if (!scaleFactor && !isMeasuring) {
+              toast.error('Skalibruj podkład przed wykonaniem pomiaru.');
+              return;
+            }
+            if (isMeasuring) {
+              setIsMeasuring(false);
+              setMeasurePoints([]);
+            } else {
+              setIsMeasuring(true);
+              setMeasurePoints([]);
+              toast.info('Tryb pomiaru: Kliknij dwa punkty, aby zmierzyć odległość.');
+            }
+          }}
+          title="Zmierz odległość"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            isMeasuring 
+              ? 'bg-orange-600 text-white shadow-inner' 
+              : 'text-gray-600 hover:bg-orange-50 hover:text-orange-700'
+          }`}
+        >
+          <PencilRuler className="w-4 h-4" />
+          Zmierz
         </button>
 
         {scaleFactor && (
