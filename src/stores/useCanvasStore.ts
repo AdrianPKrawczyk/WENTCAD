@@ -5,6 +5,11 @@ interface CanvasPosition {
   y: number;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 interface UnderlaySize {
   width: number;
   height: number;
@@ -24,6 +29,15 @@ interface CanvasState {
   setScaleAndPosition: (scale: number, position: CanvasPosition) => void;
   setUnderlay: (url: string, size: UnderlaySize, name: string) => void;
   clearUnderlay: () => void;
+  // Calibration state
+  isCalibrating: boolean;
+  calibrationPoints: Point[];
+  scaleFactor: number | null; // meters per pixel
+  // Calibration actions
+  setIsCalibrating: (value: boolean) => void;
+  setCalibrationPoints: (points: Point[]) => void;
+  setScaleFactor: (factor: number | null) => void;
+  resetCalibration: () => void;
   reset: () => void;
 }
 
@@ -49,8 +63,22 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   
   clearUnderlay: () => set({ 
     underlayUrl: null, 
-    underlaySize: null, 
+    underlaySize: null,
     underlayName: null 
+  }),
+
+  // Calibration defaults
+  isCalibrating: false,
+  calibrationPoints: [],
+  scaleFactor: null,
+
+  setIsCalibrating: (isCalibrating) => set({ isCalibrating }),
+  setCalibrationPoints: (calibrationPoints) => set({ calibrationPoints }),
+  setScaleFactor: (scaleFactor) => set({ scaleFactor }),
+  resetCalibration: () => set({ 
+    isCalibrating: false, 
+    calibrationPoints: [], 
+    scaleFactor: null 
   }),
 
   reset: () => set({
@@ -59,5 +87,8 @@ export const useCanvasStore = create<CanvasState>((set) => ({
     underlayUrl: null,
     underlaySize: null,
     underlayName: null,
+    isCalibrating: false,
+    calibrationPoints: [],
+    scaleFactor: null,
   }),
 }));

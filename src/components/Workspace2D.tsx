@@ -1,8 +1,9 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle } from 'react-konva';
 import Konva from 'konva';
-import { useCanvasStore } from '../stores/useCanvasStore';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2 } from 'lucide-react';
+import { useCanvasStore, type Point } from '../stores/useCanvasStore';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler } from 'lucide-react';
+import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 
 // PDF.js configuration
@@ -48,10 +49,24 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   const scale = useCanvasStore((s) => s.scale);
   const position = useCanvasStore((s) => s.position);
+  const setScaleAndPosition = useCanvasStore((s) => s.setScaleAndPosition);
+
+  // Calibration store
+  const isCalibrating = useCanvasStore((s) => s.isCalibrating);
+  const calibrationPoints = useCanvasStore((s) => s.calibrationPoints);
+  const scaleFactor = useCanvasStore((s) => s.scaleFactor);
+  const setIsCalibrating = useCanvasStore((s) => s.setIsCalibrating);
+  const setCalibrationPoints = useCanvasStore((s) => s.setCalibrationPoints);
+  const setScaleFactor = useCanvasStore((s) => s.setScaleFactor);
+
+  // Local state for UI
+  const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
+  const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+  const [pixelDistance, setPixelDistance] = useState(0);
+
   const underlayUrl = useCanvasStore((s) => s.underlayUrl);
   const underlaySize = useCanvasStore((s) => s.underlaySize);
   const underlayName = useCanvasStore((s) => s.underlayName);
-  const setScaleAndPosition = useCanvasStore((s) => s.setScaleAndPosition);
   const setUnderlay = useCanvasStore((s) => s.setUnderlay);
   const clearUnderlay = useCanvasStore((s) => s.clearUnderlay);
 
@@ -129,6 +144,33 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   // Pan via middle button or Space + Left click
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (isCalibrating) {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const stagePos = stage.getPointerPosition();
+      if (!stagePos) return;
+
+      const canvasPos = {
+        x: (stagePos.x - position.x) / scale,
+        y: (stagePos.y - position.y) / scale,
+      };
+
+      if (calibrationPoints.length < 2) {
+        const newPoints = [...calibrationPoints, canvasPos];
+        setCalibrationPoints(newPoints);
+
+        if (newPoints.length === 2) {
+          // Calculate distance
+          const dx = newPoints[1].x - newPoints[0].x;
+          const dy = newPoints[1].y - newPoints[0].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          setPixelDistance(dist);
+          setShowCalibrationModal(true);
+        }
+      }
+      return;
+    }
+
     if (e.evt.button === 1 || (e.evt.button === 0 && isSpaceDown.current)) {
       e.evt.preventDefault();
       isPanning.current = true;
@@ -136,15 +178,30 @@ export function Workspace2D({ className }: Workspace2DProps) {
       const container = stageRef.current?.container();
       if (container) container.style.cursor = 'grabbing';
     }
-  }, []);
+  }, [isCalibrating, calibrationPoints, setCalibrationPoints, position, scale]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const stagePos = stage.getPointerPosition();
+    if (!stagePos) return;
+
+    const canvasPos = {
+      x: (stagePos.x - position.x) / scale,
+      y: (stagePos.y - position.y) / scale,
+    };
+
+    if (isCalibrating) {
+      setMousePos(canvasPos);
+      return;
+    }
+
     if (!isPanning.current) return;
     const dx = e.evt.clientX - lastPointerPos.current.x;
     const dy = e.evt.clientY - lastPointerPos.current.y;
     lastPointerPos.current = { x: e.evt.clientX, y: e.evt.clientY };
     setScaleAndPosition(scale, { x: position.x + dx, y: position.y + dy });
-  }, [isPanning, scale, position, setScaleAndPosition]);
+  }, [isPanning, scale, position, setScaleAndPosition, isCalibrating]);
 
   const handleMouseUp = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
     if (isPanning.current) {
@@ -177,6 +234,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
       window.removeEventListener('keyup', onKeyUp);
     };
   }, []);
+
+  // Update cursor during calibration
+  useEffect(() => {
+    const container = stageRef.current?.container();
+    if (container) {
+      if (isCalibrating) {
+        container.style.cursor = 'crosshair';
+      } else if (isSpaceDown.current) {
+        container.style.cursor = 'grab';
+      } else {
+        container.style.cursor = 'default';
+      }
+    }
+  }, [isCalibrating]);
 
   // Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,6 +378,32 @@ export function Workspace2D({ className }: Workspace2DProps) {
               listening={false}
             />
           )}
+
+          {/* Calibration Line Visual */}
+          {isCalibrating && calibrationPoints.length > 0 && (
+            <Line
+              points={[
+                calibrationPoints[0].x,
+                calibrationPoints[0].y,
+                calibrationPoints.length === 2 ? calibrationPoints[1].x : mousePos.x,
+                calibrationPoints.length === 2 ? calibrationPoints[1].y : mousePos.y
+              ]}
+              stroke="#4f46e5"
+              strokeWidth={2 / scale}
+              dash={[5 / scale, 5 / scale]}
+            />
+          )}
+          {isCalibrating && calibrationPoints.map((p, i) => (
+            <Circle
+              key={i}
+              x={p.x}
+              y={p.y}
+              radius={4 / scale}
+              fill="#4f46e5"
+              stroke="white"
+              strokeWidth={1 / scale}
+            />
+          ))}
         </Layer>
 
         {/* CONTENT LAYER - Reserved for Zones, etc. */}
@@ -326,6 +423,39 @@ export function Workspace2D({ className }: Workspace2DProps) {
           <ImageIcon className="w-4 h-4" />
           Podkład
         </button>
+
+        <div className="h-4 w-px bg-gray-200" />
+
+        {/* Calibration button */}
+        <button
+          onClick={() => {
+            if (isCalibrating) {
+              setIsCalibrating(false);
+              setCalibrationPoints([]);
+            } else {
+              setIsCalibrating(true);
+              setCalibrationPoints([]);
+              toast.info('Tryb kalibracji: Kliknij dwa punkty na podkładzie, aby zdefiniować skalę.');
+            }
+          }}
+          title="Kalibruj skalę (wyznacz rzeczywisty wymiar)"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            isCalibrating 
+              ? 'bg-indigo-600 text-white shadow-inner' 
+              : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'
+          }`}
+        >
+          <Ruler className="w-4 h-4" />
+          Kalibruj
+        </button>
+
+        {scaleFactor && (
+          <div className="flex items-center px-2 py-1 bg-green-50 rounded-lg border border-green-100">
+            <span className="text-[10px] font-mono font-bold text-green-700">
+              1px = {(scaleFactor * 1000).toFixed(1)}mm
+            </span>
+          </div>
+        )}
 
         {underlayName && (
           <>
@@ -432,6 +562,24 @@ export function Workspace2D({ className }: Workspace2DProps) {
           </div>
         </div>
       )}
+
+      {/* CALIBRATION MODAL */}
+      <CalibrationModal
+        isOpen={showCalibrationModal}
+        pixelDistance={pixelDistance}
+        onConfirm={(realMeters) => {
+          const factor = realMeters / pixelDistance;
+          setScaleFactor(factor);
+          setShowCalibrationModal(false);
+          setIsCalibrating(false);
+          setCalibrationPoints([]);
+          toast.success(`Skalibrowano: 1px = ${(factor * 1000).toFixed(2)}mm`);
+        } }
+        onCancel={() => {
+          setShowCalibrationModal(false);
+          setCalibrationPoints([]);
+        } }
+      />
     </div>
   );
 }
