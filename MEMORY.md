@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: INITIATION
-* **Active Step:** KROK 2 (Architecture Underlays PDF/DXF) - PENDING
-* **Pending Task:** Start work on Step 2 (Konva Canvas).
+## CURRENT STATE: FAZA 2.1 / 2.2 ZAKOŃCZONA
+* **Active Step:** FAZA 2.3 (Scale Calibration Tool) - PENDING
+* **Pending Task:** Implementacja narzędzia kalibracji skali (px → metry).
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -14,15 +14,13 @@
 * [x] **KROK 1.11: Floor Manager Module** - Done
 * [x] **KROK 1.12: Multi-Room Selection & Bulk Editing** - Done
 * [x] **KROK 2.0: System Undo/Redo** - Done
-* [x] **KROK 2.3: System Manager Enhancements** - Done
-* [x] **KROK 2.4: Multi-step System Wizard** - Done
-* [ ] **KROK 2: Architecture Underlays (PDF/DXF)** - Pending
-* [ ] **KROK 3: UI & Konva.js Canvas Engine** - Pending
-* [ ] **KROK 4: Aerodynamics & Fluid Dynamics (DAG)** - Pending
-* [ ] **KROK 5: Auto-Sizer & Component Selection** - Pending
-* [ ] **KROK 6: Acoustics Engine** - Pending
-* [ ] **KROK 7: BOM & Export (Excel/TXT)** - Pending
-* [ ] **KROK 8: DXF Export & Layer Manager** - Pending
+* [x] **KROK 2.3 UI: System Manager Enhancements** - Done
+* [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
+* [x] **FAZA 2.1: Silnik Graficzny 2D (react-konva, Pan, Zoom)** - Done
+* [x] **FAZA 2.2: Menadżer Podkładów Rastrowych (PNG/JPG)** - Done
+* [ ] **FAZA 2.3: Kalibrator Skali** - Pending
+* [ ] **FAZA 2.4: Rysowanie Stref (Zone Polygons)** - Pending
+* [ ] **FAZA 2.5: Import DXF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -91,3 +89,34 @@
 - **Logika**: 5-krokowy kreator (`SystemWizardModal.tsx`) automatyzujący generowanie par Nawiew/Wywiew dla central (AHU) wraz z wentylatorami.
 - **Stylizacja Rodzin (Family Styling)**: Systemy powiązane (np. N1, W1, W1.1) otrzymują ten sam kolor bazowy. Wentylatory dodatkowo otrzymują deseń (pattern), co pozwala na wizualną hierarchizację.
 - **Undo/Redo Stability**: Wszystkie systemy generowane w kreatorze są dodawane do store'a za pomocą jednej akcji `addSystems`, co gwarantuje, że cała operacja zajmuje dokładnie JEDEN krok w historii (`zundo`).
+
+## ARCHITEKTURA SILNIKA 2D (FAZA 2.1 & 2.2)
+
+### Biblioteka renderowania
+- **react-konva** (`react-konva` + `konva`) — używana do całego renderowania 2D. Konva zarządza Stage → Layer → Shape. Biblioteka jest już zainstalowana w projekcie, nie wymaga dodatkowej instalacji.
+
+### Oddzielenie stanu UI od historii zundo (KRYTYCZNE)
+- **useCanvasStore.ts** (`src/stores/useCanvasStore.ts`) przechowuje stan kamery (`scale`, `position`) i podkładu (`underlayUrl`, `underlaySize`, `underlayName`).
+- **Ten store NIE jest podpięty pod `zundo`**. Pan, zoom i podkład to stan widoku UI, nie dane projektu.
+- Historia (`zundo`) dotyczy WYŁĄCZNIE `useZoneStore` (dane stref, pomieszczeń, systemów).
+
+### Nawigacja CAD — Zoom to Pointer
+- Obsługiwane przez `onWheel` na `<Stage>`. Wzór na nową pozycję (zoom skupiony na kursorze):
+  ```typescript
+  const mousePointTo = { x: (pointer.x - pos.x) / oldScale, y: (pointer.y - pos.y) / oldScale };
+  const newPos = { x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale };
+  ```
+
+### Pan (Przesuwanie)
+- **Środkowy przycisk myszy (MMB):** `e.evt.button === 1` → pan mode.
+- **Spacja + LPM:** Globalny listener `keydown/keyup` na `Space`. Gdy `isSpaceDown.current === true`, LPM uruchamia pan.
+
+### Layout Split-Screen
+- Ekran podzielony pionowo: **Tabela (góra)** i **Workspace2D (dół)**.
+- Drag handle (divider) reguluje proporcje — `splitPercent` state w `App.tsx` (domyślnie 55%/45%).
+- Logika drag: ref `isDragging` + globalny `mousemove`/`mouseup` listener na `document`.
+
+### Podkłady (Underlay)
+- Faza 2.2 (PNG/JPG): `FileReader.readAsDataURL()` → `HTMLImageElement` → `<KonvaImage>` na Layer "background".
+- Rozmiar podkładu zapisany w `useCanvasStore` → automatyczny fit-to-screen po załadowaniu.
+- PDF (Supabase Storage) — do implementacji w Fazie 2.2 zaawansowanej.

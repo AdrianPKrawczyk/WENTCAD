@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './styles/patterns.css';
 import { useZoneStore } from './stores/useZoneStore';
 import { useProjectStore } from './stores/useProjectStore';
@@ -9,6 +9,7 @@ import { ProjectDashboard } from './components/ProjectDashboard';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { TopBar } from './components/TopBar';
+import { Workspace2D } from './components/Workspace2D';
 import { customDebounce } from './lib/utils';
 
 function App() {
@@ -23,9 +24,42 @@ function App() {
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const columnState = useZoneStore((s) => s.columnState);
   const activeProjectIdInZoneStore = useZoneStore((s) => s.activeProjectId);
-  const loadWorkspaceState = useZoneStore((s) => s.loadState); // Renamed for clarity
+  const loadWorkspaceState = useZoneStore((s) => s.loadState);
 
   const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
+  // Split-screen state: percentage of height allocated to the table (top)
+  const [splitPercent, setSplitPercent] = useState(55);
+  const isDragging = useRef(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  const handleDividerMouseDown = useCallback(() => {
+    isDragging.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || !workspaceRef.current) return;
+      const rect = workspaceRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+      const newPercent = Math.max(20, Math.min(80, (relativeY / rect.height) * 100));
+      setSplitPercent(newPercent);
+    };
+    const onMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   // RESTORATION LOGIC (F5 Fix)
   useEffect(() => {
@@ -38,7 +72,7 @@ function App() {
   // SILENT SYNC LOGIC
   const debouncedSync = useCallback(
     customDebounce((projectId: string, state: any) => {
-      if (projectId) { // Ensure projectId is valid before syncing
+      if (projectId) {
         updateProjectState(projectId, state);
       }
     }, 3000),
@@ -105,9 +139,28 @@ function App() {
           </div>
         </aside>
 
-        {/* CENTRUM: Tabele Bilansowe */}
-        <main className="flex-1 flex flex-col min-w-0 bg-gray-50 overflow-hidden relative">
-          <AirBalanceTable />
+        {/* CENTRUM: Split-Screen (Tabela + Canvas 2D) */}
+        <main ref={workspaceRef} className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+
+          {/* GÓRNA SEKCJA: Tabela Bilansu */}
+          <div className="overflow-hidden flex-shrink-0" style={{ height: `${splitPercent}%` }}>
+            <AirBalanceTable />
+          </div>
+
+          {/* DIVIDER: Drag Handle */}
+          <div
+            onMouseDown={handleDividerMouseDown}
+            className="h-2 bg-gray-200 hover:bg-indigo-300 active:bg-indigo-400 cursor-row-resize flex items-center justify-center shrink-0 transition-colors z-10 group"
+            title="Przeciągnij, aby zmienić podział ekranu"
+          >
+            <div className="w-16 h-0.5 rounded-full bg-gray-400 group-hover:bg-indigo-500 transition-colors" />
+          </div>
+
+          {/* DOLNA SEKCJA: Przestrzeń Robocza 2D */}
+          <div className="overflow-hidden flex-1 min-h-0" style={{ height: `${100 - splitPercent}%` }}>
+            <Workspace2D />
+          </div>
+
         </main>
 
         {/* PRAWY SIDEBAR: Inspektor */}
@@ -116,7 +169,6 @@ function App() {
         {/* TIME MACHINE PANEL (OVERLAY/DRAWER) */}
         {isVersionPanelOpen && (
           <div className="fixed inset-y-0 right-0 z-30 flex">
-             {/* Backdrop logic can go here if needed */}
              <VersionHistoryPanel />
              <button 
                 onClick={() => setIsVersionPanelOpen(false)}
@@ -142,4 +194,5 @@ function App() {
 }
 
 export default App
+
 
