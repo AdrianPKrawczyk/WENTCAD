@@ -80,7 +80,23 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
       const { data, error } = await supabase
         .from('projects')
-        .insert([{ name, user_id: user.id, state_data: { zones: {}, floors: {}, systems: [] } }])
+        .insert([{ 
+          name, 
+          user_id: user.id, 
+          state_data: { 
+            zones: {}, 
+            floors: {
+              'floor-parter': { id: 'floor-parter', name: 'Parter', elevation: 0.0, order: 0 }
+            }, 
+            systems: [
+              { id: 'N1', name: 'Nawiew 1', type: 'SUPPLY' },
+              { id: 'N2', name: 'Nawiew 2', type: 'SUPPLY' },
+              { id: 'W1', name: 'Wywiew 1', type: 'EXHAUST' },
+              { id: 'W2', name: 'Wywiew 2', type: 'EXHAUST' }
+            ],
+            analysisPresets: []
+          } 
+        }])
         .select()
         .single();
 

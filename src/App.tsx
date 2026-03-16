@@ -6,6 +6,7 @@ import { ZonePropertiesPanel } from './components/ZonePropertiesPanel';
 import { StatusBar } from './components/StatusBar';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
+import { AnalysisDashboard } from './components/AnalysisDashboard';
 
 // Simple debounce implementation
 function customDebounce(func: Function, wait: number) {
@@ -28,6 +29,7 @@ function App() {
   const zones = useZoneStore((s) => s.zones);
   const floors = useZoneStore((s) => s.floors);
   const systems = useZoneStore((s) => s.systems);
+  const analysisPresets = useZoneStore((s) => s.analysisPresets);
 
   const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
 
@@ -42,10 +44,10 @@ function App() {
 
   useEffect(() => {
     if (activeProject) {
-      const stateToSync = { zones, floors, systems };
+      const stateToSync = { zones, floors, systems, analysisPresets };
       debouncedSync(activeProject.id, stateToSync);
     }
-  }, [zones, floors, systems, activeProject, debouncedSync]);
+  }, [zones, floors, systems, analysisPresets, activeProject, debouncedSync]);
 
   // If no project is selected, show Dashboard
   if (!activeProject) {
@@ -140,6 +142,9 @@ function App() {
         )}
 
       </div>
+
+      {/* PANEL ANALIZY */}
+      <AnalysisDashboard />
 
       {/* PASEK STANU */}
       <StatusBar />

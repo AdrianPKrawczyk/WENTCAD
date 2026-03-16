@@ -10,6 +10,7 @@
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
 * [x] **KROK 1: Air Balance Data Foundation & UI** - Done
+* [x] **KROK 1.7: Zaawansowana analizy systemowa i scenariusze** - Done
 * [x] **KROK 1.11: Floor Manager Module** - Done
 * [x] **KROK 1.12: Multi-Room Selection & Bulk Editing** - Done
 * [ ] **KROK 2: Architecture Underlays (PDF/DXF)** - Pending
@@ -38,6 +39,16 @@
     * **State Implementation**: `bulkUpdateZones` and `bulkDeleteZones` in `useZoneStore.ts`. Recalculates all affected zones via `resolveZonesState`.
     * **UI Component**: `BulkEditModal.tsx` provides thematic sections (General, Thermodynamics, Acoustics, etc.) with granular "Overwrite" checkboxes for each field.
     * **Table Integration**: `AirBalanceTable.tsx` updated with `rowSelection: 'multiple'`, checkbox column, and contextual bulk action buttons ("Edytuj zaznaczone", "Usuń zaznaczone").
+### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
+- **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.
+- **Interfejs:** Implementacja `BulkEditModal` z systemem "Change" checkboxes pozwala na selektywną aktualizację pól.
+- **Logika:** Zmiana typu pomieszczenia w edycji masowej automatycznie przelicza `targetACH` i `maxAllowedDbA` zgodnie z `ROOM_PRESETS`.
+
+### Krok 1.7: Zaawansowana Analiza Systemowa
+- **Scenariusze (Presets):** Możliwość zapisywania filtrów (systemy + kondygnacje) jako nazwane scenariusze w `ProjectStateData`.
+- **Agregacja:** Nowy panel `AnalysisDashboard` wyliczający sumaryczne wydatki $\sum N, \sum W$ dla wybranych grup.
+- **Reporting:** Funkcja kopiowania raportu tekstowego do schowka dla szybkich konsultacji.
+- **KPI Cards:** Wizualne podsumowanie bilansu i transferów.
 * **Project Management & Versioning (KROK 0):** Implemented `useProjectStore.ts` for multi-project CRUD and snapshot management. 
     * **Silent Sync**: Automatic debounced (3s) save of `{ zones, floors, systems }` envelope to Supabase. 
     * **Time Machine**: Snapshots stored in `project_versions` table. 

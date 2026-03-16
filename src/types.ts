@@ -173,10 +173,20 @@ export interface SystemDef {
   type: 'SUPPLY' | 'EXHAUST' | 'INTAKE' | 'OUTTAKE';
 }
 
+// Scenariusz Analizy (Krok 1.7)
+export interface AnalysisPreset {
+  id: string;
+  name: string;
+  systemIds: string[];
+  floorIds: string[];
+  description?: string;
+}
+
 export interface ProjectStateData {
   floors: Record<string, Floor>;
   zones: Record<string, ZoneData>;
   systems: SystemDef[];
+  analysisPresets?: AnalysisPreset[];
 }
 
 // Rekord Projektu

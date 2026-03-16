@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ZoneData, Floor, SystemDef, ProjectStateData } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
 const DEFAULT_FLOOR_ID = 'floor-parter';
@@ -61,6 +61,7 @@ interface ZoneStore {
   activeProjectId: string | null;
   selectedZoneId: string | null;
   activeFloorId: string;
+  analysisPresets: AnalysisPreset[];
   zones: Record<string, ZoneData>;
   floors: Record<string, Floor>;
   systems: SystemDef[];
@@ -79,6 +80,8 @@ interface ZoneStore {
   addFloor: (floor: Omit<Floor, 'id' | 'order'>) => string;
   updateFloor: (id: string, updates: Partial<Floor>) => void;
   removeFloor: (id: string) => void;
+  saveAnalysisPreset: (preset: AnalysisPreset) => void;
+  removeAnalysisPreset: (id: string) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -95,6 +98,7 @@ export const useZoneStore = create<ZoneStore>()(
         { id: 'W1', name: 'Wywiew 1', type: 'EXHAUST' },
         { id: 'W2', name: 'Wywiew 2', type: 'EXHAUST' },
       ],
+      analysisPresets: [],
       
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
@@ -188,6 +192,7 @@ export const useZoneStore = create<ZoneStore>()(
           zones: resolveZonesState(stateData.zones || {}),
           floors: stateData.floors || {},
           systems: stateData.systems || [],
+          analysisPresets: stateData.analysisPresets || [],
           activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter'
         });
       },
@@ -247,6 +252,25 @@ export const useZoneStore = create<ZoneStore>()(
             activeFloorId: newActiveFloorId,
           };
         });
+      },
+
+      saveAnalysisPreset: (preset) => {
+        set((state) => {
+          const index = state.analysisPresets.findIndex(p => p.id === preset.id);
+          const nextPresets = [...state.analysisPresets];
+          if (index >= 0) {
+            nextPresets[index] = preset;
+          } else {
+            nextPresets.push(preset);
+          }
+          return { analysisPresets: nextPresets };
+        });
+      },
+
+      removeAnalysisPreset: (id) => {
+        set((state) => ({
+          analysisPresets: state.analysisPresets.filter(p => p.id !== id)
+        }));
       },
     }),
     {
