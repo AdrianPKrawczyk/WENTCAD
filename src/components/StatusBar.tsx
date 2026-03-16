@@ -1,8 +1,10 @@
 import { useZoneStore } from '../stores/useZoneStore';
-
+import { useProjectStore } from '../stores/useProjectStore';
 
 export function StatusBar() {
   const zones = useZoneStore((state) => state.zones);
+  const syncStatus = useProjectStore((s) => s.syncStatus);
+  const syncError = useProjectStore((s) => s.error);
   const zonesArray = Object.values(zones);
 
   // Group by supply systems
@@ -35,40 +37,61 @@ export function StatusBar() {
                       `0 m³/h (Zbilansowany)`;
 
   return (
-    <div className="h-8 bg-gray-800 text-gray-300 flex items-center px-4 text-xs font-medium justify-between shadow-inner z-20">
+    <div className="h-10 bg-gray-900 text-gray-400 flex items-center px-4 text-[11px] font-medium justify-between shadow-inner z-20 border-t border-gray-800">
       <div className="flex space-x-6 items-center">
         
         {/* Nawiew Badges */}
         <div className="flex items-center space-x-2">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-brand-supply)]"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-supply)]"></span>
           <span>Nawiew:</span>
           {Object.entries(supplyBySystem).map(([sysId, vol]) => (
-            <span key={`sup-${sysId}`} className="bg-gray-700 px-2 py-0.5 rounded text-blue-300 border border-gray-600">
-              {sysId}: {vol} m³/h
+            <span key={`sup-${sysId}`} className="bg-gray-800 px-1.5 py-0.5 rounded text-blue-400 border border-gray-700">
+              {sysId}: {vol}
             </span>
           ))}
-          {Object.keys(supplyBySystem).length === 0 && <span className="text-gray-500">Brak</span>}
         </div>
 
-        <div className="w-px h-4 bg-gray-600"></div>
+        <div className="w-px h-3 bg-gray-700"></div>
 
         {/* Wyciąg Badges */}
         <div className="flex items-center space-x-2">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-brand-exhaust)]"></span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-exhaust)]"></span>
           <span>Wywiew:</span>
           {Object.entries(exhaustBySystem).map(([sysId, vol]) => (
-            <span key={`exh-${sysId}`} className="bg-gray-700 px-2 py-0.5 rounded text-red-300 border border-gray-600">
-              {sysId}: {vol} m³/h
+            <span key={`exh-${sysId}`} className="bg-gray-800 px-1.5 py-0.5 rounded text-red-400 border border-gray-700">
+              {sysId}: {vol}
             </span>
           ))}
-          {Object.keys(exhaustBySystem).length === 0 && <span className="text-gray-500">Brak</span>}
         </div>
 
+        <div className="w-px h-3 bg-gray-700"></div>
+
+        {/* Sync Status */}
+        <div className="flex items-center space-x-2 px-2 py-0.5 bg-gray-800/50 rounded border border-gray-800">
+          {syncStatus === 'SAVING' ? (
+            <>
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+              <span className="text-blue-400 text-[10px]">Zapisywanie...</span>
+            </>
+          ) : syncStatus === 'ERROR' ? (
+            <>
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+              <span className="text-red-400 text-[10px]" title={syncError || 'Błąd zapisu'}>Sync Error</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-green-500 text-[10px]">Zsynchronizowano</span>
+            </>
+          )}
+        </div>
       </div>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-3">
         <span>Bilans netto:</span>
-        <span className={`px-2 py-0.5 rounded text-white ${netBalance > 0 ? 'bg-blue-600' : netBalance < 0 ? 'bg-yellow-600 text-black' : 'bg-green-600'}`}>
+        <span className={`px-2 py-1 rounded font-bold text-white ${netBalance > 0 ? 'bg-blue-600' : netBalance < 0 ? 'bg-yellow-600 text-black' : 'bg-green-600'}`}>
           {balanceText}
         </span>
       </div>

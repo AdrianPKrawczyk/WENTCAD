@@ -166,9 +166,36 @@ export interface DuctSegment {
 // 3. PROJECT STATE (Persisted via JSONB)
 // ============================================
 
+// Definicja Systemu Wentylacyjnego
+export interface SystemDef {
+  id: string;
+  name: string;
+  type: 'SUPPLY' | 'EXHAUST' | 'INTAKE' | 'OUTTAKE';
+}
+
 export interface ProjectStateData {
   floors: Record<string, Floor>;
   zones: Record<string, ZoneData>;
-  nodes: Record<string, DuctNode>;
-  edges: Record<string, DuctSegment>;
+  systems: SystemDef[];
 }
+
+// Rekord Projektu
+export interface Project {
+  id: string;
+  name: string;
+  state_data: ProjectStateData;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+// Snapshot (Migawka) Projektu
+export interface ProjectVersion {
+  id: string;
+  project_id: string;
+  name: string;
+  state_data: ProjectStateData;
+  created_at: string;
+}
+
+export type SyncStatus = 'SAVED' | 'SAVING' | 'ERROR';

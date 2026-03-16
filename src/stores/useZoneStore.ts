@@ -1,13 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ZoneData, Floor } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
-
-export interface SystemDef {
-  id: string;
-  name: string;
-  type: 'SUPPLY' | 'EXHAUST' | 'INTAKE' | 'OUTTAKE';
-}
 
 const DEFAULT_FLOOR_ID = 'floor-parter';
 
@@ -79,6 +73,7 @@ interface ZoneStore {
   recalculateAirBalance: (id?: string) => void;
   addSystem: (system: SystemDef) => void;
   removeSystem: (id: string) => void;
+  loadState: (state: ProjectStateData) => void;
   addFloor: (floor: Omit<Floor, 'id' | 'order'>) => string;
   updateFloor: (id: string, updates: Partial<Floor>) => void;
   removeFloor: (id: string) => void;
@@ -157,6 +152,15 @@ export const useZoneStore = create<ZoneStore>()(
         });
       },
 
+      loadState: (stateData) => {
+        set({
+          zones: resolveZonesState(stateData.zones || {}),
+          floors: stateData.floors || {},
+          systems: stateData.systems || [],
+          activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter'
+        });
+      },
+
       // ===== FLOOR CRUD =====
       addFloor: (floorData) => {
         const state = get();
@@ -216,7 +220,18 @@ export const useZoneStore = create<ZoneStore>()(
     }),
     {
       name: 'wentcad-zone-storage',
-      version: 2, // Bumped version to handle migration with new floors field
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        if (version < 2) {
+          // Add default floors if they don't exist
+          return {
+            ...persistedState,
+            floors: persistedState.floors || createDefaultFloors(),
+            activeFloorId: persistedState.activeFloorId || DEFAULT_FLOOR_ID
+          };
+        }
+        return persistedState;
+      },
     }
   )
 );
