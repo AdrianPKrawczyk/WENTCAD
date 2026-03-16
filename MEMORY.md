@@ -70,3 +70,12 @@
     3.  **One-Time Initialization**: Apply external state (from Supabase/Store) ONLY in `onGridReady`.
     4.  **No Feedback Loops**: Do not use `useEffect` to "force" state back into the grid during a session; AG Grid handles its internal state beautifully if the column definitions are stable.
 *   **Files Affected**: `AirBalanceTable.tsx`, `lib/utils.ts` (shared debounce).
+
+### Iteracja 2.0: System Undo/Redo
+- **Implementacja**: Integracja `zundo` w `useZoneStore` (limit 50 kroków).
+- **Grupowanie**: W Inspektorze (`ZonePropertiesPanel.tsx`) zastosowano wzorzec `pause()` / `resume()` na focus/blur, aby uniknąć spamu historii podczas pisania.
+
+### Iteracja 2.1: AG Grid Immutability (One-Way Data Flow)
+- **Zasada**: Aby `zundo` działało poprawnie, AG Grid nie może mutować `params.data`.
+- **Rozwiązanie**: Użyto `valueSetter` zwracającego `false` w `defaultColDef` oraz dla specyficznych kolumn (np. `activityType`).
+- **Przepływ**: Zmiana w gridzie -> `valueSetter` -> akcja Zustand -> nowa referencja `rowData` -> odświeżenie komórki przez `getRowId`.
