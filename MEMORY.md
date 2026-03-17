@@ -3,7 +3,7 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.9 ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.9.1 ZAKOŃCZONA
 * **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
 * **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
@@ -27,6 +27,7 @@
 * [x] **FAZA 2.8: Tryb Widoku Reversed Vertical Split** - Done
 * [x] **FAZA 2.4.2: Manual Area Override (v2) & Precyzja** - Done
 * [x] **FAZA 2.9: Workspace 2.0 (RECT, ERASER, Stable Floors)** - Done
+* [x] **FAZA 2.9.1: CAD Persistence Fix & Advanced Tools (Snap, Redefine)** - Done
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -171,3 +172,12 @@
   - Poligony są renderowane zawsze, gdy `zone.floorId === activeFloorId`. Wyeliminowano błąd "znikających stref" przy braku podkładu.
   - `originDescription`: Dodano pole tekstowe w `FloorManagerBar.tsx` do opisu punktu zero (np. "Oś A-1").
 - **Tabela**: Dodano kolumnę `hasGeometry` (📐 / ✖️) dla szybkiej weryfikacji statusu rysunkowego stref.
+
+### Iteracja 2.9.1: Zaawansowane Narzędzia & Fixy CAD
+- **Trwałość rzutu**: Wprowadzono akcję `clearUnderlay` w `useCanvasStore.ts`. Pozwala ona na usunięcie obrazka tła (podkładu) przy zachowaniu wszystkich narysowanych poligonów, skali i punktu 0,0.
+- **Snapping (CAD)**: Implementacja przyciągania kursora do punktu (0,0) w `Workspace2D.tsx`. Kursor przeskakuje do początku układu współrzędnych, jeśli znajduje się w promieniu 15px (skalowanych).
+- **Separacja Akcji (UX)**:
+  - W `AirBalanceTable.tsx` rozdzielono przyciski usuwania: 🧹 (Clear Geometry) oraz 🗑️ (Delete Room).
+  - W `useZoneStore.ts` dodano funkcję `clearZoneGeometry(id)`, która czyści pole `geometryArea` i bezpiecznie usuwa poligon z odpowiedniego `floorId` w canvas store.
+- **Redefinicja**: Przycisk "Redefiniuj" w `ZonePropertiesPanel.tsx` pozwala na szybkie przerysowanie strefy od nowa. Poprzedni obrys jest renderowany na czerwono (`#ef4444`) dla ułatwienia odczytu.
+- **Precyzja**: Wymuszono zaokrąglanie wyliczanej powierzchni (`area`) do 2 miejsc po przecinku (`Math.round(val * 100) / 100`) bezpośrednio w akcjach rysowania.

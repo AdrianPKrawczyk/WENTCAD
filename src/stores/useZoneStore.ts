@@ -113,6 +113,7 @@ interface ZoneStore {
   removeFloor: (id: string) => void;
   saveAnalysisPreset: (preset: AnalysisPreset) => void;
   removeAnalysisPreset: (id: string) => void;
+  clearZoneGeometry: (id: string) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -355,11 +356,23 @@ export const useZoneStore = create<ZoneStore>()(
         });
       },
 
-      removeAnalysisPreset: (id) => {
-        set((state) => ({
-          analysisPresets: state.analysisPresets.filter(p => p.id !== id)
-        }));
-      },
+      removeAnalysisPreset: (id) => set((s) => ({ analysisPresets: s.analysisPresets.filter(p => p.id !== id) })),
+      
+      clearZoneGeometry: (id) => {
+        const zone = get().zones[id];
+        if (!zone) return;
+        
+        // 1. Update zone table data
+        get().updateZone(id, { geometryArea: null });
+        
+        // 2. Clear canvas data (requires canvas store import or direct call if available)
+        // Note: useCanvasStore is usually available in the same project
+        import('./useCanvasStore').then(module => {
+           module.useCanvasStore.getState().removePolygonByZoneId(zone.floorId, id);
+        }).catch(() => {
+           // Fallback if import is tricky, though it should work in Vite
+        });
+      }
     }),
     {
       name: 'wentcad-zone-storage',

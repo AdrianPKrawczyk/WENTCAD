@@ -10,7 +10,6 @@ import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectio
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useProjectStore } from '../stores/useProjectStore';
-import { useCanvasStore } from '../stores/useCanvasStore';
 import { customDebounce } from '../lib/utils';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
@@ -29,6 +28,7 @@ export function AirBalanceTable() {
   const systems = useZoneStore((state) => state.systems);
   const activeFloorId = useZoneStore((state) => state.activeFloorId);
   const bulkDeleteZones = useZoneStore((state) => state.bulkDeleteZones);
+  const clearZoneGeometry = useZoneStore((state) => state.clearZoneGeometry);
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const setIsSystemColoringEnabled = useZoneStore((s) => s.setIsSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
@@ -254,32 +254,30 @@ export function AirBalanceTable() {
       filter: false,
       cellRenderer: (params: any) => (
         <div className="flex items-center gap-1 h-full">
-           <button 
-             title="Wyczyść geometrię (obrys)"
-             className={`p-1 rounded hover:bg-orange-100 text-orange-600 transition-colors ${!params.data?.geometryArea ? 'opacity-20 cursor-not-allowed' : ''}`}
-             onClick={(e) => {
-               e.stopPropagation();
-               if (params.data?.geometryArea && window.confirm("Czy na pewno usunąć geometrię (obrys) dla tej strefy?")) {
-                 useZoneStore.getState().updateZone(params.data.id, { geometryArea: null });
-                 const floorId = params.data.floorId;
-                 useCanvasStore.getState().removePolygonByZoneId(floorId, params.data.id);
-               }
-             }}
-           >
-             🧹
-           </button>
-           <button 
-             title="Usuń strefę"
-             className="p-1 rounded hover:bg-red-100 text-red-600 transition-colors"
-             onClick={(e) => {
-               e.stopPropagation();
-               if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
-                 removeZone(params.data.id);
-               }
-             }}
-           >
-             🗑️
-           </button>
+            <button 
+              title="Wyczyść geometrię (usuń rysunek)"
+              className={`p-1 rounded hover:bg-orange-100 text-orange-600 transition-colors ${!params.data?.geometryArea ? 'opacity-20 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (params.data?.geometryArea && window.confirm("Czy na pewno usunąć tylko rysunek z rzutu?")) {
+                  clearZoneGeometry(params.data.id);
+                }
+              }}
+            >
+              🧹
+            </button>
+            <button 
+              title="Usuń pomieszczenie (całkowicie)"
+              className="p-1 rounded hover:bg-red-100 text-red-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (params.data && window.confirm(`Czy usunąć pomieszczenie ${params.data.nr} - ${params.data.name} wraz z bilansami?`)) {
+                  removeZone(params.data.id);
+                }
+              }}
+            >
+              🗑️
+            </button>
         </div>
       )
     }

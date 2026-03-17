@@ -61,6 +61,7 @@ interface CanvasState {
   
   resetFloor: (floorId: string) => void;
   resetAll: () => void;
+  clearUnderlay: (floorId: string) => void;
   setCurrentTool: (floorId: string, tool: 'PEN' | 'RECT' | 'ERASER' | null) => void;
   setRedefiningZoneId: (floorId: string, zoneId: string | null) => void;
   removePolygonByZoneId: (floorId: string, zoneId: string) => void;
@@ -171,6 +172,14 @@ export const useCanvasStore = create<CanvasState>()(
         if (!floor) return;
         get().updateFloorState(floorId, {
           polygons: floor.polygons.filter(p => p.zoneId !== zoneId)
+        });
+      },
+
+      clearUnderlay: (floorId) => {
+        get().updateFloorState(floorId, {
+          underlayUrl: null,
+          underlayName: null,
+          underlaySize: null
         });
       },
     }),

@@ -79,7 +79,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setCurrentTool = useCanvasStore((state) => state.setCurrentTool);
   const setRedefiningZoneId = useCanvasStore((state) => state.setRedefiningZoneId);
   const updateFloorState = useCanvasStore((s) => s.updateFloorState);
-  const resetFloor = useCanvasStore((s) => s.resetFloor);
+  const clearUnderlay = useCanvasStore((s) => s.clearUnderlay);
 
   // Zone store - Floor definitions
   const projectFloors = useZoneStore((s) => s.floors);
@@ -222,10 +222,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const stagePos = stage.getPointerPosition();
     if (!stagePos) return;
 
-    const canvasPos = {
+    let canvasPos = {
       x: (stagePos.x - position.x) / scale,
       y: (stagePos.y - position.y) / scale,
     };
+
+    // SNAP TO 0,0
+    if (referenceOrigin) {
+      const snapThreshold = 15 / scale;
+      const distToOrigin = Math.sqrt(Math.pow(canvasPos.x - referenceOrigin.x, 2) + Math.pow(canvasPos.y - referenceOrigin.y, 2));
+      if (distToOrigin < snapThreshold) {
+        canvasPos = { x: referenceOrigin.x, y: referenceOrigin.y };
+      }
+    }
 
     if (isCalibrating) {
       if (calibrationPoints.length < 2) {
@@ -337,10 +346,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const stagePos = stage.getPointerPosition();
     if (!stagePos) return;
 
-    const canvasPos = {
+    let canvasPos = {
       x: (stagePos.x - position.x) / scale,
       y: (stagePos.y - position.y) / scale,
     };
+
+    // SNAP TO 0,0 (Preview)
+    if (referenceOrigin && (isDrawingPolygon || isMeasuring)) {
+      const snapThreshold = 15 / scale;
+      const distToOrigin = Math.sqrt(Math.pow(canvasPos.x - referenceOrigin.x, 2) + Math.pow(canvasPos.y - referenceOrigin.y, 2));
+      if (distToOrigin < snapThreshold) {
+        canvasPos = { x: referenceOrigin.x, y: referenceOrigin.y };
+      }
+    }
 
     if (isCalibrating || isMeasuring || isSettingOrigin || isDrawingPolygon) {
       setMousePos(canvasPos);
@@ -895,6 +913,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
               }
               
               updateZone(selectedZoneId!, updates);
+              setRedefiningZoneId(activeFloorId, null);
               
               setIsDrawingPolygon(false);
               setCurrentPolygonPoints([]);
@@ -926,7 +945,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           <>
             <div className="h-4 w-px bg-gray-200" />
             <span className="text-xs text-gray-500 max-w-[120px] truncate" title={underlayName}>{underlayName}</span>
-            <button onClick={() => resetFloor(activeFloorId)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all">
+            <button onClick={() => clearUnderlay(activeFloorId)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all" title="Usuń podkład (Rysunki zostaną)">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </>
