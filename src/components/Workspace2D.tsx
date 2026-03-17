@@ -9,6 +9,8 @@ import { createPatternImage } from '../lib/patternUtils';
 import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
+import { renderDxfToDataUrl } from '../lib/dxfUtils';
+import { DxfUnitModal } from './DxfUnitModal';
 
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
@@ -133,6 +135,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [measurePoints, setMeasurePoints] = useState<Point[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [underlayImage, setUnderlayImage] = useState<HTMLImageElement | null>(null);
+  const [dxfModalOpen, setDxfModalOpen] = useState(false);
+  const [pendingDxfContent, setPendingDxfContent] = useState<string | null>(null);
+  const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
 
   // Update floor-specific state helpers
   const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
@@ -537,6 +542,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
         }
       };
       reader.readAsArrayBuffer(file);
+    } else if (file.name.toLowerCase().endsWith('.dxf')) {
+      const readerDxf = new FileReader();
+      readerDxf.onload = (ev) => {
+        const content = ev.target?.result as string;
+        setPendingDxfContent(content);
+        setPendingDxfFile(file);
+        setDxfModalOpen(true);
+        setIsLoading(false);
+      };
+      readerDxf.readAsText(file);
     } else {
       reader.onload = (ev) => {
         try {
@@ -1225,6 +1240,41 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onCancel={() => {
           setShowCalibrationModal(false);
           setCalibrationPoints([]);
+        }}
+      />
+
+      <DxfUnitModal 
+        isOpen={dxfModalOpen}
+        fileName={pendingDxfFile?.name || ''}
+        onCancel={() => {
+          setDxfModalOpen(false);
+          setPendingDxfContent(null);
+          setPendingDxfFile(null);
+        }}
+        onConfirm={async (multiplier, unitLabel) => {
+          if (!pendingDxfContent) return;
+          setIsLoading(true);
+          try {
+            const result = await renderDxfToDataUrl(pendingDxfContent);
+            if (result) {
+              setUnderlay(
+                result.dataUrl, 
+                { width: result.width, height: result.height }, 
+                `[DXF] ${pendingDxfFile?.name}`
+              );
+              setScaleFactor(multiplier);
+              toast.success(`Zaimportowano DXF. Jednostki: ${unitLabel}`);
+            } else {
+              toast.error("Błąd podczas renderowania pliku DXF.");
+            }
+          } catch (err) {
+            console.error(err);
+            toast.error("Wystąpił nieoczekiwany błąd podczas importu DXF.");
+          }
+          setDxfModalOpen(false);
+          setPendingDxfContent(null);
+          setPendingDxfFile(null);
+          setIsLoading(false);
         }}
       />
     </div>
