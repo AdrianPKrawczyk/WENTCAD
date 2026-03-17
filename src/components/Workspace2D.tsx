@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag, Group } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
@@ -97,6 +97,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const toggleSystemVisibility = useZoneStore((s) => s.toggleSystemVisibility);
   const isZoneFilterPanelOpen = useZoneStore((s) => s.isZoneFilterPanelOpen);
   const setZoneFilterPanelOpen = useZoneStore((s) => s.setZoneFilterPanelOpen);
+  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
+  const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -147,17 +149,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
     updateFloorState(activeFloorId, { referenceOrigin: point });
   }, [activeFloorId, updateFloorState]);
 
-  // Hatch Pattern memoization
-  const systemPatterns = useMemo(() => {
-    const patterns: Record<string, HTMLCanvasElement> = {};
-    systems.forEach(sys => {
-      if (sys.patternId && sys.color) {
-        const patternElement = createPatternImage(sys.patternId, sys.color);
-        if (patternElement) patterns[sys.id] = patternElement;
-      }
-    });
-    return patterns;
-  }, [systems]);
+  // Hatch Pattern Cache (Dynamic on-the-fly generation)
+  const patternCache = useRef<Record<string, HTMLCanvasElement>>({});
 
   useEffect(() => {
     if (!underlayUrl) {
@@ -766,26 +759,37 @@ export function Workspace2D({ className }: Workspace2DProps) {
             if (!zone) return null;
             
             // System Filtering Logic
-            const hasSupplySystem = !!zone.systemSupplyId;
-            const hasExhaustSystem = !!zone.systemExhaustId;
-            
             const isSupplyHidden = zone.systemSupplyId ? hiddenSystemIdsOnCanvas.includes(zone.systemSupplyId) : false;
             const isExhaustHidden = zone.systemExhaustId ? hiddenSystemIdsOnCanvas.includes(zone.systemExhaustId) : false;
-            const isNoneHidden = (!hasSupplySystem && !hasExhaustSystem) ? hiddenSystemIdsOnCanvas.includes('none') : false;
+            const isNoneHidden = (!zone.systemSupplyId && !zone.systemExhaustId) ? hiddenSystemIdsOnCanvas.includes('none') : false;
 
             // If any associated system is hidden, or if no system and 'none' is hidden
             if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
 
-            const style = resolveZoneStyle(zone, systems); 
+            // Resolve base color and patterns using dedicated algorithm
+            const style = resolveZoneStyle(zone, systems, globalSystemOpacity);
+            const shouldUseSystemStyle = isSystemColoringEnabled && style.color;
+            const baseColor = shouldUseSystemStyle ? (style.color || '#0ea5e9') : '#0ea5e9';
             
             const isRedefining = redefiningZoneId === poly.zoneId;
             const isChecked = checkedZoneIds.includes(zone.id);
             const isSelected = selectedZoneId === zone.id;
 
-            let currentFill = isRedefining ? '#ef444460' : (style.color || '#0ea5e9');
-            let currentStroke = isRedefining ? '#ef4444' : (style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9');
+            let currentFill = isRedefining ? '#ef444460' : baseColor;
+            
+            // Adjust opacity based on state to ensure underlay is visible
+            if (!isRedefining && !isChecked && !isSelected) {
+               if (shouldUseSystemStyle && style.color) {
+                  // If we have a system color (rgba), it should already have some opacity from resolveZoneStyle
+                  currentFill = style.color; 
+               } else {
+                  currentFill = baseColor + '40';
+               }
+            }
+
+            let currentStroke = isRedefining ? '#ef4444' : baseColor;
             let currentStrokeWidth = (isRedefining ? 3 : 2) / scale;
-            let shadowProps = {};
+            let shadowProps: any = {};
 
             if (!isRedefining) {
               if (isChecked) {
@@ -800,10 +804,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
               }
             }
 
-            const patternImg = zone.systemSupplyId ? systemPatterns[zone.systemSupplyId] : (zone.systemExhaustId ? systemPatterns[zone.systemExhaustId] : null);
+            // === GENERATE PATTERN IMAGE FROM CACHE ON THE FLY ===
+            let patternImg: HTMLCanvasElement | null = null;
+            if (shouldUseSystemStyle && style.patternId) {
+              const cacheKey = `${style.patternId}-${baseColor}`;
+              if (!patternCache.current[cacheKey]) {
+                const newPattern = createPatternImage(style.patternId, baseColor);
+                if (newPattern) patternCache.current[cacheKey] = newPattern;
+              }
+              patternImg = patternCache.current[cacheKey] || null;
+            }
             
             return (
               <Group key={poly.id}>
+                {/* Background Layer */}
                 <Line
                   points={poly.points}
                   closed={true}
@@ -844,6 +858,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     }
                   }}
                 />
+                
+                {/* Hatch Pattern Layer (System View Only) */}
                 {!isRedefining && patternImg && (
                   <Line
                     points={poly.points}
@@ -851,7 +867,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     fillPatternImage={patternImg as any}
                     fillPatternRepeat="repeat"
                     fillPatternScale={{ x: 1 / scale, y: 1 / scale }}
-                    listening={false} // Click should fall through to the base Line
+                    listening={false}
                   />
                 )}
               </Group>

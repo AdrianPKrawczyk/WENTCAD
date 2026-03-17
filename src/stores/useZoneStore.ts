@@ -420,11 +420,7 @@ export const useZoneStore = create<ZoneStore>()(
         analysisPresets, 
         stylePresets, 
         isSystemColoringEnabled, 
-        globalSystemOpacity,
-        checkedZoneIds,
-        showZonesOnCanvas,
-        hiddenSystemIdsOnCanvas,
-        isZoneFilterPanelOpen
+        globalSystemOpacity
       } = state;
       return { 
         zones, 
