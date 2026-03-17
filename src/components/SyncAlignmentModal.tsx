@@ -1,0 +1,395 @@
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Stage, Layer, Line, Circle, Group, Image as KonvaImage, Text } from 'react-konva';
+import { X, Check, LayoutTemplate, Info } from 'lucide-react';
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface SyncAlignmentModalProps {
+  isOpen: boolean;
+  dxfData: any; // Parsed DXF from dxf-parser
+  underlayUrl: string | null;
+  zones: any[]; // Existing zones to display on the project side
+  onConfirm: (transformFn: (x: number, y: number) => Point) => void;
+  onCancel: () => void;
+}
+
+const CROSS_SIZE = 10;
+
+export function SyncAlignmentModal({ isOpen, dxfData, underlayUrl, zones, onConfirm, onCancel }: SyncAlignmentModalProps) {
+  const [mode, setMode] = useState<'1-point' | '2-point'>('1-point');
+  
+  // Alignment points
+  const [dxfPoints, setDxfPoints] = useState<Point[]>([]);
+  const [canvasPoints, setCanvasPoints] = useState<Point[]>([]);
+  
+  // View states for both sides
+  const [dxfView, setDxfView] = useState({ x: 0, y: 0, scale: 1 });
+  const [canvasView, setCanvasView] = useState({ x: 0, y: 0, scale: 0.5 });
+  
+  const [underlayImg, setUnderlayImg] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (underlayUrl) {
+      const img = new window.Image();
+      img.onload = () => setUnderlayImg(img);
+      img.src = underlayUrl;
+    } else {
+      setUnderlayImg(null);
+    }
+  }, [underlayUrl]);
+
+  // Container refs for sizing
+  const leftContainerRef = useRef<HTMLDivElement>(null);
+  const rightContainerRef = useRef<HTMLDivElement>(null);
+  const [leftSize, setLeftSize] = useState({ width: 0, height: 0 });
+  const [rightSize, setRightSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (isOpen) {
+      const updateSizes = () => {
+        if (leftContainerRef.current) setLeftSize({ width: leftContainerRef.current.offsetWidth, height: leftContainerRef.current.offsetHeight });
+        if (rightContainerRef.current) setRightSize({ width: rightContainerRef.current.offsetWidth, height: rightContainerRef.current.offsetHeight });
+      };
+      window.addEventListener('resize', updateSizes);
+      updateSizes();
+      setTimeout(updateSizes, 100);
+      return () => window.removeEventListener('resize', updateSizes);
+    }
+  }, [isOpen]);
+
+  // Reset points when mode changes
+  useEffect(() => {
+    setDxfPoints([]);
+    setCanvasPoints([]);
+  }, [mode]);
+
+  // Transformation logic
+  const transformFn = useMemo(() => {
+    const pts = {
+      p1Dxf: dxfPoints[0],
+      p2Dxf: dxfPoints[1],
+      p1Canvas: canvasPoints[0],
+      p2Canvas: canvasPoints[1]
+    };
+
+    if (mode === '1-point') {
+      const { p1Dxf, p1Canvas } = pts;
+      if (!p1Dxf || !p1Canvas) return null;
+      const dx = p1Canvas.x - p1Dxf.x;
+      const dy = p1Canvas.y - p1Dxf.y;
+      return (x: number, y: number) => ({ x: x + dx, y: y + dy });
+    } 
+
+    if (mode === '2-point') {
+      const { p1Dxf, p2Dxf, p1Canvas, p2Canvas } = pts;
+      if (!p1Dxf || !p2Dxf || !p1Canvas || !p2Canvas) return null;
+      
+      const vDxf = { x: p2Dxf.x - p1Dxf.x, y: p2Dxf.y - p1Dxf.y };
+      const vCanvas = { x: p2Canvas.x - p1Canvas.x, y: p2Canvas.y - p1Canvas.y };
+      const lenDxf = Math.sqrt(vDxf.x * vDxf.x + vDxf.y * vDxf.y);
+      const lenCanvas = Math.sqrt(vCanvas.x * vCanvas.x + vCanvas.y * vCanvas.y);
+      
+      if (lenDxf === 0) return null;
+
+      const scale = lenCanvas / lenDxf;
+      const angleDxf = Math.atan2(vDxf.y, vDxf.x);
+      const angleCanvas = Math.atan2(vCanvas.y, vCanvas.x);
+      const rotation = angleCanvas - angleDxf;
+
+      return (x: number, y: number) => {
+        const dx = x - p1Dxf.x;
+        const dy = y - p1Dxf.y;
+        const rx = (dx * Math.cos(rotation) - dy * Math.sin(rotation)) * scale;
+        const ry = (dx * Math.sin(rotation) + dy * Math.cos(rotation)) * scale;
+        return { x: p1Canvas.x + rx, y: p1Canvas.y + ry };
+      };
+    }
+    return null;
+  }, [mode, dxfPoints, canvasPoints]);
+
+  const canConfirm = (mode === '1-point' && dxfPoints.length >= 1 && canvasPoints.length >= 1) ||
+                    (mode === '2-point' && dxfPoints.length >= 2 && canvasPoints.length >= 2);
+
+  if (!isOpen) return null;
+
+  // Handlers for clicks
+  const handleDxfClick = (e: any) => {
+    const stage = e.target.getStage();
+    if (!stage) return;
+    const pos = stage.getRelativePointerPosition();
+    if (!pos) return;
+    
+    if (mode === '1-point') {
+      setDxfPoints([pos]);
+    } else {
+      if (dxfPoints.length >= 2) setDxfPoints([pos]);
+      else setDxfPoints((prev: Point[]) => [...prev, pos]);
+    }
+  };
+
+  const handleCanvasClick = (e: any) => {
+    const stage = e.target.getStage();
+    if (!stage) return;
+    const pos = stage.getRelativePointerPosition();
+    if (!pos) return;
+
+    if (mode === '1-point') {
+      setCanvasPoints([pos]);
+    } else {
+      if (canvasPoints.length >= 2) setCanvasPoints([pos]);
+      else setCanvasPoints((prev: Point[]) => [...prev, pos]);
+    }
+  };
+
+  // Simplified DXF entity rendering for preview
+  const renderDxfEntities = (entities: any[], isGhost = false) => {
+    if (!entities) return null;
+    return entities.map((ent, idx) => {
+      let points: number[] = [];
+      if (ent.type === 'LINE' && ent.vertices) {
+        points = [ent.vertices[0].x, ent.vertices[0].y, ent.vertices[1].x, ent.vertices[1].y];
+      } else if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
+        points = ent.vertices.flatMap((v: any) => [v.x, v.y]);
+      } else if (ent.type === 'CIRCLE' || ent.type === 'ARC') {
+        // Draw circles as octagons for preview performance
+        const segments = 16;
+        for (let i = 0; i <= segments; i++) {
+          const angle = (i / segments) * Math.PI * 2;
+          points.push(ent.center.x + Math.cos(angle) * ent.radius, ent.center.y + Math.sin(angle) * ent.radius);
+        }
+      } else if (ent.type === 'INSERT') {
+        // Recursive block support
+        const block = dxfData.blocks[ent.name];
+        if (block && block.entities) {
+          return (
+            <Group 
+              key={`block-${idx}`} 
+              x={ent.position?.x || 0} 
+              y={ent.position?.y || 0}
+              rotation={ent.rotation || 0}
+              scaleX={ent.scale?.x || 1}
+              scaleY={ent.scale?.y || 1}
+            >
+              {renderDxfEntities(block.entities, isGhost)}
+            </Group>
+          );
+        }
+      }
+
+      if (points.length < 4) return null;
+
+      const color = isGhost ? 'rgba(99, 102, 241, 0.4)' : '#64748b';
+      const strokeWidth = isGhost ? 2 : 1;
+
+      if (isGhost && transformFn) {
+        const transformedPoints = [];
+        for (let i = 0; i < points.length; i += 2) {
+          const p = transformFn(points[i], points[i+1]);
+          if (p) transformedPoints.push(p.x, p.y);
+        }
+        return <Line key={`ghost-${idx}`} points={transformedPoints} stroke={color} strokeWidth={strokeWidth} />;
+      }
+
+      return <Line key={`dxf-${ent.handle || idx}`} points={points} stroke={color} strokeWidth={strokeWidth} />;
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-950 text-white animate-in fade-in duration-300">
+      {/* Top Bar */}
+      <div className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur flex items-center justify-between px-6 shadow-lg">
+        <div className="flex items-center gap-4">
+          <div className="p-2 bg-indigo-500/20 rounded-lg">
+            <LayoutTemplate className="w-6 h-6 text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-lg leading-tight">Smart Sync: Kalibracja</h2>
+            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Synchronizacja stref z DXF</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-xl border border-slate-700">
+          <button 
+            onClick={() => setMode('1-point')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === '1-point' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            1 PUNKT (Przesunięcie)
+          </button>
+          <button 
+            onClick={() => setMode('2-point')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === '2-point' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            2 PUNKTY (Skala + Obrót)
+          </button>
+        </div>
+
+        <button onClick={onCancel} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+          <X className="w-6 h-6 text-slate-400" />
+        </button>
+      </div>
+
+      {/* Main Split Screen */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Side - DXF */}
+        <div className="flex-1 border-r border-slate-800 flex flex-col relative group" ref={leftContainerRef}>
+          <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-full border border-slate-700 text-[10px] font-bold tracking-tighter flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-slate-500 animate-pulse" /> WIDOK DXF (ŹRÓDŁO)
+          </div>
+          
+          <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+             <button onClick={() => setDxfPoints([])} className="px-3 py-1.5 bg-slate-900/90 rounded-lg border border-slate-700 hover:bg-slate-800 text-[10px] font-bold text-slate-400">RESET PUNKTÓW</button>
+          </div>
+
+          <Stage 
+            width={leftSize.width} 
+            height={leftSize.height}
+            onClick={handleDxfClick}
+            draggable
+            onWheel={(e) => {
+              const stage = e.target.getStage();
+              if (!stage) return;
+              const oldScale = stage.scaleX();
+              const pointer = stage.getPointerPosition();
+              if (!pointer) return;
+              
+              const mousePointTo = { x: (pointer.x - stage.x()) / oldScale, y: (pointer.y - stage.y()) / oldScale };
+              const newScale = e.evt.deltaY < 0 ? oldScale * 1.15 : oldScale / 1.15;
+              setDxfView({ x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale, scale: newScale });
+            }}
+            scaleX={dxfView.scale}
+            scaleY={-dxfView.scale} 
+            x={dxfView.x}
+            y={dxfView.y}
+          >
+            <Layer>
+              {dxfData && dxfData.entities && renderDxfEntities(dxfData.entities)}
+              
+              {dxfPoints.map((p: Point, i: number) => (
+                <Group key={`p-dxf-${i}`} x={p.x} y={p.y} scaleX={1/dxfView.scale} scaleY={-1/dxfView.scale}>
+                  <Circle radius={CROSS_SIZE + 4} stroke="#f43f5e" strokeWidth={1} dash={[2, 2]} />
+                  <Line points={[-CROSS_SIZE, 0, CROSS_SIZE, 0]} stroke="#f43f5e" strokeWidth={2} />
+                  <Line points={[0, -CROSS_SIZE, 0, CROSS_SIZE]} stroke="#f43f5e" strokeWidth={2} />
+                  <Text text={`P${i+1}`} fill="#f43f5e" y={-25} x={-10} fontSize={12} fontStyle="bold" align="center" />
+                </Group>
+              ))}
+            </Layer>
+          </Stage>
+        </div>
+
+        {/* Right Side - Project */}
+        <div className="flex-1 flex flex-col relative group" ref={rightContainerRef}>
+          <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-full border border-slate-700 text-[10px] font-bold tracking-tighter flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> WIDOK PROJEKTU (CEL)
+          </div>
+
+          <div className="absolute bottom-4 left-4 z-10 max-w-xs bg-slate-900/90 p-4 rounded-2xl border border-slate-700 text-[11px] leading-relaxed text-slate-400 shadow-2xl">
+            <div className="flex items-center gap-2 mb-2 text-slate-200 font-bold uppercase tracking-wider">
+              <Info className="w-4 h-4 text-indigo-400" /> Instrukcja
+            </div>
+            {mode === '1-point' ? 
+              "Znajdź charakterystyczny punkt (np. róg budynku) na podkładzie DXF, a następnie kliknij w to samo miejsce na rzucie projektu." :
+              "Wskaż dwa punkty na DXF (p1, p2) oraz ich odpowiedniki na projekcie (p1', p2'). System dopasuje skalę i obrót automatycznie."
+            }
+          </div>
+
+          <Stage 
+            width={rightSize.width} 
+            height={rightSize.height}
+            onClick={handleCanvasClick}
+            draggable
+            scaleX={canvasView.scale}
+            scaleY={canvasView.scale}
+            x={canvasView.x}
+            y={canvasView.y}
+            onWheel={(e) => {
+              const stage = e.target.getStage();
+              if (!stage) return;
+              const oldScale = stage.scaleX();
+              const pointer = stage.getPointerPosition();
+              if (!pointer) return;
+              
+              const mousePointTo = { x: (pointer.x - stage.x()) / oldScale, y: (pointer.y - stage.y()) / oldScale };
+              const newScale = e.evt.deltaY < 0 ? oldScale * 1.15 : oldScale / 1.15;
+              setCanvasView({ x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale, scale: newScale });
+            }}
+          >
+            <Layer>
+              {underlayImg && (
+                <KonvaImage image={underlayImg} />
+              )}
+              
+              {/* Existing Zones Preview */}
+              {zones.map(zone => (
+                <Line 
+                  key={zone.id} 
+                  points={zone.points} 
+                  closed 
+                  stroke="rgba(148, 163, 184, 0.3)" 
+                  fill="rgba(148, 163, 184, 0.05)" 
+                  strokeWidth={1}
+                />
+              ))}
+
+              {/* Ghost Layer Preview */}
+              {transformFn && dxfData && dxfData.entities && renderDxfEntities(dxfData.entities, true)}
+
+              {canvasPoints.map((p: Point, i: number) => (
+                <Group key={`p-can-${i}`} x={p.x} y={p.y} scaleX={1/canvasView.scale} scaleY={1/canvasView.scale}>
+                  <Circle radius={CROSS_SIZE + 4} stroke="#10b981" strokeWidth={1} dash={[2, 2]} />
+                  <Line points={[-CROSS_SIZE, 0, CROSS_SIZE, 0]} stroke="#10b981" strokeWidth={2} />
+                  <Line points={[0, -CROSS_SIZE, 0, CROSS_SIZE]} stroke="#10b981" strokeWidth={2} />
+                  <Text text={`P${i+1}'`} fill="#10b981" y={-25} x={-10} fontSize={12} fontStyle="bold" />
+                </Group>
+              ))}
+            </Layer>
+          </Stage>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="h-20 border-t border-slate-800 bg-slate-900 flex items-center justify-between px-8">
+        <div className="flex gap-8">
+           <div className="flex flex-col">
+              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-2">PUNKTY KROSTOWE DXF</span>
+              <div className="flex gap-2">
+                 {[0, 1].map(i => (
+                   <div key={`s-dxf-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${dxfPoints[i] ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                      {dxfPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
+                   </div>
+                 ))}
+              </div>
+           </div>
+           <div className="flex flex-col">
+              <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-2">PUNKTY PROJEKTU</span>
+              <div className="flex gap-2">
+                 {[0, 1].map(i => (
+                   <div key={`s-can-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${canvasPoints[i] ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                      {canvasPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
+                   </div>
+                 ))}
+              </div>
+           </div>
+        </div>
+
+        <div className="flex gap-4">
+          <button 
+            onClick={onCancel}
+            className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+          >
+            Anuluj
+          </button>
+          <button 
+            onClick={() => transformFn && onConfirm(transformFn)}
+            disabled={!canConfirm}
+            className="px-10 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:bg-indigo-500 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed flex items-center gap-3"
+          >
+            <Check className="w-4 h-4 stroke-[3]" /> Zatwierdź dopasowanie
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

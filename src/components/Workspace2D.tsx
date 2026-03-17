@@ -6,11 +6,12 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, RefreshCw } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 import { renderDxfToDataUrl, parseDxfFile } from '../lib/dxfUtils';
 import { DxfUnitModal } from './DxfUnitModal';
+import { SyncAlignmentModal } from './SyncAlignmentModal';
 
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
@@ -139,6 +140,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [pendingDxf, setPendingDxf] = useState<any>(null); // przechowuje zdekodowany obiekt
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [dxfTransformFn, setDxfTransformFn] = useState<((x: number, y: number) => Point) | null>(null);
 
   // Update floor-specific state helpers
   const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
@@ -1015,6 +1018,21 @@ export function Workspace2D({ className }: Workspace2DProps) {
           Podkład
         </button>
 
+        <button 
+          onClick={() => {
+            if (!pendingDxf) {
+              toast.error('Wczytaj plik DXF, aby uruchomić Smart Sync.');
+              return;
+            }
+            setIsSyncModalOpen(true);
+          }} 
+          title="Smart Sync - Dopasowanie podkładu" 
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all border border-transparent hover:border-emerald-200"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Smart Sync
+        </button>
+
         <div className="h-4 w-px bg-gray-200" />
 
         <button
@@ -1291,6 +1309,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
             setPendingDxf(null);
             setPendingDxfFile(null);
           }, 50);
+        }}
+      />
+
+      <SyncAlignmentModal 
+        isOpen={isSyncModalOpen}
+        dxfData={pendingDxf}
+        underlayUrl={underlayUrl}
+        zones={Object.values(zones).filter(z => z.floorId === activeFloorId)}
+        onCancel={() => setIsSyncModalOpen(false)}
+        onConfirm={(transformFn) => {
+          setDxfTransformFn(() => transformFn);
+          setIsSyncModalOpen(false);
+          toast.success("Skalibrowano podkład DXF. Możesz teraz przejść do synchronizacji stref.");
         }}
       />
     </div>
