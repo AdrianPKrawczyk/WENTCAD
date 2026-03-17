@@ -879,10 +879,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
                     if (nextZone) {
                       setLinkingZoneId(nextZone.id);
+                      useZoneStore.getState().setSelectedZone(nextZone.id);
                       toast.success(`Połączono! Teraz kliknij obrys dla: ${nextZone.nr} - ${nextZone.name}`);
                     } else {
                       setLinkingZoneId(null);
-                      toast.success('Wspaniale! Wszystkie pomieszczenia w projekcie mają przypisane obrysy.');
+                      toast.success('Połączono ostatnie pomieszczenie!');
                     }
                   } else {
                     setSelectedDxfOutlineId(outline.id);
@@ -1037,30 +1038,21 @@ export function Workspace2D({ className }: Workspace2DProps) {
                       const currentIndex = allZones.findIndex(z => z.id === linkingZoneId);
                       let nextZone = null;
 
-                      // Szukamy w dół
+                      // Szukamy tylko w dół tabeli (UX Requirement)
                       for (let i = currentIndex + 1; i < allZones.length; i++) {
                         if (!allLinkedZoneIds.has(allZones[i].id)) {
                           nextZone = allZones[i];
                           break;
                         }
                       }
-                      
-                      // Jeśli nie znaleziono, szukamy od góry
-                      if (!nextZone) {
-                        for (let i = 0; i < currentIndex; i++) {
-                          if (!allLinkedZoneIds.has(allZones[i].id)) {
-                            nextZone = allZones[i];
-                            break;
-                          }
-                        }
-                      }
 
                       if (nextZone) {
                         setLinkingZoneId(nextZone.id);
+                        useZoneStore.getState().setSelectedZone(nextZone.id); // Przewiń tabelę
                         toast.success(`Połączono! Teraz kliknij obrys dla: ${nextZone.nr} - ${nextZone.name}`);
                       } else {
                         setLinkingZoneId(null);
-                        toast.success('Wspaniale! Wszystkie pomieszczenia w projekcie mają przypisane obrysy.');
+                        toast.success('Połączono ostatnie pomieszczenie!');
                       }
 
                       return;

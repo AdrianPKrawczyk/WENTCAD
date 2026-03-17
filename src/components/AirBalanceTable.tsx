@@ -18,8 +18,9 @@ import { resolveZoneStyle } from '../lib/VisualStyles';
 import { Wand2, Link, X as XIcon } from 'lucide-react';
 import { parseDxfFile } from '../lib/dxfUtils';
 import { extractAndTransformPolygons } from '../lib/syncEngine';
-import { SyncSettingsModal } from './SyncSettingsModal';
 import { SyncAlignmentModal } from './SyncAlignmentModal';
+import { SyncSettingsModal } from './SyncSettingsModal';
+import { DxfOutlinesModal } from './DxfOutlinesModal';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { calculatePolygonArea } from '../lib/geometryUtils';
 import { toast } from 'sonner';
@@ -55,10 +56,11 @@ export function AirBalanceTable() {
   const [syncDxfData, setSyncDxfData] = useState<any>(null);
   const [isSyncSettingsOpen, setIsSyncSettingsOpen] = useState(false);
   const [isSyncAlignmentOpen, setIsSyncAlignmentOpen] = useState(false);
-  const [availableLayers, setAvailableLayers] = useState<string[]>([]);
-  const [syncFileName, setSyncFileName] = useState('');
-  const [selectedSyncLayer, setSelectedSyncLayer] = useState('');
-  const [syncMultiplier, setSyncMultiplier] = useState(1);
+  const [selectedSyncLayer, setSelectedSyncLayer] = useState<string>('');
+  const [syncMultiplier, setSyncMultiplier] = useState<number>(1);
+  const [isOutlinesModalOpen, setOutlinesModalOpen] = useState(false);
+  const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
+  const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
@@ -360,6 +362,16 @@ export function AirBalanceTable() {
       const selectedNodes = gridRef.current.api.getSelectedNodes();
       const ids = selectedNodes.map(node => node.data?.id).filter(Boolean);
       setCheckedZoneIds(ids);
+
+      // UX: Pozwalamy ręcznie zmienić cel łączenia (Link Tool) poprzez kliknięcie w tabelę
+      if (ids.length === 1) {
+        useZoneStore.getState().setSelectedZone(ids[0]);
+        if (useZoneStore.getState().linkingZoneId) {
+          useZoneStore.getState().setLinkingZoneId(ids[0]);
+        }
+      } else {
+        useZoneStore.getState().setSelectedZone(null);
+      }
     }
   }, [setCheckedZoneIds]);
 
@@ -576,7 +588,24 @@ export function AirBalanceTable() {
       <FloorManagerBar />
       <div className="flex flex-col flex-1 p-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
+          {(() => {
+            const activeFloor = useZoneStore.getState().floors[activeFloorId];
+            const dxfOutlinesCount = activeFloor?.dxfOutlines?.length || 0;
+            if (dxfOutlinesCount > 0) {
+              return (
+                <button 
+                  onClick={() => setOutlinesModalOpen(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold border border-slate-200 transition-all active:scale-95 animate-in fade-in slide-in-from-left-2"
+                >
+                  📦 Szuflada Obrysów ({dxfOutlinesCount})
+                </button>
+              );
+            }
+            return null;
+          })()}
+        </div>
         <div className="flex gap-2">
           {checkedZoneIds.length > 1 && (
             <>
@@ -646,8 +675,8 @@ export function AirBalanceTable() {
                     : Array.from(new Set(parsed.entities.map((ent: any) => ent.layer)));
                   
                   setSyncDxfData(parsed);
-                  setAvailableLayers(layers as string[]);
-                  setSyncFileName(file.name);
+                  setPendingDxfLayers(layers as string[]);
+                  setPendingDxfFile(file);
                   setIsSyncSettingsOpen(true);
                 } else {
                   toast.error("Błąd parsowania pliku DXF.");
@@ -784,11 +813,11 @@ export function AirBalanceTable() {
 
       <SyncSettingsModal 
         isOpen={isSyncSettingsOpen}
-        fileName={syncFileName}
-        availableLayers={availableLayers}
+        fileName={pendingDxfFile?.name || ''}
+        availableLayers={pendingDxfLayers}
         onCancel={() => {
           setIsSyncSettingsOpen(false);
-          setSyncDxfData(null);
+          setPendingDxfFile(null);
         }}
         onConfirm={(layer, mult) => {
           setSelectedSyncLayer(layer);
@@ -796,6 +825,11 @@ export function AirBalanceTable() {
           setIsSyncSettingsOpen(false);
           setIsSyncAlignmentOpen(true);
         }}
+      />
+
+      <DxfOutlinesModal 
+        isOpen={isOutlinesModalOpen}
+        onClose={() => setOutlinesModalOpen(false)}
       />
 
       <SyncAlignmentModal 
@@ -867,7 +901,7 @@ export function AirBalanceTable() {
             dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines]
           });
 
-          toast.success(`Synchronizacja zakończona: zaktualizowano ${updatedCount}, dodano ${addedCount} do szuflady CAD.`);
+          toast.success(`Zakończono analizę CAD. Znaleziono i dodano do szuflady ${newDxfOutlines.length} nowych obrysów.`);
         }}
       />
       </div>
