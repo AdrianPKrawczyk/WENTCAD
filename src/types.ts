@@ -71,9 +71,11 @@ export interface ZoneData {
   floorId: string; // REQUIRED - must belong to a floor
   
   // Geometry
-  area: number;   // m^2
+  area: number;   // Wartość ostateczna [m²] - zaokrąglona do 2 miejsc
+  manualArea: number; // Wartość wpisana ręcznie przez użytkownika [m²]
+  geometryArea: number | null; // Powierzchnia wyliczona z poligonu CAD [m²]
+  isAreaManual: boolean; // Flaga sterująca (domyślnie: true)
   height: number; // m
-  isAreaLinkedToGeometry: boolean; // Flaga blokady ręcznej edycji powierzchni
   manualVolume?: number | null; // kubatura podana ręcznie
   
   // Air Volume Inputs

@@ -37,21 +37,39 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
     }
   });
 
-  // 3. Recalculate physics for all zones
+  // 3. Recalculate physics and handle area sync for all zones
   Object.keys(newZones).forEach(id => {
     const zone = newZones[id];
-    const results = calculateZoneAirBalance(zone);
+    
+    // Sync Area based on Manual Flag
+    let finalArea = zone.isAreaManual 
+      ? (zone.manualArea || 0) 
+      : (zone.geometryArea ?? zone.manualArea ?? 0);
+    
+    // Rounding to 2 decimal places
+    finalArea = Math.round(finalArea * 100) / 100;
+    const roundedManualArea = Math.round((zone.manualArea || 0) * 100) / 100;
+
+    const updatedZone = { 
+      ...zone, 
+      area: finalArea, 
+      manualArea: roundedManualArea 
+    };
+    
+    const results = calculateZoneAirBalance(updatedZone);
 
     if (
-      zone.calculatedVolume !== results.calculatedVolume ||
-      zone.calculatedExhaust !== results.calculatedExhaust ||
-      zone.transferInSum !== results.transferInSum ||
-      zone.transferOutSum !== results.transferOutSum ||
-      zone.netBalance !== results.netBalance ||
-      zone.realACH !== results.realACH ||
-      zone.targetACH !== results.targetACH
+      updatedZone.area !== results.calculatedVolume || // Wait, area is input to physics, not output
+      updatedZone.calculatedVolume !== results.calculatedVolume ||
+      updatedZone.calculatedExhaust !== results.calculatedExhaust ||
+      updatedZone.transferInSum !== results.transferInSum ||
+      updatedZone.transferOutSum !== results.transferOutSum ||
+      updatedZone.netBalance !== results.netBalance ||
+      updatedZone.realACH !== results.realACH ||
+      updatedZone.targetACH !== results.targetACH ||
+      updatedZone.area !== finalArea // Ensure area change triggers update
     ) {
-      newZones[id] = { ...zone, ...results };
+      newZones[id] = { ...updatedZone, ...results };
     }
   });
 

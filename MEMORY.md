@@ -25,6 +25,7 @@
 * [x] **FAZA 2.6: Architektura UI Etapowa (7 Etapów Projektu)** - Done
 * [x] **FAZA 2.7: Kontekstowe Paski Narzędzi (Secondary Toolbar)** - Done
 * [x] **FAZA 2.8: Tryb Widoku Reversed Vertical Split** - Done
+* [x] **FAZA 2.4.2: Manual Area Override (Ręczne Nadpisywanie Powierzchni)** - Done
 * [ ] **FAZA 2.9: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -151,3 +152,9 @@
 
 ### Iteracja 2.8: Elastyczność Layoutu
 - **Reversed Split**: Nowy tryb `split-vertical-reversed` (Tabela po prawej, Canvas po lewej). Wymagał optymalizacji `handleMouseMove` dla obliczeń procentowych od prawej krawędzi.
+
+### Iteracja 2.4.2: Manual Area Override (v2)
+- **Logika 3-polowa**: Rozdzielono `manualArea` od `geometryArea`. Finalna `area` jest wyliczana automatycznie w store: `isAreaManual ? manualArea : (geometryArea ?? manualArea)`.
+- **Precyzja**: Wymuszono zaokrąglanie wszystkich wartości powierzchni do 2 miejsc po przecinku w store i UI.
+- **UI**: Wdrożono układ 3 pól w Inspektorze (Finalna, Manualna, CAD) oraz natywne checkboxy AG Grid.
+- **Domyślność**: Nowe strefy domyślnie startują z aktywowaną flagą `isAreaManual: true`.

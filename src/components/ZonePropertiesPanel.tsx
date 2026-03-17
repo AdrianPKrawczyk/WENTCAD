@@ -113,31 +113,78 @@ export function ZonePropertiesPanel() {
               </select>
             </div>
 
-            <div className="flex space-x-4">
-              <div className="flex-1">
-                <label className="block text-xs text-gray-500 mb-1">Powierzchnia [m²]</label>
+            {/* SEKCJA: POWIERZCHNIA (3 FIELD LAYOUT) */}
+            <div className="space-y-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">
+              {/* 1. Final Area (Computed) */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">1. Pow. Obliczeniowa (Finalna)</label>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">LINKED</span>
+                </div>
                 <input 
-                  type="number" 
-                  min="0" step="0.1"
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.area}
-                  onChange={(e) => handleChange('area', Number(e.target.value))}
+                  type="text" 
+                  disabled
+                  className="w-full text-sm border-b border-indigo-200 py-1 bg-indigo-50/30 text-indigo-900 font-bold focus:outline-none cursor-not-allowed"
+                  value={`${(activeZone.area || 0).toFixed(2)} m²`}
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-xs text-gray-500 mb-1">Wysokość [m]</label>
+
+              {/* 2. Manual Area & Toggle */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">2. Pow. Manualna</label>
+                  <label className="flex items-center space-x-1 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={activeZone.isAreaManual} 
+                      onChange={(e) => handleChange('isAreaManual', e.target.checked)}
+                      className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                    />
+                    <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                  </label>
+                </div>
                 <input 
                   type="number" 
-                  min="0" step="0.1"
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                  step="0.01"
+                  min="0"
+                  disabled={!activeZone.isAreaManual}
+                  className={`w-full text-sm border-b py-1 focus:outline-none transition-colors ${
+                    activeZone.isAreaManual 
+                      ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' 
+                      : 'border-gray-200 bg-transparent text-gray-400'
+                  }`}
                   onFocus={() => pause()}
                   onBlur={() => resume()}
-                  value={activeZone.height}
-                  onChange={(e) => handleChange('height', Number(e.target.value))}
+                  value={activeZone.manualArea}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    handleChange('manualArea', Math.round(val * 100) / 100);
+                  }}
                 />
               </div>
+
+              {/* 3. Geometry Area */}
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-tight">3. Pow. z Rysunku (CAD)</label>
+                <input 
+                  type="text" 
+                  disabled
+                  className="w-full text-sm border-b border-gray-200 py-1 bg-transparent text-gray-500 italic cursor-not-allowed"
+                  value={activeZone.geometryArea != null ? `${activeZone.geometryArea.toFixed(2)} m²` : 'Brak obrysu'}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Wysokość [m]</label>
+              <input 
+                type="number" 
+                min="0" step="0.1"
+                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                onFocus={() => pause()}
+                onBlur={() => resume()}
+                value={activeZone.height}
+                onChange={(e) => handleChange('height', Number(e.target.value))}
+              />
             </div>
             <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
               <div>
@@ -158,7 +205,7 @@ export function ZonePropertiesPanel() {
                 </label>
               </div>
               <div className="text-xs text-gray-500 text-right">
-                Calc: {calculatedVolRaw.toFixed(1)} m³
+                Calc: {(calculatedVolRaw || 0).toFixed(1)} m³
               </div>
             </div>
             
@@ -536,7 +583,7 @@ export function ZonePropertiesPanel() {
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-400">Krotność rzeczywista</span>
               <span className="text-sm font-bold text-gray-300">
-                {activeZone.realACH.toFixed(2)} <span className="text-xs font-normal">1/h</span>
+                {(activeZone.realACH || 0).toFixed(2)} <span className="text-xs font-normal">1/h</span>
               </span>
             </div>
           </div>

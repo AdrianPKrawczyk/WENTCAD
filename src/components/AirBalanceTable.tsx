@@ -93,14 +93,25 @@ export function AirBalanceTable() {
       minWidth: 200,
     },
     { 
+      field: 'isAreaManual', 
+      headerName: 'Manual Pow.', 
+      editable: true, 
+      width: 100,
+      cellRenderer: 'agCheckboxCellRenderer',
+      cellEditor: 'agCheckboxCellEditor',
+    },
+    { 
       field: 'area', 
       headerName: 'Pow. [m²]', 
-      editable: (params) => !params.data?.isAreaLinkedToGeometry, 
+      editable: (params) => !!params.data?.isAreaManual || params.data?.geometryArea === null, 
       type: 'numericColumn', 
       width: 120,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00',
       cellStyle: (params) => {
-        if (params.data?.isAreaLinkedToGeometry) {
+        if (params.data?.isAreaManual) {
+          return { backgroundColor: '#fefcbf', color: '#744210', fontWeight: 'bold' };
+        }
+        if (!params.data?.isAreaManual && params.data?.geometryArea !== null) {
           return { backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 'bold' };
         }
         return null;
@@ -245,7 +256,18 @@ export function AirBalanceTable() {
       if (typeof newValue === 'string') {
         parsed = Number(newValue.replace(',', '.'));
       }
-      update[field] = isNaN(parsed) ? 0 : parsed;
+      const val = isNaN(parsed) ? 0 : parsed;
+      
+      // Enforce rounding to 2 decimal places for area-related fields
+      if (field === 'area' || field === 'manualArea' || field === 'geometryArea') {
+        update[field] = Math.round(val * 100) / 100;
+        // If editing final area manually, also sync to manualArea
+        if (field === 'area' && data.isAreaManual) {
+          update.manualArea = update[field];
+        }
+      } else {
+        update[field] = val;
+      }
     } else {
       update[field] = newValue;
     }
@@ -365,8 +387,10 @@ export function AirBalanceTable() {
       systemSupplyId: 'N1',
       systemExhaustId: 'W1',
       area: 15,
+      manualArea: 15,
       height: 3,
-      isAreaLinkedToGeometry: false,
+      geometryArea: null,
+      isAreaManual: true,
       occupants: 2,
       dosePerOccupant: 30,
       isTargetACHManual: false,
@@ -427,10 +451,12 @@ export function AirBalanceTable() {
         calculationMode: 'AUTO_MAX',
         systemSupplyId: 'N1',
         systemExhaustId: 'W1',
-        area,
+        area: Math.round(area * 100) / 100,
+        manualArea: Math.round(area * 100) / 100,
         height,
-        isAreaLinkedToGeometry: false,
-        occupants: 0,
+        geometryArea: null,
+        isAreaManual: true,
+        occupants: 1,
         dosePerOccupant: 30,
         isTargetACHManual: false,
         manualTargetACH: null,

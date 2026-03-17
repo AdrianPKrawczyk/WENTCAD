@@ -263,10 +263,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const areaPx = calculatePolygonArea(poly.points);
             const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
             
-            updateZone(selectedZoneId!, { 
-              area: areaM2,
-              isAreaLinkedToGeometry: true
-            });
+            const activeZone = zones[selectedZoneId!];
+            const updates: any = { geometryArea: areaM2 };
+            
+            if (!activeZone?.isAreaManual) {
+              updates.area = areaM2;
+            }
+            
+            updateZone(selectedZoneId!, updates);
             
             setIsDrawingPolygon(false);
             setCurrentPolygonPoints([]);
@@ -373,10 +377,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
         const areaPx = calculatePolygonArea(poly.points);
         const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
         
-        updateZone(selectedZoneId!, { 
-          area: areaM2,
-          isAreaLinkedToGeometry: true
-        });
+        const activeZone = zones[selectedZoneId!];
+        const updates: any = { geometryArea: areaM2 };
+        
+        if (!activeZone?.isAreaManual) {
+          updates.area = areaM2;
+        }
+        
+        updateZone(selectedZoneId!, updates);
         
         setIsDrawingPolygon(false);
         setCurrentPolygonPoints([]);
@@ -801,10 +809,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
               const areaPx = calculatePolygonArea(poly.points);
               const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
               
-              updateZone(selectedZoneId!, { 
-                area: areaM2,
-                isAreaLinkedToGeometry: true
-              });
+              const activeZone = zones[selectedZoneId!];
+              const updates: any = { geometryArea: areaM2 };
+              
+              // area sync logic is now handled in resolveZonesState in store, 
+              // so we don't strictly need to do it here, but it's good for immediate UI feedback.
+              if (!activeZone?.isAreaManual) {
+                updates.area = Math.round(areaM2 * 100) / 100;
+              }
+              
+              updateZone(selectedZoneId!, updates);
               
               setIsDrawingPolygon(false);
               setCurrentPolygonPoints([]);
@@ -820,7 +834,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
           <div className="flex items-center px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
             <span className="text-[10px] font-bold text-indigo-700">
               Strefa: {zones[selectedZoneId]?.nr || '?'} - {zones[selectedZoneId]?.name || '?'}
-              {zones[selectedZoneId]?.isAreaLinkedToGeometry && ' (Połączona)'}
+              {zones[selectedZoneId]?.geometryArea !== null && !zones[selectedZoneId]?.isAreaManual && ' (Połączona)'}
+              {zones[selectedZoneId]?.isAreaManual && ' (Manual)'}
             </span>
           </div>
         )}
