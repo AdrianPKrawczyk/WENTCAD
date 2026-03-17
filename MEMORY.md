@@ -19,9 +19,9 @@
 * [x] **FAZA 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
-    *   Implementacja pływającego panelu filtracji (widoczność globalna + systemowa).
-    *   Wzory deseniu (Hatch) renderowane jako warstwa nakładkowa na rzucie 2D.
-    *   Poprawka mapowania nazw (polskie nazwy UI -> techniczne ID) oraz renderowanie synchroniczne (Canvas).
+* [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
+    *   Implementacja parsera `dxf-parser` oraz serwisu renderującego `dxfUtils.ts`.
+    *   Obsługa transformacji układu CAD (Y-up) na Canvas (Y-down) oraz automatyczna kalibracja jednostek (mm, cm, m).
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -105,7 +105,7 @@
   - `scaleFactor` (metry / piksel) jest podstawą wszystkich obliczeń geometrycznych.
   - Aktywne narzędzia (`isCalibrating`, `isMeasuring`) wzajemnie się wykluczają.
   - Narzędzie "Linijka" (`isMeasuring`) rysuje linię pomocniczą i etykietę z wynikiem wyliczonym jako `distPixels * scaleFactor`.
-  - Wyniki są renderowane za pomocą komponentów `Label`, `Tag` i `Text` z `react-konva`.
+  - Wyniki are renderowane za pomocą komponentów `Label`, `Tag` i `Text` z `react-konva`.
 
 ### Podkłady PDF (pdfjs-dist)
 - Użyto biblioteki **pdfjs-dist** do renderowania pierwszej strony dokumentu PDF na wirtualnym canvasie po stronie klienta.
@@ -163,7 +163,7 @@
   - Wprowadzono `redefiningZoneId` – podczas rysowania stary obrys staje się czerwony (`#ef4444`) i półprzezroczysty, ułatwiając "odrysowanie" poprawnej geometrii.
   - `geometryUtils.ts`: Wydzielono `calculatePolygonArea` (shoelace formula) jako reużywalny moduł.
 - **Stabilność**:
-  - Poligony są renderowane zawsze, gdy `zone.floorId === activeFloorId`. Wyeliminowano błąd "znikających stref" przy braku podkładu.
+  - Poligony are renderowane zawsze, gdy `zone.floorId === activeFloorId`. Wyeliminowano błąd "znikających stref" przy braku podkładu.
   - `originDescription`: Dodano pole tekstowe w `FloorManagerBar.tsx` do opisu punktu zero (np. "Oś A-1").
 - **Tabela**: Dodano kolumnę `hasGeometry` (📐 / ✖️) dla szybkiej weryfikacji statusu rysunkowego stref.
 
@@ -203,8 +203,15 @@
   - Wymuszenie **solidnego koloru** (alpha=1) dla linii wzoru.
   - Zwiększenie grubości linii do **2px** w `patternUtils.ts`.
   - Wprowadzenie zmiennej `globalPatternScale` (szeroki zakres 0.05x - 15.0x), pozwalającej użytkownikowi na precyzyjne dostosowanie gęstości deseniu do skali rzutu.
+
 - **Filtracja Widoczności**:
   - **Zone Store**: Dodano stany `showZonesOnCanvas` (globalny przełącznik) oraz `hiddenSystemIdsOnCanvas` (lista ukrytych systemów).
   - **Filtr Panel**: Implementacja pływającego panelu „Widoczność Stref” w Workspace2D. Pozwala na selektywne ukrywanie stref przypisanych do konkretnych systemów oraz stref bez przypisanego systemu („Brak systemu”).
   - **Logika**: Strefa jest ukrywana, jeśli którykolwiek z jej systemów (nawiewny lub wywiewny) znajduje się na liście `hiddenSystemIdsOnCanvas`.
 - **TopBar**: Dodano interaktywne ikony 👁️ (Widoczność) i 🎛️ (Filtry) integrujące się ze stanem stref.
+
+- **Obsługa plików CAD (DXF) - Faza 2.5**:
+  - **Parser**: Zastosowano `dxf-parser` do odczytu wektorów z plików DXF bezpośrednio w przeglądarce.
+  - **Renderowanie (Tryb A)**: Implementacja `dxfUtils.ts` parsuje DXF i renderuje go na offscreen canvas (PNG DataURL). Zapobiega to obciążaniu drzewa DOM tysiącami węzłów Konvy, zachowując płynność nawigacji.
+  - **Transformacja**: Matematyczna konwersja układu CAD (gdzie Y rośnie w górę) na układ przeglądarki (Y-down). Automatyczne wyliczanie Bounding Box z marginesem (padding) dla wycentrowania rysunku.
+  - **Jednostki**: Wprowadzono `DxfUnitModal.tsx`, wymuszający wybór jednostek rysunku (mm, cm, m). Wynikowy mnożnik jest zapisywany jako `scaleFactor`, co umożliwia poprawne wyliczanie powierzchni stref z wektorów CAD.
