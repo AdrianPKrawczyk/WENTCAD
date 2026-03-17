@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Ruler, Layers } from 'lucide-react';
+import { X, Ruler, Layers, LayoutTemplate } from 'lucide-react';
 
 interface DxfUnitModalProps {
   isOpen: boolean;
   fileName: string;
   availableLayers: string[];
-  onConfirm: (multiplier: number, unitLabel: string, selectedLayers: string[]) => void;
+  onConfirm: (multiplier: number, unitLabel: string, selectedLayers: string[], ignoreBlocks: boolean) => void;
   onCancel: () => void;
 }
 
@@ -13,6 +13,7 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
   const [selectedMultiplier, setSelectedMultiplier] = useState<number>(1.0);
   const [unitLabel, setUnitLabel] = useState<string>('Metry (m)');
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
+  const [ignoreBlocks, setIgnoreBlocks] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,7 +40,7 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
 
   const handleConfirm = () => {
     localStorage.setItem(`dxf-layers-${fileName}`, JSON.stringify(selectedLayers));
-    onConfirm(selectedMultiplier, unitLabel, selectedLayers);
+    onConfirm(selectedMultiplier, unitLabel, selectedLayers, ignoreBlocks);
   };
 
   return (
@@ -68,6 +69,24 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
                 <option value={1.0}>Metry (m)</option>
               </select>
             </div>
+
+            <div>
+              <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                <LayoutTemplate className="w-4 h-4"/> Uproszczenie rysunku
+              </h3>
+              <label className="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={ignoreBlocks} 
+                  onChange={(e) => setIgnoreBlocks(e.target.checked)} 
+                  className="rounded text-indigo-600 focus:ring-indigo-500 w-5 h-5"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700">Ignoruj Bloki CAD (INSERT)</span>
+                  <span className="text-xs text-gray-500">Ukrywa skomplikowane meble, drzwi i wyposażenie. Pomaga przy "brudnych" rzutach.</span>
+                </div>
+              </label>
+            </div>
             
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
               <p className="text-xs text-blue-700 leading-relaxed">
@@ -87,7 +106,7 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
             </div>
             <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
               {availableLayers.map(layer => (
-                <label key={layer} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white rounded cursor-pointer">
+                <label key={layer} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white rounded cursor-pointer transition-colors">
                   <input type="checkbox" checked={selectedLayers.includes(layer)} onChange={() => toggleLayer(layer)} className="rounded text-indigo-600 focus:ring-indigo-500" />
                   <span className="text-sm text-gray-700 truncate">{layer}</span>
                 </label>

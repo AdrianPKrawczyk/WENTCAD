@@ -1263,7 +1263,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           setPendingDxf(null);
           setPendingDxfFile(null);
         }}
-        onConfirm={async (multiplier, unitLabel, selectedLayers) => {
+        onConfirm={async (multiplier, unitLabel, selectedLayers, ignoreBlocks) => {
           if (!pendingDxf) return;
           setIsLoading(true);
           setDxfModalOpen(false);
@@ -1271,7 +1271,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           // Asynchroniczne renderowanie by nie zablokować UI
           setTimeout(async () => {
             try {
-              const result = await renderDxfToDataUrl(pendingDxf, { selectedLayers });
+              const result = await renderDxfToDataUrl(pendingDxf, { selectedLayers, ignoreBlocks });
               if (result) {
                 setUnderlay(
                   result.dataUrl, 

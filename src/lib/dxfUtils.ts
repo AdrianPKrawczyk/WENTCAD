@@ -2,6 +2,7 @@ import DxfParser from 'dxf-parser';
 
 export interface RenderDxfOptions {
   selectedLayers: string[];
+  ignoreBlocks: boolean;
 }
 
 export function parseDxfFile(fileContent: string) {
@@ -36,6 +37,7 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
         updateBBox(ent.center.x + offsetX - ent.radius, ent.center.y + offsetY - ent.radius);
         updateBBox(ent.center.x + offsetX + ent.radius, ent.center.y + offsetY + ent.radius);
       } else if (ent.type === 'INSERT') {
+        if (options.ignoreBlocks) return;
         const block = dxf.blocks[ent.name];
         const pos = ent.position || { x: 0, y: 0 };
         if (block && block.entities) {
@@ -120,6 +122,7 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
            ctx.restore();
          }
       } else if (ent.type === 'INSERT') {
+         if (options.ignoreBlocks) return;
          const block = dxf.blocks[ent.name];
          if (block && block.entities) {
             ctx.save();
