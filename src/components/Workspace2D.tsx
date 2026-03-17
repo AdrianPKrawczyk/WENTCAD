@@ -88,6 +88,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const zones = useZoneStore((s) => s.zones);
   const systems = useZoneStore((s) => s.systems);
   const updateZone = useZoneStore((s) => s.updateZone);
+  const updateFloor = useZoneStore((s) => s.updateFloor);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -318,9 +319,30 @@ export function Workspace2D({ className }: Workspace2DProps) {
     }
 
     if (isSettingOrigin) {
-      setReferenceOrigin(canvasPos);
+      const oldOrigin = referenceOrigin || { x: 0, y: 0 };
+      const dx = canvasPos.x - oldOrigin.x;
+      const dy = canvasPos.y - oldOrigin.y;
+
+      if (polygons.length > 0) {
+        const updatedPolygons = polygons.map(poly => {
+          const newPoints = [];
+          for (let i = 0; i < poly.points.length; i += 2) {
+            newPoints.push(poly.points[i] + dx);
+            newPoints.push(poly.points[i + 1] + dy);
+          }
+          return { ...poly, points: newPoints };
+        });
+        
+        updateFloorState(activeFloorId, { 
+          referenceOrigin: canvasPos, 
+          polygons: updatedPolygons 
+        });
+      } else {
+        updateFloorState(activeFloorId, { referenceOrigin: canvasPos });
+      }
+
       setIsSettingOrigin(false);
-      toast.success('Pomyślnie ustawiono punkt bazowy (0,0) dla tej kondygnacji.');
+      toast.success('Punkt 0,0 zaktualizowany. Geometria stref została dopasowana do nowego punktu.');
       return;
     }
 
@@ -337,7 +359,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
     isMeasuring, measurePoints, 
     isSettingOrigin, setIsSettingOrigin, setReferenceOrigin,
     isDrawingPolygon, currentPolygonPoints, setCurrentPolygonPoints,
-    activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon, zones
+    activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon, zones,
+    referenceOrigin, updateFloorState, polygons
   ]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -935,9 +958,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
           </div>
         )}
 
-        {scaleFactor && (
-          <div className="flex items-center px-2 py-1 bg-green-50 rounded-lg border border-green-100">
-            <span className="text-[10px] font-mono font-bold text-green-700">1px = {(scaleFactor * 1000).toFixed(1)}mm</span>
+        {referenceOrigin && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-indigo-100 shadow-sm">
+            <Crosshair className="w-3 h-3 text-indigo-500" />
+            <input 
+              type="text" 
+              className="text-[10px] w-48 border-none focus:ring-0 p-0 bg-transparent placeholder-gray-400"
+              placeholder="Opis punktu 0,0 (np. Przecięcie osi A-1)"
+              value={activeFloorMetadata?.originDescription || ""}
+              onChange={(e) => updateFloor(activeFloorId, { originDescription: e.target.value })}
+            />
           </div>
         )}
 

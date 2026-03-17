@@ -3,7 +3,7 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.9.1 ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.9.2 ZAKOŃCZONA
 * **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
 * **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
@@ -28,6 +28,7 @@
 * [x] **FAZA 2.4.2: Manual Area Override (v2) & Precyzja** - Done
 * [x] **FAZA 2.9: Workspace 2.0 (RECT, ERASER, Stable Floors)** - Done
 * [x] **FAZA 2.9.1: CAD Persistence Fix & Advanced Tools (Snap, Redefine)** - Done
+* [x] **FAZA 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0** - Done
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -181,3 +182,9 @@
   - W `useZoneStore.ts` dodano funkcję `clearZoneGeometry(id)`, która czyści pole `geometryArea` i bezpiecznie usuwa poligon z odpowiedniego `floorId` w canvas store.
 - **Redefinicja**: Przycisk "Redefiniuj" w `ZonePropertiesPanel.tsx` pozwala na szybkie przerysowanie strefy od nowa. Poprzedni obrys jest renderowany na czerwono (`#ef4444`) dla ułatwienia odczytu.
 - **Precyzja**: Wymuszono zaokrąglanie wyliczanej powierzchni (`area`) do 2 miejsc po przecinku (`Math.round(val * 100) / 100`) bezpośrednio w akcjach rysowania.
+
+### Iteracja 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0
+- **Relatywne Przesuwanie**: Zmodyfikowano `handleMouseDown` w `Workspace2D.tsx`. Przy zmianie `referenceOrigin`, wszystkie narysowane poligi (`polygons`) aktywnej kondygnacji są automatycznie przesuwane o wektor różnicy (delta X/Y). Pozwala to na zachowanie pozycji stref względem charakterystycznych punktów budynku po zmianie przesuniętego podkładu.
+- **Opis Punktu 0,0**: Dodano pole `originDescription` do interfejsu `Floor`. 
+  - **Toolbar**: Wprowadzono input w pasku narzędzi Workspace2D do edycji opisu (np. "Przecięcie osi A-1").
+  - **Canvas**: Opis jest wyświetlany bezpośrednio pod krzyżykiem punktu (0,0) na rysunku.
