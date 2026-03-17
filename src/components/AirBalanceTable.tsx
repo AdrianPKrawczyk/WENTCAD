@@ -35,9 +35,10 @@ export function AirBalanceTable() {
   const activeProjectId = useProjectStore((s) => s.activeProject?.id);
   const columnState = useZoneStore((s) => s.columnState);
   const setColumnState = useZoneStore((s) => s.setColumnState);
+  const checkedZoneIds = useZoneStore((state) => state.checkedZoneIds);
+  const setCheckedZoneIds = useZoneStore((state) => state.setCheckedZoneIds);
+  const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
   const lastProjectRef = useRef<string | null>(null);
-
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const gridRef = useRef<AgGridReact>(null);
 
@@ -332,19 +333,22 @@ export function AirBalanceTable() {
     if (gridRef.current?.api) {
       const selectedNodes = gridRef.current.api.getSelectedNodes();
       const ids = selectedNodes.map(node => node.data?.id).filter(Boolean);
-      setSelectedIds(ids);
+      setCheckedZoneIds(ids);
     }
-  }, []);
+  }, [setCheckedZoneIds]);
 
   const handleBulkDelete = () => {
-    if (selectedIds.length === 0) return;
-    if (window.confirm(`Czy na pewno usunąć zaznaczone pomieszczenia (${selectedIds.length})?`)) {
-      bulkDeleteZones(selectedIds);
-      setSelectedIds([]);
+    if (checkedZoneIds.length === 0) return;
+    if (window.confirm(`Czy na pewno usunąć zaznaczone pomieszczenia (${checkedZoneIds.length})?`)) {
+      bulkDeleteZones(checkedZoneIds);
+      setCheckedZoneIds([]);
     }
   };
 
-  const getRowStyle = (params: any) => {
+  const getRowStyle = (params: any): any => {
+    if (params.data?.id === selectedZoneId) {
+      return { backgroundColor: '#eef2ff', outline: '2px solid #4f46e5', outlineOffset: '-2px', zIndex: 10, fontWeight: 'bold' };
+    }
     if (!isSystemColoringEnabled || !params.data) return undefined;
     const { color } = resolveZoneStyle(params.data, systems, globalSystemOpacity);
     if (!color) return undefined;
@@ -363,6 +367,17 @@ export function AirBalanceTable() {
       gridRef.current.api.redrawRows();
     }
   }, [isSystemColoringEnabled, globalSystemOpacity, systems]);
+
+  // Auto-scroll do wiersza i odświeżenie stylów
+  useEffect(() => {
+    if (gridRef.current?.api && selectedZoneId) {
+      const node = gridRef.current.api.getRowNode(selectedZoneId);
+      if (node) {
+        gridRef.current.api.ensureNodeVisible(node, 'middle');
+      }
+      gridRef.current.api.redrawRows(); // Wymusza odświeżenie stylów, by nałożyć podświetlenie
+    }
+  }, [selectedZoneId]);
 
 
   // Pomocnicza funkcja do zapisu szerokości kolumn
@@ -537,19 +552,19 @@ export function AirBalanceTable() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
         <div className="flex gap-2">
-          {selectedIds.length > 1 && (
+          {checkedZoneIds.length > 1 && (
             <>
               <button 
                 onClick={() => setIsBulkEditOpen(true)}
                 className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors flex items-center gap-2"
               >
-                ✏️ Edytuj zaznaczone ({selectedIds.length})
+                ✏️ Edytuj zaznaczone ({checkedZoneIds.length})
               </button>
               <button 
                 onClick={handleBulkDelete}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors flex items-center gap-2"
               >
-                🗑️ Usuń zaznaczone ({selectedIds.length})
+                🗑️ Usuń zaznaczone ({checkedZoneIds.length})
               </button>
             </>
           )}
@@ -658,7 +673,7 @@ export function AirBalanceTable() {
       <BulkEditModal 
         isOpen={isBulkEditOpen}
         onClose={() => setIsBulkEditOpen(false)}
-        selectedIds={selectedIds}
+        selectedIds={checkedZoneIds}
       />
       </div>
     </div>

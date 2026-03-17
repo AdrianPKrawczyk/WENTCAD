@@ -89,6 +89,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const systems = useZoneStore((s) => s.systems);
   const updateZone = useZoneStore((s) => s.updateZone);
   const updateFloor = useZoneStore((s) => s.updateFloor);
+  const checkedZoneIds = useZoneStore((s) => s.checkedZoneIds);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -683,19 +684,38 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const style = resolveZoneStyle(zone, systems); 
             
             const isRedefining = redefiningZoneId === poly.zoneId;
-            const strokeColor = isRedefining ? '#ef4444' : (style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9'); // Force opacity 1 for stroke
-            const fillColor = isRedefining ? '#ef444460' : (style.color || '#0ea5e9');
+            const isChecked = checkedZoneIds.includes(zone.id);
+            const isSelected = selectedZoneId === zone.id;
+
+            let currentFill = isRedefining ? '#ef444460' : (style.color || '#0ea5e9');
+            let currentStroke = isRedefining ? '#ef4444' : (style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9');
+            let currentStrokeWidth = (isRedefining ? 3 : 2) / scale;
+            let shadowProps = {};
+
+            if (!isRedefining) {
+              if (isChecked) {
+                currentFill = '#f59e0b80'; // Amber/orange 50% opacity
+                currentStroke = '#d97706';
+                currentStrokeWidth = 4 / scale;
+                shadowProps = { shadowColor: '#f59e0b', shadowBlur: 15 / scale, shadowOpacity: 0.8 };
+              } else if (isSelected) {
+                currentFill = '#4f46e560'; // Indigo 35% opacity
+                currentStroke = '#4338ca';
+                currentStrokeWidth = 3 / scale;
+              }
+            }
             
             return (
               <Line
                 key={poly.id}
                 points={poly.points}
                 closed={true}
-                fill={fillColor}
-                stroke={strokeColor}
-                strokeWidth={(isRedefining ? 3 : 2) / scale}
+                fill={currentFill}
+                stroke={currentStroke}
+                strokeWidth={currentStrokeWidth}
                 dash={isRedefining ? [5 / scale, 5 / scale] : []}
                 opacity={isRedefining ? 0.8 : 1}
+                {...shadowProps}
                 onMouseEnter={(e) => {
                   const container = e.target.getStage()?.container();
                   if (container) {

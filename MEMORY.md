@@ -3,7 +3,7 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.9.2 ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.9.3 ZAKOŃCZONA
 * **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
 * **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
@@ -29,6 +29,7 @@
 * [x] **FAZA 2.9: Workspace 2.0 (RECT, ERASER, Stable Floors)** - Done
 * [x] **FAZA 2.9.1: CAD Persistence Fix & Advanced Tools (Snap, Redefine)** - Done
 * [x] **FAZA 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0** - Done
+* [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -188,3 +189,13 @@
 - **Opis Punktu 0,0**: Dodano pole `originDescription` do interfejsu `Floor`. 
   - **Toolbar**: Wprowadzono input w pasku narzędzi Workspace2D do edycji opisu (np. "Przecięcie osi A-1").
   - **Canvas**: Opis jest wyświetlany bezpośrednio pod krzyżykiem punktu (0,0) na rysunku.
+  
+### Iteracja 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie
+- **Zustand (Ephemeral State)**: Dodano `checkedZoneIds` do `useZoneStore.ts`. Stan ten nie jest persystowany (`partialize`), co zapewnia czysty start po odświeżeniu strony.
+- **Tabela (AG Grid)**:
+  - **Auto-scroll**: Implementacja `ensureNodeVisible(node, 'middle')` w `useEffect` nasłuchującym na `selectedZoneId`. Tabela centruje się na strefie klikniętej na rzucie.
+  - **Highlighting**: Aktywny wiersz (`selectedZoneId`) otrzymuje tło `#eef2ff` i indygo outline.
+- **Canvas (Konva)**:
+  - **Checked Multi-Select**: Strefy zaznaczone checkboxami w tabeli otrzymują na rzucie bursztynowy/pomarańczowy kolor (`#f59e0b80`) z efektem poświaty (`shadowBlur`).
+  - **Active Selection**: Strefa wybrana (kliknięta) jest wyróżniona kolorem indygo (`#4f46e560`).
+  - **Priorytety**: Logika stylizacji uwzględnia tryb redefinicji (czerwony) oraz nakłada wyróżnienia na bazowe kolory systemowe (jeśli włączone).

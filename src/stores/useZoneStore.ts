@@ -114,6 +114,8 @@ interface ZoneStore {
   saveAnalysisPreset: (preset: AnalysisPreset) => void;
   removeAnalysisPreset: (id: string) => void;
   clearZoneGeometry: (id: string) => void;
+  checkedZoneIds: string[];
+  setCheckedZoneIds: (ids: string[]) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -136,11 +138,13 @@ export const useZoneStore = create<ZoneStore>()(
       isSystemColoringEnabled: false,
       globalSystemOpacity: 20,
       columnState: null,
+      checkedZoneIds: [],
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
       setActiveFloor: (floorId) => set({ activeFloorId: floorId }),
+      setCheckedZoneIds: (ids) => set({ checkedZoneIds: ids }),
 
       addZone: (zone) => {
         set((state) => {
@@ -399,7 +403,7 @@ export const useZoneStore = create<ZoneStore>()(
         analysisPresets, 
         stylePresets, 
         isSystemColoringEnabled, 
-        globalSystemOpacity 
+        globalSystemOpacity
       } = state;
       return { 
         zones, 
