@@ -213,5 +213,6 @@
 - **Obsługa plików CAD (DXF) - Faza 2.5**:
   - **Parser**: Zastosowano `dxf-parser` do odczytu wektorów z plików DXF bezpośrednio w przeglądarce.
   - **Renderowanie (Tryb A)**: Implementacja `dxfUtils.ts` parsuje DXF i renderuje go na offscreen canvas (PNG DataURL). Zapobiega to obciążaniu drzewa DOM tysiącami węzłów Konvy, zachowując płynność nawigacji.
-  - **Transformacja**: Matematyczna konwersja układu CAD (gdzie Y rośnie w górę) na układ przeglądarki (Y-down). Automatyczne wyliczanie Bounding Box z marginesem (padding) dla wycentrowania rysunku.
-  - **Jednostki**: Wprowadzono `DxfUnitModal.tsx`, wymuszający wybór jednostek rysunku (mm, cm, m). Wynikowy mnożnik jest zapisywany jako `scaleFactor`, co umożliwia poprawne wyliczanie powierzchni stref z wektorów CAD.
+  - **Jednostki i Warstwy**: Wprowadzono `DxfUnitModal.tsx`, wymuszający wybór jednostek rysunku (mm, cm, m) oraz wybór warstw DXF. Wynikowy mnożnik jest zapisywany jako `scaleFactor`.
+  - **AutoCAD Color Support (ACI)**: Dodano dekoder kolorów ACI w `dxfUtils.ts`, umożliwiający renderowanie podkładów w oryginalnych barwach CAD lub w trybie uproszczonym (grayscale).
+  - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`, co przyspiesza ponowny import tego samego dokumentu.

@@ -9,7 +9,7 @@ import { createPatternImage } from '../lib/patternUtils';
 import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
-import { renderDxfToDataUrl } from '../lib/dxfUtils';
+import { renderDxfToDataUrl, parseDxfFile } from '../lib/dxfUtils';
 import { DxfUnitModal } from './DxfUnitModal';
 
 // PDF.js configuration
@@ -136,7 +136,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [underlayImage, setUnderlayImage] = useState<HTMLImageElement | null>(null);
   const [dxfModalOpen, setDxfModalOpen] = useState(false);
-  const [pendingDxfContent, setPendingDxfContent] = useState<string | null>(null);
+  const [pendingDxf, setPendingDxf] = useState<any>(null); // przechowuje zdekodowany obiekt
+  const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
 
   // Update floor-specific state helpers
@@ -546,9 +547,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
       const readerDxf = new FileReader();
       readerDxf.onload = (ev) => {
         const content = ev.target?.result as string;
-        setPendingDxfContent(content);
-        setPendingDxfFile(file);
-        setDxfModalOpen(true);
+        const parsedDxf = parseDxfFile(content);
+        if (parsedDxf) {
+          const layers = parsedDxf.tables?.layer?.layers 
+            ? Object.keys(parsedDxf.tables.layer.layers) 
+            : Array.from(new Set(parsedDxf.entities.map((e: any) => e.layer)));
+            
+          setPendingDxf(parsedDxf);
+          setPendingDxfLayers(layers as string[]);
+          setPendingDxfFile(file);
+          setDxfModalOpen(true);
+        } else {
+          toast.error("Plik DXF jest uszkodzony lub nieobsługiwany.");
+        }
         setIsLoading(false);
       };
       readerDxf.readAsText(file);
@@ -1215,7 +1226,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         </div>
       )}
 
-      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp,.pdf" className="hidden" onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp,.pdf,.dxf" className="hidden" onChange={handleFileChange} />
 
       {isLoading && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
@@ -1246,35 +1257,40 @@ export function Workspace2D({ className }: Workspace2DProps) {
       <DxfUnitModal 
         isOpen={dxfModalOpen}
         fileName={pendingDxfFile?.name || ''}
+        availableLayers={pendingDxfLayers}
         onCancel={() => {
           setDxfModalOpen(false);
-          setPendingDxfContent(null);
+          setPendingDxf(null);
           setPendingDxfFile(null);
         }}
-        onConfirm={async (multiplier, unitLabel) => {
-          if (!pendingDxfContent) return;
+        onConfirm={async (multiplier, unitLabel, selectedLayers, keepColors) => {
+          if (!pendingDxf) return;
           setIsLoading(true);
-          try {
-            const result = await renderDxfToDataUrl(pendingDxfContent);
-            if (result) {
-              setUnderlay(
-                result.dataUrl, 
-                { width: result.width, height: result.height }, 
-                `[DXF] ${pendingDxfFile?.name}`
-              );
-              setScaleFactor(multiplier);
-              toast.success(`Zaimportowano DXF. Jednostki: ${unitLabel}`);
-            } else {
-              toast.error("Błąd podczas renderowania pliku DXF.");
-            }
-          } catch (err) {
-            console.error(err);
-            toast.error("Wystąpił nieoczekiwany błąd podczas importu DXF.");
-          }
           setDxfModalOpen(false);
-          setPendingDxfContent(null);
-          setPendingDxfFile(null);
-          setIsLoading(false);
+          
+          // Asynchroniczne renderowanie by nie zablokować UI
+          setTimeout(async () => {
+            try {
+              const result = await renderDxfToDataUrl(pendingDxf, { selectedLayers, keepColors });
+              if (result) {
+                setUnderlay(
+                  result.dataUrl, 
+                  { width: result.width, height: result.height }, 
+                  `[DXF] ${pendingDxfFile?.name}`
+                );
+                setScaleFactor(multiplier);
+                toast.success(`Zaimportowano DXF. Jednostki: ${unitLabel}`);
+              } else {
+                toast.error("Błąd renderowania lub wybrano puste warstwy.");
+              }
+            } catch (err) {
+              console.error(err);
+              toast.error("Wystąpił nieoczekiwany błąd podczas importu DXF.");
+            }
+            setIsLoading(false);
+            setPendingDxf(null);
+            setPendingDxfFile(null);
+          }, 50);
         }}
       />
     </div>
