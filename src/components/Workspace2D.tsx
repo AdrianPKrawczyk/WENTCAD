@@ -99,6 +99,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setZoneFilterPanelOpen = useZoneStore((s) => s.setZoneFilterPanelOpen);
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
+  const globalPatternScale = useZoneStore((s) => s.globalPatternScale) || 1.0;
+  const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -636,6 +638,23 @@ export function Workspace2D({ className }: Workspace2DProps) {
             </label>
 
             <div className="h-px bg-slate-100 my-1" />
+            
+            <div className="px-2 py-2 mb-1 bg-slate-50 rounded-lg border border-slate-100">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Skala Deseniu</label>
+                <span className="text-xs font-mono text-indigo-600 font-bold">{globalPatternScale.toFixed(1)}x</span>
+              </div>
+              <input 
+                type="range" 
+                min="0.05" 
+                max="15.0" 
+                step="0.05" 
+                value={globalPatternScale}
+                onChange={(e) => setGlobalPatternScale(parseFloat(e.target.value))}
+                className="w-full accent-indigo-600"
+              />
+            </div>
+
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Systemy Wentylacyjne</span>
 
             {systems.map((sys) => (
@@ -873,7 +892,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     closed={true}
                     fillPatternImage={patternImg as any}
                     fillPatternRepeat="repeat"
-                    fillPatternScale={{ x: 1 / scale, y: 1 / scale }}
+                    fillPatternScale={{ 
+                      x: (1 / scale) * globalPatternScale, 
+                      y: (1 / scale) * globalPatternScale 
+                    }}
                     listening={false}
                   />
                 )}

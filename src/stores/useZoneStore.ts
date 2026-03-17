@@ -122,6 +122,8 @@ interface ZoneStore {
   toggleSystemVisibility: (systemId: string) => void;
   isZoneFilterPanelOpen: boolean;
   setZoneFilterPanelOpen: (open: boolean) => void;
+  globalPatternScale: number;
+  setGlobalPatternScale: (scale: number) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -148,6 +150,7 @@ export const useZoneStore = create<ZoneStore>()(
       showZonesOnCanvas: true,
       hiddenSystemIdsOnCanvas: [],
       isZoneFilterPanelOpen: false,
+      globalPatternScale: 1.0,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -162,6 +165,7 @@ export const useZoneStore = create<ZoneStore>()(
         return { hiddenSystemIdsOnCanvas: hidden };
       }),
       setZoneFilterPanelOpen: (open) => set({ isZoneFilterPanelOpen: open }),
+      setGlobalPatternScale: (scale) => set({ globalPatternScale: scale }),
 
       addZone: (zone) => {
         set((state) => {
@@ -271,7 +275,8 @@ export const useZoneStore = create<ZoneStore>()(
           isSystemColoringEnabled: stateData.isSystemColoringEnabled ?? false,
           globalSystemOpacity: stateData.globalSystemOpacity ?? 20,
           columnState: stateData.columnState ?? null,
-          activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter'
+          activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter',
+          globalPatternScale: stateData.globalPatternScale ?? 1.0
         });
       },
 
@@ -420,7 +425,8 @@ export const useZoneStore = create<ZoneStore>()(
         analysisPresets, 
         stylePresets, 
         isSystemColoringEnabled, 
-        globalSystemOpacity
+        globalSystemOpacity,
+        globalPatternScale
       } = state;
       return { 
         zones, 
@@ -429,7 +435,8 @@ export const useZoneStore = create<ZoneStore>()(
         analysisPresets, 
         stylePresets, 
         isSystemColoringEnabled, 
-        globalSystemOpacity 
+        globalSystemOpacity,
+        globalPatternScale
       };
     },
   }
