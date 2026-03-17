@@ -5,14 +5,9 @@ export interface RenderDxfOptions {
 }
 
 export function parseDxfFile(fileContent: string) {
-  // Hack: Podmiana ATTRIB i ATTDEF na TEXT dla metek
-  const processedContent = fileContent
-    .replace(/^[ \t]*0\r?\n[ \t]*ATTRIB\r?\n/gm, '  0\nTEXT\n')
-    .replace(/^[ \t]*0\r?\n[ \t]*ATTDEF\r?\n/gm, '  0\nTEXT\n');
-
   const parser = new DxfParser();
   try {
-    return parser.parseSync(processedContent);
+    return parser.parseSync(fileContent);
   } catch (err) {
     console.error("Błąd parsowania DXF", err);
     return null;

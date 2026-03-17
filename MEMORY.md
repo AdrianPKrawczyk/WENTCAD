@@ -213,6 +213,5 @@
 - **Obsługa plików CAD (DXF) - Faza 2.5**:
   - **Parser**: Zastosowano `dxf-parser` do odczytu wektorów z plików DXF bezpośrednio w przeglądarce.
   - **Renderowanie (Super-Resolution & Grayscale)**: Wprowadzono strategię `MAX_CANVAS_SIZE` (4000px). Podkłady są teraz renderowane wyłącznie w odcieniach szarości (`#94a3b8`), co zapewnia spójny i przejrzysty wygląd rzutu architektonicznego.
-  - **Uproszczenie Struktur**: Usunięto obsługę encji `DIMENSION` oraz logikę dekodowania kolorów ACI, aby pozbyć się wizualnego szumu i problemów ze skalowaniem wymiarów.
-  - **Atrybuty (Hack)**: Zastosowano "Magiczny Hack" (Regex Replace), który konwertuje `ATTRIB`/`ATTDEF` na `TEXT` przed parsowaniem, co pozwala na wyświetlanie metek pomieszczeń.
+  - **Uproszczenie Struktur**: Usunięto obsługę encji `DIMENSION` oraz logikę dekodowania kolorów ACI. Zrezygnowano również z importu atrybutów bloków (`ATTRIB`/`ATTDEF`), ponieważ bloki dynamiczne CAD generowały nieczytelny szum informacyjny.
   - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`.
