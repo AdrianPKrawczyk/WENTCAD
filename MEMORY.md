@@ -22,6 +22,10 @@
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
     *   Implementacja parsera `dxf-parser` oraz serwisu renderującego `dxfUtils.ts`.
     *   Obsługa transformacji układu CAD (Y-up) na Canvas (Y-down) oraz automatyczna kalibracja jednostek (mm, cm, m).
+* [x] **FAZA 2.5.1: Szuflada Obrysów & Link Tool Fix** - Done
+    *   Odseparowanie surowych obrysów CAD od obiektów `Zone`.
+    *   Manualny Link Tool (usunięcie nieprzewidywalnej automatyzacji).
+    *   Funkcja "Przyłącz istniejące pomieszczenie" z filtrowaniem po kondygnacji.
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -228,5 +232,16 @@
   - **syncEngine.ts**: Implementacja `extractAndTransformPolygons` do automatycznego wybiórczego importu geometrii CAD po kalibracji.
   - **Automatyczne Dopasowanie**: System automatycznie aktualizuje istniejące strefy (overlap detection) lub tworzy nowe w ZoneStore na podstawie danych DXF.
   - **Transformacja Afiniczna (3 pkt)**: Ulepszono `SyncAlignmentModal` do obsługi 3 punktów, co zapewnia pełną korekcję skali, obrotu i odbicia lustrzanego (Mirror).
-  - **Ciągłe Łączenie (Continuous Linking)**: Narzędzie "Połącz" automatycznie prowadzi użytkownika przez kolejne nieprzypisane strefy, sortując je po numerze (`nr`).
-  - **Workspace2D Integration**: Dynamiczna zmiana kursora i podświetlenie poligonów w trybie łączenia.
+  - **Usunięcie Automatyzacji (Fix)**: Zrezygnowano z funkcji `Continuous Linking` (automatyczne przeskakiwanie) na rzecz pełnej kontroli manualnej.
+
+### Iteracja 2.9.5: Szuflada Obrysów (DXF Drawer)
+- **Architektura**: Wydzielono `dxfOutlines` w interfejsie `Floor`. Surowe kształty z CAD nie tworzą już pustych wierszy w tabeli bilansowej, dopóki nie zostaną jawnie powiązane ze strefą.
+- **DxfOutlinesModal**: Implementacja listy obrysów z funkcją podglądu (Eye) i usuwania (Trash).
+- **Zasada Separacji**: Poligony stref to dane HVAC, a `dxfOutlines` to techniczna warstwa pomocnicza do "odrysowywania" lub "linkowania".
+
+### Iteracja 2.9.6: Smart Sync UX & Link Existing
+- **Kontrola Użytkownika**: Po przypisaniu obrysu operacja kończy się wyczyszczeniem zaznaczenia (`setLinkingZoneId(null)`), oddając decyzję inżynierowi co do kolejnego kroku.
+- **Link Existing Room**: Nowy modal `LinkOutlineModal.tsx` dostępny z panelu obrysu na rzucie.
+    - **Filtrowanie**: Lista pomieszczeń jest filtrowana po `activeFloorId`.
+    - **UX**: Skondensowany widok (lista `90vh`) dla szybkiej pracy na dużych projektach.
+- **Bi-directional Sync**: Kliknięcie wiersza w `AirBalanceTable` centruje widok na rzucie, a kliknięcie strefy na rzucie zaznacza odpowiedni wiersz w ag-Grid (z synchronizacją `ensureNodeVisible`).
