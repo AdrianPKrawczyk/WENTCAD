@@ -39,16 +39,14 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
     if (y < minY) minY = y; if (y > maxY) maxY = y;
   };
 
-  // 1. Rekurencyjne wyliczanie Bounding Boxa (wspiera Bloki / INSERT)
   const processBBox = (entities: any[], offsetX = 0, offsetY = 0) => {
     entities.forEach((ent: any) => {
-      // W DXF warstwa '0' wewnątrz bloku dziedziczy warstwę bloku. Uprośćmy to dla bezpieczeństwa.
       if (ent.layer !== '0' && !options.selectedLayers.includes(ent.layer)) return;
       
       if (ent.type === 'LINE') {
-        ent.vertices.forEach((v: any) => updateBBox(v.x + offsetX, v.y + offsetY));
+        ent.vertices?.forEach((v: any) => updateBBox(v.x + offsetX, v.y + offsetY));
       } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
-        if (ent.vertices) ent.vertices.forEach((v: any) => updateBBox(v.x + offsetX, v.y + offsetY));
+        ent.vertices?.forEach((v: any) => updateBBox(v.x + offsetX, v.y + offsetY));
       } else if (ent.type === 'CIRCLE' || ent.type === 'ARC') {
         updateBBox(ent.center.x + offsetX - ent.radius, ent.center.y + offsetY - ent.radius);
         updateBBox(ent.center.x + offsetX + ent.radius, ent.center.y + offsetY + ent.radius);
@@ -58,7 +56,7 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
         if (block && block.entities) {
            processBBox(block.entities, offsetX + pos.x, offsetY + pos.y);
         }
-      } else if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
+      } else if (['TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'].includes(ent.type)) {
         const pt = ent.startPoint || ent.position;
         if (pt) updateBBox(pt.x + offsetX, pt.y + offsetY);
       }
@@ -80,45 +78,51 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  // Globalna transformacja na środek i odwrócenie osi Y
   ctx.translate(padding, height - padding);
   ctx.scale(1, -1);
   ctx.translate(-minX, -minY);
 
-  ctx.lineWidth = Math.max(dxfWidth, dxfHeight) / 1500;
+  const baseLineWidth = Math.max(dxfWidth, dxfHeight) / 1500;
+  ctx.lineWidth = baseLineWidth;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 
-  // Inteligentne pobieranie kolorów ACI / ByLayer
   const getColor = (ent: any, parentLayer?: string) => {
-    let drawColor = '#94a3b8'; // Domyślny slate-400
+    let drawColor = '#94a3b8'; // Domyślny szary (slate-400)
     if (options.keepColors) {
-      const activeLayer = ent.layer === '0' && parentLayer ? parentLayer : ent.layer;
-      const layerColorIndex = dxf.tables?.layer?.layers[activeLayer]?.colorNumber;
-      const entityColorIndex = ent.colorIndex !== undefined ? ent.colorIndex : ent.colorNumber;
+      const activeLayer = (ent.layer === '0' && parentLayer) ? parentLayer : ent.layer;
       
-      // 256 oznacza 'ByLayer' (Z warstwy)
+      // Bezpieczne wydobycie koloru z warstwy (w dxf-parser to może być layer.color lub layer.colorNumber)
+      const layerData = dxf.tables?.layer?.layers[activeLayer];
+      const layerColorIndex = layerData?.color !== undefined ? layerData.color : layerData?.colorNumber;
+      
+      // Bezpieczne wydobycie koloru z encji
+      const entityColorIndex = ent.colorIndex !== undefined ? ent.colorIndex 
+                             : (ent.colorNumber !== undefined ? ent.colorNumber : ent.color);
+      
       const resolvedAci = (entityColorIndex !== undefined && entityColorIndex !== 256) 
         ? entityColorIndex 
         : layerColorIndex;
       
       if (resolvedAci === 7) {
-         drawColor = '#000000'; // Kolor 7 w CAD to biały/czarny (na białym tle rysujemy na czarno)
+         drawColor = '#000000'; // ACI 7 (czarny/biały) na naszym jasnym tle musi być czarny
       } else {
-         drawColor = getAciColor(resolvedAci) || '#64748b';
+         drawColor = getAciColor(resolvedAci) || '#64748b'; // Fallback
       }
     }
     return drawColor;
   };
 
-  // 2. Rekurencyjne Rysowanie Encji
-  const drawEntities = (entities: any[], parentLayer?: string) => {
+  const drawEntities = (entities: any[], parentLayer?: string, currentScale: number = 1) => {
     entities.forEach((ent: any) => {
       if (ent.layer !== '0' && !options.selectedLayers.includes(ent.layer)) return;
 
       const drawColor = getColor(ent, parentLayer);
       ctx.strokeStyle = drawColor;
       ctx.fillStyle = drawColor;
+
+      // Naprawa "grubych bloków" - resetujemy grubość linii względem aktualnego skalowania
+      ctx.lineWidth = baseLineWidth / currentScale;
 
       if (ent.type === 'LINE') {
         ctx.beginPath();
@@ -141,15 +145,16 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
         ctx.beginPath();
         ctx.arc(ent.center.x, ent.center.y, ent.radius, ent.startAngle, ent.endAngle);
         ctx.stroke();
-      } else if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
+      } else if (['TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'].includes(ent.type)) {
          const pt = ent.startPoint || ent.position;
-         if (pt && ent.text) {
+         const textValue = ent.text || ent.tag || '';
+         if (pt && textValue) {
            ctx.save();
            ctx.translate(pt.x, pt.y);
-           ctx.scale(1, -1); // Odwrócenie Y tylko dla tekstu, żeby dało się czytać
+           ctx.scale(1, -1);
            const tHeight = ent.textHeight || (Math.max(dxfWidth, dxfHeight) / 150);
            ctx.font = `${tHeight}px sans-serif`;
-           ctx.fillText(ent.text, 0, 0);
+           ctx.fillText(textValue, 0, 0);
            ctx.restore();
          }
       } else if (ent.type === 'INSERT') {
@@ -167,7 +172,8 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
             const scaleY = ent.scaleY !== undefined ? ent.scaleY : (ent.yScale !== undefined ? ent.yScale : 1);
             ctx.scale(scaleX, scaleY);
             
-            drawEntities(block.entities, ent.layer);
+            // Rekurencyjne rysowanie z podaniem skali, aby wyrównać grubość linii
+            drawEntities(block.entities, ent.layer, currentScale * Math.abs(scaleX));
             
             ctx.restore();
          }

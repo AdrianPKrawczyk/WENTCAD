@@ -214,6 +214,6 @@
   - **Parser**: Zastosowano `dxf-parser` do odczytu wektorów z plików DXF bezpośrednio w przeglądarce.
   - **Renderowanie (Tryb A)**: Implementacja `dxfUtils.ts` parsuje DXF i renderuje go na offscreen canvas (PNG DataURL). Zapobiega to obciążaniu drzewa DOM tysiącami węzłów Konvy, zachowując płynność nawigacji.
   - **Jednostki i Warstwy**: Wprowadzono `DxfUnitModal.tsx`, wymuszający wybór jednostek rysunku (mm, cm, m) oraz wybór warstw DXF. Wynikowy mnożnik jest zapisywany jako `scaleFactor`.
-  - **AutoCAD Color Support (ACI)**: Dodano dekoder kolorów ACI w `dxfUtils.ts` (w tym obsługa koloru 7 jako czarny na białym tle) oraz obsługę flagi `ByLayer`.
-  - **Bloki i Teksty**: Wprowadzono rekurencyjne renderowanie encji `INSERT` (Bloki) oraz obsługę `TEXT`/`MTEXT` z lokalną korektą osi Y (czytelność etykiet).
-  - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`, co przyspiesza ponowny import tego samego dokumentu.
+  - **AutoCAD Color Support (ACI)**: Dodano dekoder kolorów ACI w `dxfUtils.ts` (w tym obsługa koloru 7 jako czarny na białym tle) oraz inteligentne wykrywanie koloru z poziomu warstwy/encji.
+  - **Bloki i Atrybuty**: Wprowadzono rekurencyjne renderowanie encji `INSERT` (Bloki) z **automatyczną kompensacją grubości linii** (scale compensation). Obsługa `TEXT`, `MTEXT`, `ATTRIB` oraz `ATTDEF`.
+  - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`.
