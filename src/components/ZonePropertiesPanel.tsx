@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
+import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
 
 export function ZonePropertiesPanel() {
@@ -172,6 +175,36 @@ export function ZonePropertiesPanel() {
                   className="w-full text-sm border-b border-gray-200 py-1 bg-transparent text-gray-500 italic cursor-not-allowed"
                   value={activeZone.geometryArea != null ? `${activeZone.geometryArea.toFixed(2)} m²` : 'Brak obrysu'}
                 />
+              </div>
+
+              {/* Geometry Actions */}
+              <div className="flex gap-2 pt-1">
+                <button
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${
+                    activeZone.geometryArea != null 
+                      ? 'bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100' 
+                      : 'bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed opacity-50'
+                  }`}
+                  disabled={activeZone.geometryArea == null}
+                  onClick={() => {
+                    if (window.confirm("Czy na pewno usunąć geometrię (obrys) dla tej strefy?")) {
+                      handleChange('geometryArea', null);
+                      useCanvasStore.getState().removePolygonByZoneId(activeZone.floorId, activeZone.id);
+                    }
+                  }}
+                >
+                  🧹 WYCZYŚĆ
+                </button>
+                <button
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                  onClick={() => {
+                    const canvasStore = useCanvasStore.getState();
+                    canvasStore.setCurrentTool(activeZone.floorId, 'PEN');
+                    canvasStore.setRedefiningZoneId(activeZone.floorId, activeZone.id);
+                  }}
+                >
+                  ✏️ EDYTUJ OBRYS
+                </button>
               </div>
             </div>
             <div>
@@ -384,6 +417,50 @@ export function ZonePropertiesPanel() {
                 value={activeZone.totalHeatGain}
                 onChange={(e) => handleChange('totalHeatGain', Number(e.target.value))}
               />
+            </div>
+          </div>
+        </section>
+
+        {/* SEKCJA: GEOMETRIA */}
+        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Geometria</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Obrys obiektu:</span>
+              <span className={`text-xs font-bold ${activeZone.geometryArea ? 'text-blue-600' : 'text-gray-400'}`}>
+                {activeZone.geometryArea ? `${activeZone.geometryArea.toFixed(2)} m²` : 'Brak obrysu'}
+              </span>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  useCanvasStore.getState().setIsDrawingPolygon(true);
+                  useCanvasStore.getState().setRedefiningZoneId(activeZone.floorId, activeZone.id);
+                  useCanvasStore.getState().setCurrentTool(activeZone.floorId, 'PEN');
+                  toast.info("Tryb przedefiniowania obrysu. Stary obrys jest widoczny jako czerwony.");
+                }}
+                className="flex-1 flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 rounded text-xs font-bold transition-colors"
+                title="Przerysuj obrys"
+              >
+                <div className="w-3 h-3 border border-current rounded-sm rotate-45" />
+                Redefiniuj
+              </button>
+              
+              <button
+                disabled={!activeZone.geometryArea}
+                onClick={() => {
+                  if (window.confirm("Czy na pewno usunąć obrys strefy?")) {
+                    useCanvasStore.getState().removePolygonByZoneId(activeZone.floorId, activeZone.id);
+                    updateZone(activeZone.id, { geometryArea: null });
+                    toast.success("Usunięto geometrię strefy.");
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-30"
+              >
+                <Trash2 className="w-3 h-3" />
+                Usuń
+              </button>
             </div>
           </div>
         </section>

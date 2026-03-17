@@ -3,13 +3,14 @@ import { useZoneStore } from '../stores/useZoneStore';
 import type { Floor } from '../types';
 
 interface AddFloorModalProps {
-  onSave: (name: string, elevation: number) => void;
+  onSave: (name: string, elevation: number, originDescription?: string) => void;
   onClose: () => void;
 }
 
 function AddFloorModal({ onSave, onClose }: AddFloorModalProps) {
   const [name, setName] = useState('');
   const [elevation, setElevation] = useState(0);
+  const [originDescription, setOriginDescription] = useState('');
   
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -37,6 +38,16 @@ function AddFloorModal({ onSave, onClose }: AddFloorModalProps) {
               className="w-full border border-gray-300 rounded p-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Opis Punktu 0,0 (np. Przecięcie A-1)</label>
+            <input
+              type="text"
+              value={originDescription}
+              onChange={(e) => setOriginDescription(e.target.value)}
+              className="w-full border border-gray-300 rounded p-2 text-sm focus:border-blue-500 focus:outline-none"
+              placeholder="Przecięcie osi A i 1"
+            />
+          </div>
         </div>
         <div className="mt-5 flex gap-2 justify-end">
           <button onClick={onClose} className="px-3 py-1.5 text-sm border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
@@ -44,7 +55,7 @@ function AddFloorModal({ onSave, onClose }: AddFloorModalProps) {
           </button>
           <button
             disabled={!name.trim()}
-            onClick={() => { onSave(name.trim(), elevation); onClose(); }}
+            onClick={() => { onSave(name.trim(), elevation, originDescription.trim()); onClose(); }}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
             Dodaj
@@ -176,15 +187,29 @@ export function FloorManagerBar() {
           <span className="text-gray-400 font-normal">m³/h</span>
         </span>
         {!isAllFloors && floors[activeFloorId] && (
-          <span className="text-gray-400 ml-auto">
-            Rzędna: {floors[activeFloorId].elevation.toFixed(2)} m n.p.m.
-          </span>
+          <div className="flex items-center gap-4 ml-auto">
+            <div className="flex flex-col items-end">
+              <span className="text-gray-500 font-semibold">
+                Rzędna: {floors[activeFloorId].elevation.toFixed(2)} m
+              </span>
+              <div className="flex items-center gap-1 text-[10px] text-gray-400 italic">
+                <span>Punkt 0,0:</span>
+                <input
+                  type="text"
+                  value={floors[activeFloorId].originDescription || ""}
+                  onChange={(e) => useZoneStore.getState().updateFloor(activeFloorId, { originDescription: e.target.value })}
+                  placeholder="Brak opisu punktu bazowego"
+                  className="bg-transparent border-none p-0 focus:ring-0 text-gray-500 hover:text-gray-700 w-48 text-right"
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
       {showAddModal && (
         <AddFloorModal
-          onSave={(name, elevation) => addFloor({ name, elevation })}
+          onSave={(name, elevation, originDescription) => addFloor({ name, elevation, originDescription } as any)}
           onClose={() => setShowAddModal(false)}
         />
       )}

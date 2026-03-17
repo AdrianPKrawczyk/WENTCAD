@@ -32,6 +32,8 @@ export interface FloorCanvasState {
   panPosition: Point;
   zoomLevel: number;
   polygons: { id: string, zoneId: string, points: number[] }[];
+  currentTool: 'PEN' | 'RECT' | 'ERASER' | null;
+  redefiningZoneId: string | null;
 }
 
 interface CanvasState {
@@ -59,6 +61,9 @@ interface CanvasState {
   
   resetFloor: (floorId: string) => void;
   resetAll: () => void;
+  setCurrentTool: (floorId: string, tool: 'PEN' | 'RECT' | 'ERASER' | null) => void;
+  setRedefiningZoneId: (floorId: string, zoneId: string | null) => void;
+  removePolygonByZoneId: (floorId: string, zoneId: string) => void;
 }
 
 const DEFAULT_FLOOR_STATE: FloorCanvasState = {
@@ -69,7 +74,9 @@ const DEFAULT_FLOOR_STATE: FloorCanvasState = {
   referenceOrigin: null,
   panPosition: { x: 0, y: 0 },
   zoomLevel: 1,
-  polygons: []
+  polygons: [],
+  currentTool: null,
+  redefiningZoneId: null,
 };
 
 export const useCanvasStore = create<CanvasState>()(
@@ -147,6 +154,25 @@ export const useCanvasStore = create<CanvasState>()(
         isDrawingPolygon: false,
         currentPolygonPoints: []
       }),
+
+      setCurrentTool: (floorId, tool) => {
+        get().updateFloorState(floorId, { 
+          currentTool: tool,
+          redefiningZoneId: tool === null ? null : get().floors[floorId]?.redefiningZoneId 
+        });
+      },
+
+      setRedefiningZoneId: (floorId, zoneId) => {
+        get().updateFloorState(floorId, { redefiningZoneId: zoneId });
+      },
+
+      removePolygonByZoneId: (floorId, zoneId) => {
+        const floor = get().floors[floorId];
+        if (!floor) return;
+        get().updateFloorState(floorId, {
+          polygons: floor.polygons.filter(p => p.zoneId !== zoneId)
+        });
+      },
     }),
     {
       name: 'wentcad-canvas-storage-v2',

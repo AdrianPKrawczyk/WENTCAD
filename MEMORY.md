@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.1 / 2.2 ZAKOŃCZONA
-* **Active Step:** FAZA 2.3 (Scale Calibration Tool) - PENDING
-* **Pending Task:** Implementacja narzędzia kalibracji skali (px → metry).
+## CURRENT STATE: FAZA 2.9 ZAKOŃCZONA
+* **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
+* **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -25,8 +25,9 @@
 * [x] **FAZA 2.6: Architektura UI Etapowa (7 Etapów Projektu)** - Done
 * [x] **FAZA 2.7: Kontekstowe Paski Narzędzi (Secondary Toolbar)** - Done
 * [x] **FAZA 2.8: Tryb Widoku Reversed Vertical Split** - Done
-* [x] **FAZA 2.4.2: Manual Area Override (Ręczne Nadpisywanie Powierzchni)** - Done
-* [ ] **FAZA 2.9: Eksport danych do raportu PDF** - Pending
+* [x] **FAZA 2.4.2: Manual Area Override (v2) & Precyzja** - Done
+* [x] **FAZA 2.9: Workspace 2.0 (RECT, ERASER, Stable Floors)** - Done
+* [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -158,3 +159,15 @@
 - **Precyzja**: Wymuszono zaokrąglanie wszystkich wartości powierzchni do 2 miejsc po przecinku w store i UI.
 - **UI**: Wdrożono układ 3 pól w Inspektorze (Finalna, Manualna, CAD) oraz natywne checkboxy AG Grid.
 - **Domyślność**: Nowe strefy domyślnie startują z aktywowaną flagą `isAreaManual: true`.
+
+### Iteracja 2.9: Workspace 2.0 & Stabilność CAD
+- **Narzędzia**: Implementacja `currentTool` (PEN, RECT, ERASER). 
+  - `RECT`: Generuje 4 punkty na podstawie `start` i `end` click.
+  - `ERASER`: Usuwa poligon z tablicy `polygons` danej kondygnacji.
+- **Rysowanie (Visuals)**:
+  - Wprowadzono `redefiningZoneId` – podczas rysowania stary obrys staje się czerwony (`#ef4444`) i półprzezroczysty, ułatwiając "odrysowanie" poprawnej geometrii.
+  - `geometryUtils.ts`: Wydzielono `calculatePolygonArea` (shoelace formula) jako reużywalny moduł.
+- **Stabilność**:
+  - Poligony są renderowane zawsze, gdy `zone.floorId === activeFloorId`. Wyeliminowano błąd "znikających stref" przy braku podkładu.
+  - `originDescription`: Dodano pole tekstowe w `FloorManagerBar.tsx` do opisu punktu zero (np. "Oś A-1").
+- **Tabela**: Dodano kolumnę `hasGeometry` (📐 / ✖️) dla szybkiej weryfikacji statusu rysunkowego stref.

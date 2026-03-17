@@ -3,6 +3,8 @@ import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag } fro
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
+import { resolveZoneStyle } from '../lib/VisualStyles';
+import { calculatePolygonArea } from '../lib/geometryUtils';
 import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
@@ -67,7 +69,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setCurrentPolygonPoints = useCanvasStore((s) => s.setCurrentPolygonPoints);
 
   // Canvas store - Floor specific state
-  const canvasFloors = useCanvasStore((s) => s.floors);
+  const activeFloorIdFromZone = useZoneStore((state) => state.activeFloorId); // Renamed to avoid conflict
+  const floors = useZoneStore((state) => state.floors); // Floor metadata
+  const activeFloorMetadata = floors[activeFloorIdFromZone];
+
+  const canvasFloors = useCanvasStore((state) => state.floors);
+  const activeCanvasFloor = canvasFloors[activeFloorIdFromZone];
+  const { currentTool, redefiningZoneId } = activeCanvasFloor || { currentTool: null, redefiningZoneId: null };
+  const setCurrentTool = useCanvasStore((state) => state.setCurrentTool);
+  const setRedefiningZoneId = useCanvasStore((state) => state.setRedefiningZoneId);
   const updateFloorState = useCanvasStore((s) => s.updateFloorState);
   const resetFloor = useCanvasStore((s) => s.resetFloor);
 
@@ -158,24 +168,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
     return newPolygon;
   }, [canvasFloors, updateFloorState]);
 
-  const removePolygon = useCallback((floorId: string, polygonId: string) => {
-    updateFloorState(floorId, {
-      polygons: (canvasFloors[floorId]?.polygons || []).filter(p => p.id !== polygonId)
-    });
-  }, [canvasFloors, updateFloorState]);
-
-  const calculatePolygonArea = (points: number[]) => {
-    let area = 0;
-    for (let i = 0; i < points.length; i += 2) {
-      const x1 = points[i];
-      const y1 = points[i + 1];
-      const x2 = points[(i + 2) % points.length];
-      const y2 = points[(i + 3) % points.length];
-      area += x1 * y2 - x2 * y1;
-    }
-    return Math.abs(area) / 2;
-  };
-
   // Fit underlay to screen when it loads, or when container resizes
   useEffect(() => {
     if (!underlayImage || !underlaySize) return;
@@ -253,32 +245,56 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
     if (isDrawingPolygon) {
       if (e.evt.button === 0) {
-        // Check if closing polygon
-        if (currentPolygonPoints.length > 2) {
-          const firstPoint = currentPolygonPoints[0];
-          const dist = Math.sqrt(Math.pow(canvasPos.x - firstPoint.x, 2) + Math.pow(canvasPos.y - firstPoint.y, 2));
-          if (dist < 15 / scale) {
-            // Close polygon
-            const poly = addPolygon(activeFloorId, selectedZoneId!, currentPolygonPoints);
+        if (currentTool === 'RECT') {
+          if (currentPolygonPoints.length === 0) {
+            setCurrentPolygonPoints([canvasPos]);
+          } else {
+            // Finish rectangle
+            const p1 = currentPolygonPoints[0];
+            const p2 = canvasPos;
+            // Create 4 points for the rectangle
+            const points = [
+              { x: p1.x, y: p1.y },
+              { x: p2.x, y: p1.y },
+              { x: p2.x, y: p2.y },
+              { x: p1.x, y: p2.y }
+            ];
+            const poly = addPolygon(activeFloorId, selectedZoneId!, points);
             const areaPx = calculatePolygonArea(poly.points);
             const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
             
-            const activeZone = zones[selectedZoneId!];
-            const updates: any = { geometryArea: areaM2 };
-            
-            if (!activeZone?.isAreaManual) {
-              updates.area = areaM2;
-            }
-            
-            updateZone(selectedZoneId!, updates);
+            updateZone(selectedZoneId!, { 
+              geometryArea: areaM2,
+              area: zones[selectedZoneId!]?.isAreaManual ? zones[selectedZoneId!]?.area : Math.round(areaM2 * 100) / 100
+            });
             
             setIsDrawingPolygon(false);
             setCurrentPolygonPoints([]);
-            toast.success('Pomyślnie narysowano obrys strefy.');
-            return;
+            toast.success('Narysowano prostokąt.');
           }
+        } else {
+          // PEN tool logic
+          if (currentPolygonPoints.length > 2) {
+            const firstPoint = currentPolygonPoints[0];
+            const dist = Math.sqrt(Math.pow(canvasPos.x - firstPoint.x, 2) + Math.pow(canvasPos.y - firstPoint.y, 2));
+            if (dist < 15 / scale) {
+              const poly = addPolygon(activeFloorId, selectedZoneId!, currentPolygonPoints);
+              const areaPx = calculatePolygonArea(poly.points);
+              const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
+              
+              updateZone(selectedZoneId!, { 
+                geometryArea: areaM2,
+                area: zones[selectedZoneId!]?.isAreaManual ? zones[selectedZoneId!]?.area : Math.round(areaM2 * 100) / 100
+              });
+              
+              setIsDrawingPolygon(false);
+              setCurrentPolygonPoints([]);
+              toast.success('Pomyślnie narysowano obrys strefy.');
+              return;
+            }
+          }
+          setCurrentPolygonPoints([...currentPolygonPoints, canvasPos]);
         }
-        setCurrentPolygonPoints([...currentPolygonPoints, canvasPos]);
       }
       return;
     }
@@ -312,7 +328,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
     isMeasuring, measurePoints, 
     isSettingOrigin, setIsSettingOrigin, setReferenceOrigin,
     isDrawingPolygon, currentPolygonPoints, setCurrentPolygonPoints,
-    activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon
+    activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon, zones
   ]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -407,7 +423,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   }, [
     isCalibrating, isMeasuring, isSettingOrigin, setIsCalibrating, setCalibrationPoints, setIsMeasuring, setIsSettingOrigin,
     isDrawingPolygon, currentPolygonPoints, setCurrentPolygonPoints,
-    activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon
+    activeFloorId, selectedZoneId, addPolygon, scaleFactor, updateZone, setIsDrawingPolygon, zones, currentTool, updateFloorState, setRedefiningZoneId
   ]);
 
   // Update cursor
@@ -566,18 +582,30 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {/* Reference Origin Marker */}
           {referenceOrigin && (
             <>
-              <Line
-                points={[referenceOrigin.x - 20 / scale, referenceOrigin.y, referenceOrigin.x + 20 / scale, referenceOrigin.y]}
-                stroke="#ef4444"
-                strokeWidth={1 / scale}
+              {/* Origin Axis */}
+              <Line 
+                points={[referenceOrigin.x - 200/scale, referenceOrigin.y, referenceOrigin.x + 200/scale, referenceOrigin.y]} 
+                stroke="#6366f1" 
+                strokeWidth={1 / scale} 
+                dash={[5 / scale, 5 / scale]}
+                opacity={0.5}
               />
-              <Line
-                points={[referenceOrigin.x, referenceOrigin.y - 20 / scale, referenceOrigin.x, referenceOrigin.y + 20 / scale]}
-                stroke="#ef4444"
-                strokeWidth={1 / scale}
+              <Line 
+                points={[referenceOrigin.x, referenceOrigin.y - 200/scale, referenceOrigin.x, referenceOrigin.y + 200/scale]} 
+                stroke="#6366f1" 
+                strokeWidth={1 / scale} 
+                dash={[5 / scale, 5 / scale]}
+                opacity={0.5}
               />
-              <Circle x={referenceOrigin.x} y={referenceOrigin.y} radius={8 / scale} stroke="#ef4444" strokeWidth={1 / scale} />
-              <Text x={referenceOrigin.x + 10 / scale} y={referenceOrigin.y + 10 / scale} text="PUNKT 0,0" fontSize={10 / scale} fill="#ef4444" fontStyle="bold" />
+              <Circle x={referenceOrigin.x} y={referenceOrigin.y} radius={8 / scale} stroke="#6366f1" strokeWidth={2 / scale} />
+              <Text 
+                x={referenceOrigin.x + 10 / scale} 
+                y={referenceOrigin.y + 10 / scale} 
+                text={`PUNKT 0,0${activeFloorMetadata?.originDescription ? `\n(${activeFloorMetadata.originDescription})` : ''}`} 
+                fontSize={10 / scale} 
+                fill="#6366f1" 
+                fontStyle="bold" 
+              />
             </>
           )}
 
@@ -606,41 +634,52 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {isCalibrating && calibrationPoints.map((p, i) => (
             <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
           ))}
-
           {/* Polygons */}
           {polygons.map((poly) => {
             const zone = zones[poly.zoneId];
             if (!zone) return null;
             
-            // Get system color
-            const supplySystem = systems.find(s => s.id === zone.systemSupplyId);
-            const exhaustSystem = systems.find(s => s.id === zone.systemExhaustId);
-            const fillColor = supplySystem?.color || exhaustSystem?.color || '#94a3b8';
-            const strokeColor = supplySystem?.color || exhaustSystem?.color || '#475569';
+            const style = resolveZoneStyle(zone, systems); 
+            
+            const isRedefining = redefiningZoneId === poly.zoneId;
+            const strokeColor = isRedefining ? '#ef4444' : (style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9'); // Force opacity 1 for stroke
+            const fillColor = isRedefining ? '#ef444460' : (style.color || '#0ea5e9');
             
             return (
               <Line
                 key={poly.id}
                 points={poly.points}
                 closed={true}
-                fill={fillColor + '40'} // 25% opacity
+                fill={fillColor}
                 stroke={strokeColor}
-                strokeWidth={2 / scale}
+                strokeWidth={(isRedefining ? 3 : 2) / scale}
+                dash={isRedefining ? [5 / scale, 5 / scale] : []}
+                opacity={isRedefining ? 0.8 : 1}
                 onMouseEnter={(e) => {
                   const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'pointer';
+                  if (container) {
+                    if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
+                    else container.style.cursor = 'pointer';
+                  }
                 }}
                 onMouseLeave={(e) => {
                   const container = e.target.getStage()?.container();
                   if (container) container.style.cursor = 'default';
                 }}
                 onClick={(e) => {
+                  if (currentTool === 'ERASER') {
+                    if (window.confirm("Czy na pewno usunąć obrys tej strefy?")) {
+                      const updatedPolygons = polygons.filter(p => p.id !== poly.id);
+                      updateFloorState(activeFloorId, { polygons: updatedPolygons });
+                      updateZone(poly.zoneId, { geometryArea: null });
+                      toast.success('Usunięto obrys.');
+                    }
+                    return;
+                  }
                   if (e.evt.shiftKey) {
-                    removePolygon(activeFloorId, poly.id);
+                    const updatedPolygons = polygons.filter(p => p.id !== poly.id);
+                    updateFloorState(activeFloorId, { polygons: updatedPolygons });
                     toast.success('Usunięto obrys strefy.');
-                    
-                    // Also unlink area if this was the only polygon? 
-                    // For now, just keep it simple.
                   } else {
                     useZoneStore.getState().setSelectedZone(poly.zoneId);
                     toast.info(`Wybrano strefę: ${zone.nr} - ${zone.name}`);
@@ -650,8 +689,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
             );
           })}
 
-          {/* Current Drawing Polygon */}
-          {isDrawingPolygon && currentPolygonPoints.length > 0 && (
+          {/* Current Drawing Polygon (PEN) */}
+          {(isDrawingPolygon && currentTool === 'PEN') && currentPolygonPoints.length > 0 && (
             <>
               <Line
                 points={[...currentPolygonPoints.flatMap(p => [p.x, p.y]), mousePos.x, mousePos.y]}
@@ -659,24 +698,35 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 strokeWidth={2 / scale}
                 dash={[5 / scale, 5 / scale]}
               />
-              {currentPolygonPoints.map((p, i) => {
-                const isFirst = i === 0;
-                const distToMouse = Math.sqrt(Math.pow(mousePos.x - p.x, 2) + Math.pow(mousePos.y - p.y, 2));
-                const isSnapping = isFirst && currentPolygonPoints.length > 2 && distToMouse < 15 / scale;
-                
-                return (
-                  <Circle 
-                    key={i} 
-                    x={p.x} 
-                    y={p.y} 
-                    radius={(isSnapping ? 8 : 4) / scale} 
-                    fill={isSnapping ? "#22c55e" : "#0ea5e9"} 
-                    stroke="white" 
-                    strokeWidth={1 / scale} 
-                  />
-                );
-              })}
+              {currentPolygonPoints.map((p, i) => (
+                <Circle 
+                  key={i} 
+                  x={p.x} 
+                  y={p.y} 
+                  radius={4 / scale} 
+                  fill="#0ea5e9" 
+                  stroke="white" 
+                  strokeWidth={1 / scale} 
+                />
+              ))}
             </>
+          )}
+
+          {/* Current Drawing Rectangle (RECT) */}
+          {(isDrawingPolygon && currentTool === 'RECT') && currentPolygonPoints.length === 1 && (
+            <Line
+              points={[
+                currentPolygonPoints[0].x, currentPolygonPoints[0].y,
+                mousePos.x, currentPolygonPoints[0].y,
+                mousePos.x, mousePos.y,
+                currentPolygonPoints[0].x, mousePos.y
+              ]}
+              closed={true}
+              stroke="#0ea5e9"
+              strokeWidth={2 / scale}
+              fill="#0ea5e920"
+              dash={[5 / scale, 5 / scale]}
+            />
           )}
 
           {/* Measuring Line Visual */}
@@ -782,24 +832,50 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         <div className="h-4 w-px bg-gray-200" />
 
+        <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+          <button
+            onClick={() => setCurrentTool(activeFloorId, 'PEN')}
+            className={`p-1.5 rounded-md transition-all ${currentTool === 'PEN' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Pióro (Poligon)"
+          >
+            <Hexagon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setCurrentTool(activeFloorId, 'RECT')}
+            className={`p-1.5 rounded-md transition-all ${currentTool === 'RECT' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Prostokąt"
+          >
+            <div className="w-3.5 h-3.5 border-2 border-current rounded-sm" />
+          </button>
+          <button
+            onClick={() => setCurrentTool(activeFloorId, 'ERASER')}
+            className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Gumka"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         <button
           disabled={!selectedZoneId || !scaleFactor}
           onClick={() => {
             if (isDrawingPolygon) {
               setIsDrawingPolygon(false);
               setCurrentPolygonPoints([]);
+              setRedefiningZoneId(activeFloorId, null);
             } else {
               setIsDrawingPolygon(true);
               setCurrentPolygonPoints([]);
-              toast.info(`Rysowanie strefy: ${zones[selectedZoneId!]?.name || 'Nieznana'}. Klikaj, aby dodawać punkty. Kliknij pierwszy punkt lub Enter, aby zakończyć.`);
+              if (!currentTool) setCurrentTool(activeFloorId, 'PEN');
+              toast.info(`Rysowanie strefy: ${zones[selectedZoneId!]?.name || 'Nieznana'}.`);
             }
           }}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
             isDrawingPolygon ? 'bg-sky-600 text-white shadow-inner' : 'text-gray-600 hover:bg-sky-50 hover:text-sky-700'
           }`}
         >
-          <Hexagon className="w-4 h-4" />
-          {isDrawingPolygon ? 'Anuluj' : 'Rysuj Strefę'}
+          <div className={`w-2 h-2 rounded-full ${isDrawingPolygon ? 'bg-white animate-pulse' : 'bg-gray-300'}`} />
+          {isDrawingPolygon ? 'Anuluj' : 'Rysuj'}
         </button>
 
         {isDrawingPolygon && currentPolygonPoints.length > 2 && (

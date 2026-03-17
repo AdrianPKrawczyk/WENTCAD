@@ -57,6 +57,7 @@ export interface Floor {
   name: string;      // np. "Parter", "+1 Piętro"
   elevation: number; // Rzędna terenu [m], np. 0.0, 3.5
   order: number;     // Kolejność wyświetlania
+  originDescription?: string; // np. "Przecięcie osi A i 1"
 }
 
 export interface ZoneData {

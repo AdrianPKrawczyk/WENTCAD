@@ -296,6 +296,7 @@ export const useZoneStore = create<ZoneStore>()(
           name: floorData.name,
           elevation: floorData.elevation,
           order: maxOrder + 1,
+          originDescription: (floorData as any).originDescription || "",
         };
         set((s) => ({ floors: { ...s.floors, [newFloor.id]: newFloor } }));
         return newFloor.id;
