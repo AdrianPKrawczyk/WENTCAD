@@ -212,8 +212,7 @@
 
 - **Obsługa plików CAD (DXF) - Faza 2.5**:
   - **Parser**: Zastosowano `dxf-parser` do odczytu wektorów z plików DXF bezpośrednio w przeglądarce.
-  - **Renderowanie (Tryb A)**: Implementacja `dxfUtils.ts` parsuje DXF i renderuje go na offscreen canvas (PNG DataURL). Zapobiega to obciążaniu drzewa DOM tysiącami węzłów Konvy, zachowując płynność nawigacji.
-  - **Jednostki i Warstwy**: Wprowadzono `DxfUnitModal.tsx`, wymuszający wybór jednostek rysunku (mm, cm, m) oraz wybór warstw DXF. Wynikowy mnożnik jest zapisywany jako `scaleFactor`.
-  - **AutoCAD Color Support (ACI)**: Dodano dekoder kolorów ACI w `dxfUtils.ts` (w tym obsługa koloru 7 jako czarny na białym tle) oraz inteligentne wykrywanie koloru z poziomu warstwy/encji.
-  - **Bloki i Atrybuty**: Wprowadzono rekurencyjne renderowanie encji `INSERT` (Bloki) z **automatyczną kompensacją grubości linii** (scale compensation). Obsługa `TEXT`, `MTEXT`, `ATTRIB` oraz `ATTDEF`.
+  - **Renderowanie (Super-Resolution & Grayscale)**: Wprowadzono strategię `MAX_CANVAS_SIZE` (4000px). Podkłady są teraz renderowane wyłącznie w odcieniach szarości (`#94a3b8`), co zapewnia spójny i przejrzysty wygląd rzutu architektonicznego.
+  - **Uproszczenie Struktur**: Usunięto obsługę encji `DIMENSION` oraz logikę dekodowania kolorów ACI, aby pozbyć się wizualnego szumu i problemów ze skalowaniem wymiarów.
+  - **Atrybuty (Hack)**: Zastosowano "Magiczny Hack" (Regex Replace), który konwertuje `ATTRIB`/`ATTDEF` na `TEXT` przed parsowaniem, co pozwala na wyświetlanie metek pomieszczeń.
   - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`.

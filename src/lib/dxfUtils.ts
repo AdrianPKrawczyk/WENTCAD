@@ -2,27 +2,17 @@ import DxfParser from 'dxf-parser';
 
 export interface RenderDxfOptions {
   selectedLayers: string[];
-  keepColors: boolean;
-}
-
-// Podstawowa paleta AutoCAD Color Index (ACI)
-const ACI_COLORS: Record<number, string> = {
-  1: '#FF0000', 2: '#FFFF00', 3: '#00FF00', 4: '#00FFFF',
-  5: '#0000FF', 6: '#FF00FF', 7: '#000000', 8: '#808080', 9: '#C0C0C0',
-  10: '#FF0000', 11: '#FFAA00', 12: '#AA0000', 250: '#333333', 
-  251: '#555555', 252: '#777777', 253: '#999999', 254: '#BBBBBB', 255: '#FFFFFF'
-};
-
-function getAciColor(aci?: number): string | null {
-  if (aci === undefined || aci === null) return null;
-  if (ACI_COLORS[aci]) return ACI_COLORS[aci];
-  return null; 
 }
 
 export function parseDxfFile(fileContent: string) {
+  // Hack: Podmiana ATTRIB i ATTDEF na TEXT dla metek
+  const processedContent = fileContent
+    .replace(/^[ \t]*0\r?\n[ \t]*ATTRIB\r?\n/gm, '  0\nTEXT\n')
+    .replace(/^[ \t]*0\r?\n[ \t]*ATTDEF\r?\n/gm, '  0\nTEXT\n');
+
   const parser = new DxfParser();
   try {
-    return parser.parseSync(fileContent);
+    return parser.parseSync(processedContent);
   } catch (err) {
     console.error("Błąd parsowania DXF", err);
     return null;
@@ -56,8 +46,8 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
         if (block && block.entities) {
            processBBox(block.entities, offsetX + pos.x, offsetY + pos.y);
         }
-      } else if (['TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'].includes(ent.type)) {
-        const pt = ent.startPoint || ent.position;
+      } else if (['TEXT', 'MTEXT'].includes(ent.type)) {
+        const pt = ent.startPoint || ent.position || ent.endPoint;
         if (pt) updateBBox(pt.x + offsetX, pt.y + offsetY);
       }
     });
@@ -66,62 +56,38 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
   processBBox(dxf.entities);
   if (minX === Infinity) return null;
 
-  const padding = 50;
   const dxfWidth = (maxX - minX);
   const dxfHeight = (maxY - minY);
-  const width = dxfWidth + padding * 2;
-  const height = dxfHeight + padding * 2;
+  
+  const MAX_CANVAS_SIZE = 4000; 
+  const scale = Math.min(MAX_CANVAS_SIZE / dxfWidth, MAX_CANVAS_SIZE / dxfHeight, 200); 
+  const padding = 50; 
+  
+  const canvasWidth = Math.floor(dxfWidth * scale) + padding * 2;
+  const canvasHeight = Math.floor(dxfHeight * scale) + padding * 2;
 
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  ctx.translate(padding, height - padding);
-  ctx.scale(1, -1);
+  ctx.translate(padding, canvasHeight - padding);
+  ctx.scale(scale, -scale);
   ctx.translate(-minX, -minY);
 
-  const baseLineWidth = Math.max(dxfWidth, dxfHeight) / 1500;
-  ctx.lineWidth = baseLineWidth;
+  const baseLineWidth = 1.5 / scale; 
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 
-  const getColor = (ent: any, parentLayer?: string) => {
-    let drawColor = '#94a3b8'; // Domyślny szary (slate-400)
-    if (options.keepColors) {
-      const activeLayer = (ent.layer === '0' && parentLayer) ? parentLayer : ent.layer;
-      
-      // Bezpieczne wydobycie koloru z warstwy (w dxf-parser to może być layer.color lub layer.colorNumber)
-      const layerData = dxf.tables?.layer?.layers[activeLayer];
-      const layerColorIndex = layerData?.color !== undefined ? layerData.color : layerData?.colorNumber;
-      
-      // Bezpieczne wydobycie koloru z encji
-      const entityColorIndex = ent.colorIndex !== undefined ? ent.colorIndex 
-                             : (ent.colorNumber !== undefined ? ent.colorNumber : ent.color);
-      
-      const resolvedAci = (entityColorIndex !== undefined && entityColorIndex !== 256) 
-        ? entityColorIndex 
-        : layerColorIndex;
-      
-      if (resolvedAci === 7) {
-         drawColor = '#000000'; // ACI 7 (czarny/biały) na naszym jasnym tle musi być czarny
-      } else {
-         drawColor = getAciColor(resolvedAci) || '#64748b'; // Fallback
-      }
-    }
-    return drawColor;
-  };
-
-  const drawEntities = (entities: any[], parentLayer?: string, currentScale: number = 1) => {
+  const drawEntities = (entities: any[], currentScale: number = 1) => {
     entities.forEach((ent: any) => {
       if (ent.layer !== '0' && !options.selectedLayers.includes(ent.layer)) return;
 
-      const drawColor = getColor(ent, parentLayer);
+      const drawColor = '#94a3b8'; 
       ctx.strokeStyle = drawColor;
       ctx.fillStyle = drawColor;
-
-      // Naprawa "grubych bloków" - resetujemy grubość linii względem aktualnego skalowania
+      
       ctx.lineWidth = baseLineWidth / currentScale;
 
       if (ent.type === 'LINE') {
@@ -145,13 +111,14 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
         ctx.beginPath();
         ctx.arc(ent.center.x, ent.center.y, ent.radius, ent.startAngle, ent.endAngle);
         ctx.stroke();
-      } else if (['TEXT', 'MTEXT', 'ATTRIB', 'ATTDEF'].includes(ent.type)) {
-         const pt = ent.startPoint || ent.position;
-         const textValue = ent.text || ent.tag || '';
+      } else if (['TEXT', 'MTEXT'].includes(ent.type)) {
+         const pt = ent.startPoint || ent.position || ent.endPoint;
+         const textValue = ent.text || ent.tag || ent.value || '';
          if (pt && textValue) {
            ctx.save();
            ctx.translate(pt.x, pt.y);
-           ctx.scale(1, -1);
+           if (ent.rotation) ctx.rotate(ent.rotation * Math.PI / 180);
+           ctx.scale(1, -1); 
            const tHeight = ent.textHeight || (Math.max(dxfWidth, dxfHeight) / 150);
            ctx.font = `${tHeight}px sans-serif`;
            ctx.fillText(textValue, 0, 0);
@@ -163,18 +130,13 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
             ctx.save();
             const pos = ent.position || { x: 0, y: 0 };
             ctx.translate(pos.x, pos.y);
-            
-            if (ent.rotation) {
-               ctx.rotate(ent.rotation * Math.PI / 180);
-            }
+            if (ent.rotation) ctx.rotate(ent.rotation * Math.PI / 180);
             
             const scaleX = ent.scaleX !== undefined ? ent.scaleX : (ent.xScale !== undefined ? ent.xScale : 1);
             const scaleY = ent.scaleY !== undefined ? ent.scaleY : (ent.yScale !== undefined ? ent.yScale : 1);
             ctx.scale(scaleX, scaleY);
             
-            // Rekurencyjne rysowanie z podaniem skali, aby wyrównać grubość linii
-            drawEntities(block.entities, ent.layer, currentScale * Math.abs(scaleX));
-            
+            drawEntities(block.entities, currentScale * Math.abs(scaleX));
             ctx.restore();
          }
       }
@@ -183,5 +145,9 @@ export async function renderDxfToDataUrl(dxf: any, options: RenderDxfOptions): P
 
   drawEntities(dxf.entities);
 
-  return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+  return { 
+    dataUrl: canvas.toDataURL('image/png'), 
+    width: canvasWidth / scale, 
+    height: canvasHeight / scale 
+  };
 }

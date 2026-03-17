@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Ruler, Layers, Palette } from 'lucide-react';
+import { X, Ruler, Layers } from 'lucide-react';
 
 interface DxfUnitModalProps {
   isOpen: boolean;
   fileName: string;
   availableLayers: string[];
-  onConfirm: (multiplier: number, unitLabel: string, selectedLayers: string[], keepColors: boolean) => void;
+  onConfirm: (multiplier: number, unitLabel: string, selectedLayers: string[]) => void;
   onCancel: () => void;
 }
 
@@ -13,7 +13,6 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
   const [selectedMultiplier, setSelectedMultiplier] = useState<number>(1.0);
   const [unitLabel, setUnitLabel] = useState<string>('Metry (m)');
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
-  const [keepColors, setKeepColors] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +39,7 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
 
   const handleConfirm = () => {
     localStorage.setItem(`dxf-layers-${fileName}`, JSON.stringify(selectedLayers));
-    onConfirm(selectedMultiplier, unitLabel, selectedLayers, keepColors);
+    onConfirm(selectedMultiplier, unitLabel, selectedLayers);
   };
 
   return (
@@ -52,7 +51,7 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
         </div>
 
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* Kolumna Lewa - Jednostki i Opcje */}
+          {/* Kolumna Lewa - Jednostki */}
           <div className="w-full md:w-1/2 p-6 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col gap-6 overflow-y-auto">
             <div>
               <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Ruler className="w-4 h-4"/> Jednostki rysunku</h3>
@@ -70,12 +69,10 @@ export function DxfUnitModal({ isOpen, fileName, availableLayers, onConfirm, onC
               </select>
             </div>
             
-            <div>
-              <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4"/> Wygląd</h3>
-              <label className="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-xl hover:bg-gray-50">
-                <input type="checkbox" checked={keepColors} onChange={(e) => setKeepColors(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-5 h-5"/>
-                <span className="text-sm font-medium text-gray-700">Zachowaj oryginalne kolory z pliku CAD</span>
-              </label>
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <p className="text-xs text-blue-700 leading-relaxed">
+                <strong>Informacja:</strong> Podkład zostanie wygenerowany w odcieniach szarości dla lepszej czytelności instalacji.
+              </p>
             </div>
           </div>
 
