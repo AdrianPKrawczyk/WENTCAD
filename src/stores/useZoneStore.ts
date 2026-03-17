@@ -124,6 +124,8 @@ interface ZoneStore {
   setZoneFilterPanelOpen: (open: boolean) => void;
   globalPatternScale: number;
   setGlobalPatternScale: (scale: number) => void;
+  linkingZoneId: string | null;
+  setLinkingZoneId: (id: string | null) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -151,6 +153,7 @@ export const useZoneStore = create<ZoneStore>()(
       hiddenSystemIdsOnCanvas: [],
       isZoneFilterPanelOpen: false,
       globalPatternScale: 1.0,
+      linkingZoneId: null,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -164,8 +167,9 @@ export const useZoneStore = create<ZoneStore>()(
           : [...s.hiddenSystemIdsOnCanvas, systemId];
         return { hiddenSystemIdsOnCanvas: hidden };
       }),
-      setZoneFilterPanelOpen: (open) => set({ isZoneFilterPanelOpen: open }),
-      setGlobalPatternScale: (scale) => set({ globalPatternScale: scale }),
+      setZoneFilterPanelOpen: (open: boolean) => set({ isZoneFilterPanelOpen: open }),
+      setGlobalPatternScale: (scale: number) => set({ globalPatternScale: scale }),
+      setLinkingZoneId: (id: string | null) => set({ linkingZoneId: id }),
 
       addZone: (zone) => {
         set((state) => {

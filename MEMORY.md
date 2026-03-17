@@ -224,3 +224,8 @@
   - **Nowy punkt wejścia**: Dodano przycisk "✨ Synchronizuj z CAD" w pasku narzędzi `AirBalanceTable.tsx`.
   - **SyncSettingsModal**: Nowy krok pośredni pozwalający inżynierowi wybrać konkretną warstwę DXF (np. "POMIESZCZENIA") oraz jednostki skali.
   - **Ulepszony SyncAlignmentModal**: Teraz wyświetla tylko wybraną warstwę geometryczną na lewym panelu, a na prawym panelu zachowuje pełny kontekst projektu (obecny podkład PDF/Image + narysowane strefy).
+- **Smart Sync - Silnik Ekstrakcji i Link Tool (Krok 3)**:
+  - **syncEngine.ts**: Implementacja `extractAndTransformPolygons` do automatycznego wybiórczego importu geometrii CAD po kalibracji.
+  - **Automatyczne Dopasowanie**: System automatycznie aktualizuje istniejące strefy (overlap detection) lub tworzy nowe w ZoneStore na podstawie danych DXF.
+  - **Narzędzie "Połącz" (Link Tool)**: Pozwala na ręczne powiązanie dowolnego obrysu z rzutu z konkretnym wierszem w tabeli Air Balance.
+  - **Workspace2D Integration**: Dynamiczna zmiana kursora i podświetlenie poligonów w trybie łączenia.

@@ -15,11 +15,13 @@ import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
 import { resolveZoneStyle } from '../lib/VisualStyles';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Link, X as XIcon } from 'lucide-react';
 import { parseDxfFile } from '../lib/dxfUtils';
+import { extractAndTransformPolygons } from '../lib/syncEngine';
 import { SyncSettingsModal } from './SyncSettingsModal';
 import { SyncAlignmentModal } from './SyncAlignmentModal';
 import { useCanvasStore } from '../stores/useCanvasStore';
+import { calculatePolygonArea } from '../lib/geometryUtils';
 import { toast } from 'sonner';
 
 // Register ALL enterprise modules to avoid version mismatches
@@ -57,6 +59,9 @@ export function AirBalanceTable() {
   const [syncFileName, setSyncFileName] = useState('');
   const [selectedSyncLayer, setSelectedSyncLayer] = useState('');
   const [syncMultiplier, setSyncMultiplier] = useState(1);
+
+  const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
+  const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
 
   // Canvas Store for Alignment Modal
   const canvasFloors = useCanvasStore((s) => s.floors);
@@ -659,6 +664,27 @@ export function AirBalanceTable() {
             <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             ✨ Synchronizuj z CAD
           </button>
+
+          <button
+            onClick={() => {
+              const targetId = checkedZoneIds.length === 1 ? checkedZoneIds[0] : selectedZoneId;
+              if (!targetId) {
+                toast.error("Wybierz dokładnie jeden wiersz, aby użyć narzędzia Połącz.");
+                return;
+              }
+              setLinkingZoneId(targetId);
+            }}
+            disabled={!!linkingZoneId}
+            className={`px-4 py-2 rounded-md shadow-sm text-sm font-bold transition-all flex items-center gap-2 ${
+              linkingZoneId 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                : 'bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 hover:border-indigo-300'
+            } ${(checkedZoneIds.length === 1 || selectedZoneId) ? '' : 'opacity-50'}`}
+            title="Połącz zaznaczony wiersz z istniejącym obrysem na rzucie"
+          >
+            <Link className="w-4 h-4" />
+            Połącz z rzutem
+          </button>
           <button 
             onClick={() => setIsSystemModalOpen(true)}
             className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition-colors"
@@ -679,7 +705,28 @@ export function AirBalanceTable() {
           </button>
         </div>
       </div>
-      
+
+      {linkingZoneId && (
+        <div className="mx-4 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg text-amber-600 animate-pulse">
+              <Link className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">Tryb łączenia aktywny</p>
+              <p className="text-xs text-amber-700">Kliknij obrys na rzucie 2D, aby przypisać go do pomieszczenia <span className="font-mono font-bold">"{zones[linkingZoneId]?.nr || '?'}"</span>.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setLinkingZoneId(null)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-all"
+          >
+            <XIcon className="w-4 h-4" />
+            Anuluj
+          </button>
+        </div>
+      )}
+
       <div style={{ height: '100%', width: '100%', flex: 1 }}>
         <AgGridReact
           ref={gridRef}
@@ -760,8 +807,99 @@ export function AirBalanceTable() {
         onCancel={() => setIsSyncAlignmentOpen(false)}
         onConfirm={(transformFn) => {
           setIsSyncAlignmentOpen(false);
-          toast.success("Kalibracja zakończona pomyślnie. Dane CAD są gotowe do synchronizacji.");
-          console.log("Transform function ready for layer:", selectedSyncLayer, syncMultiplier, transformFn);
+          
+          if (!syncDxfData || !selectedSyncLayer) return;
+
+          const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, transformFn);
+          if (extracted.length === 0) {
+            toast.error(`Nie znaleziono zamkniętych polilinii na warstwie: ${selectedSyncLayer}`);
+            return;
+          }
+
+          const currentCanvasFloors = useCanvasStore.getState().floors;
+          const floorPolygons = currentCanvasFloors[activeFloorId]?.polygons || [];
+          let updatedCount = 0;
+          let addedCount = 0;
+
+          extracted.forEach((ext) => {
+            // Overlap check: is centerX/Y inside bounding box of any existing polygon?
+            const overlapping = floorPolygons.find(p => {
+              let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+              for (let i = 0; i < p.points.length; i += 2) {
+                if (p.points[i] < minX) minX = p.points[i];
+                if (p.points[i] > maxX) maxX = p.points[i];
+                if (p.points[i+1] < minY) minY = p.points[i+1];
+                if (p.points[i+1] > maxY) maxY = p.points[i+1];
+              }
+              // Simple AABB check
+              return ext.centerX >= minX && ext.centerX <= maxX && ext.centerY >= minY && ext.centerY <= maxY;
+            });
+
+            if (overlapping) {
+              // Update existing
+              const newPolygons = useCanvasStore.getState().floors[activeFloorId].polygons.map(p => 
+                p.id === overlapping.id ? { ...p, points: ext.points } : p
+              );
+              useCanvasStore.getState().updateFloorState(activeFloorId, { polygons: newPolygons });
+              
+              // Recalculate area for this zone
+              const area = calculatePolygonArea(ext.points) * (syncMultiplier ** 2);
+              updateZone(overlapping.zoneId, { 
+                geometryArea: area,
+                isAreaManual: false 
+              });
+              updatedCount++;
+            } else {
+              // Create new
+              const newZoneId = `zone-dxf-${crypto.randomUUID()}`;
+              addZone({
+                id: newZoneId,
+                nr: `[DXF] ${selectedSyncLayer}`,
+                name: "Nowa strefa (CAD)",
+                activityType: 'CUSTOM',
+                calculationMode: 'AUTO_MAX',
+                systemSupplyId: '',
+                systemExhaustId: '',
+                area: 0,
+                manualArea: 0,
+                height: 3,
+                geometryArea: calculatePolygonArea(ext.points) * (syncMultiplier ** 2),
+                isAreaManual: false,
+                occupants: 1,
+                dosePerOccupant: 30,
+                isTargetACHManual: false,
+                manualTargetACH: null,
+                targetACH: 0,
+                normativeVolume: 0,
+                normativeExhaust: 0,
+                totalHeatGain: 0,
+                roomTemp: 24,
+                roomRH: 50,
+                supplyTemp: 16,
+                supplyRH: 80,
+                acousticAbsorption: 'MEDIUM',
+                maxAllowedDbA: 35,
+                isMaxDbAManual: false,
+                manualMaxAllowedDbA: null,
+                transferIn: [],
+                transferOut: [],
+                calculatedVolume: 0,
+                calculatedExhaust: 0,
+                transferInSum: 0,
+                transferOutSum: 0,
+                netBalance: 0,
+                realACH: 0,
+                floorId: activeFloorId,
+              });
+
+              const newPoly = { id: crypto.randomUUID(), zoneId: newZoneId, points: ext.points };
+              const updatedPolys = [...(useCanvasStore.getState().floors[activeFloorId]?.polygons || []), newPoly];
+              useCanvasStore.getState().updateFloorState(activeFloorId, { polygons: updatedPolys });
+              addedCount++;
+            }
+          });
+
+          toast.success(`Synchronizacja zakończona: zaktualizowano ${updatedCount}, dodano ${addedCount} nowych obrysów.`);
         }}
       />
       </div>

@@ -140,6 +140,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
 
+  const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
+  const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
+
   // Update floor-specific state helpers
   const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
     updateFloorState(activeFloorId, { zoomLevel, panPosition });
@@ -849,6 +852,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
               }
             }
 
+            if (linkingZoneId) {
+              shadowProps = { 
+                shadowColor: '#f59e0b', 
+                shadowBlur: 10 / scale, 
+                shadowOpacity: 0.6 
+              };
+              currentStroke = '#d97706';
+              currentStrokeWidth = (isSelected ? 4 : 2) / scale;
+            }
+
             // Pobranie oryginalnego systemu, by bezpiecznie wyciągnąć patternId z pominięciem resolveZoneStyle
             const targetSystem = (systems as any[]).find(s => s.id === zone.systemSupplyId) || (systems as any[]).find(s => s.id === zone.systemExhaustId);
             const activePatternId = (style as any).patternId || targetSystem?.patternId;
@@ -879,10 +892,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   dash={isRedefining ? [5 / scale, 5 / scale] : []}
                   opacity={isRedefining ? 0.8 : 1}
                   {...shadowProps}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={(e: any) => {
                     const container = e.target.getStage()?.container();
                     if (container) {
-                      if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
+                      if (linkingZoneId) container.style.cursor = 'copy';
+                      else if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
                       else container.style.cursor = 'pointer';
                     }
                   }}
@@ -890,7 +904,40 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     const container = e.target.getStage()?.container();
                     if (container) container.style.cursor = 'default';
                   }}
-                  onClick={(e) => {
+                  onClick={(e: any) => {
+                    if (linkingZoneId) {
+                      e.cancelBubble = true;
+                      
+                      // 1. Zlokalizuj kliknięty poligon
+                      const clickedPoly = polygons.find(p => p.zoneId === poly.zoneId);
+                      if (!clickedPoly) return;
+
+                      // 2. Skopiuj jego punkty
+                      const newPoints = [...clickedPoly.points];
+
+                      // 3. Usuń stary poligon z kondygnacji
+                      const filteredPolygons = polygons.filter(p => p.zoneId !== poly.zoneId);
+
+                      // 4. Dodaj nowy poligon przypisany do docelowego pokoju (usuwając ewentualny stary poligon docelowego pokoju)
+                      const finalPolygons = filteredPolygons.filter(p => p.zoneId !== linkingZoneId);
+                      const updatedPolygons = [...finalPolygons, { id: crypto.randomUUID(), zoneId: linkingZoneId, points: newPoints }];
+
+                      // 5. Zapisz stan i przelicz powierzchnię
+                      updateFloorState(activeFloorId, { polygons: updatedPolygons });
+                      
+                      const floorScale = useCanvasStore.getState().getFloorState(activeFloorId).scaleFactor || 1;
+                      const areaSqM = calculatePolygonArea(newPoints) * (floorScale ** 2);
+                      updateZone(linkingZoneId, { 
+                        geometryArea: areaSqM,
+                        isAreaManual: false
+                      });
+
+                      // 6. Zakończ tryb
+                      setLinkingZoneId(null);
+                      toast.success('Pomyślnie połączono obrys z pomieszczeniem!');
+                      return;
+                    }
+
                     if (currentTool === 'ERASER') {
                       if (window.confirm("Czy na pewno usunąć obrys tej strefy?")) {
                         const updatedPolygons = polygons.filter(p => p.id !== poly.id);
