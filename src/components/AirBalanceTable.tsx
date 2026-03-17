@@ -15,6 +15,12 @@ import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
 import { resolveZoneStyle } from '../lib/VisualStyles';
+import { Wand2 } from 'lucide-react';
+import { parseDxfFile } from '../lib/dxfUtils';
+import { SyncSettingsModal } from './SyncSettingsModal';
+import { SyncAlignmentModal } from './SyncAlignmentModal';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import { toast } from 'sonner';
 
 // Register ALL enterprise modules to avoid version mismatches
 ModuleRegistry.registerModules([ClientSideRowModelModule, ValidationModule, RowSelectionModule, AllEnterpriseModule]);
@@ -41,6 +47,21 @@ export function AirBalanceTable() {
   const lastProjectRef = useRef<string | null>(null);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const gridRef = useRef<AgGridReact>(null);
+  const syncFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Smart Sync State
+  const [syncDxfData, setSyncDxfData] = useState<any>(null);
+  const [isSyncSettingsOpen, setIsSyncSettingsOpen] = useState(false);
+  const [isSyncAlignmentOpen, setIsSyncAlignmentOpen] = useState(false);
+  const [availableLayers, setAvailableLayers] = useState<string[]>([]);
+  const [syncFileName, setSyncFileName] = useState('');
+  const [selectedSyncLayer, setSelectedSyncLayer] = useState('');
+  const [syncMultiplier, setSyncMultiplier] = useState(1);
+
+  // Canvas Store for Alignment Modal
+  const canvasFloors = useCanvasStore((s) => s.floors);
+  const activeCanvasFloor = canvasFloors[activeFloorId];
+  const underlayUrl = activeCanvasFloor?.underlayUrl || null;
 
   const rowData = useMemo(() => {
     const allZones = Object.values(zones);
@@ -598,7 +619,45 @@ export function AirBalanceTable() {
             onClick={() => fileInputRef.current?.click()}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md border border-gray-300 shadow-sm text-sm font-medium transition-colors"
           >
-            Import CSV
+            📥 Importuj CSV
+          </button>
+
+          <input
+            type="file"
+            accept=".dxf"
+            ref={syncFileInputRef}
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const content = ev.target?.result as string;
+                const parsed = parseDxfFile(content);
+                if (parsed) {
+                  const layers = parsed.tables?.layer?.layers 
+                    ? Object.keys(parsed.tables.layer.layers) 
+                    : Array.from(new Set(parsed.entities.map((ent: any) => ent.layer)));
+                  
+                  setSyncDxfData(parsed);
+                  setAvailableLayers(layers as string[]);
+                  setSyncFileName(file.name);
+                  setIsSyncSettingsOpen(true);
+                } else {
+                  toast.error("Błąd parsowania pliku DXF.");
+                }
+              };
+              reader.readAsText(file);
+              e.target.value = '';
+            }}
+          />
+          <button 
+            onClick={() => syncFileInputRef.current?.click()}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-lg shadow-indigo-500/20 text-sm font-bold transition-all flex items-center gap-2 group"
+          >
+            <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+            ✨ Synchronizuj z CAD
           </button>
           <button 
             onClick={() => setIsSystemModalOpen(true)}
@@ -674,6 +733,36 @@ export function AirBalanceTable() {
         isOpen={isBulkEditOpen}
         onClose={() => setIsBulkEditOpen(false)}
         selectedIds={checkedZoneIds}
+      />
+
+      <SyncSettingsModal 
+        isOpen={isSyncSettingsOpen}
+        fileName={syncFileName}
+        availableLayers={availableLayers}
+        onCancel={() => {
+          setIsSyncSettingsOpen(false);
+          setSyncDxfData(null);
+        }}
+        onConfirm={(layer, mult) => {
+          setSelectedSyncLayer(layer);
+          setSyncMultiplier(mult);
+          setIsSyncSettingsOpen(false);
+          setIsSyncAlignmentOpen(true);
+        }}
+      />
+
+      <SyncAlignmentModal 
+        isOpen={isSyncAlignmentOpen}
+        dxfData={syncDxfData}
+        selectedLayer={selectedSyncLayer}
+        underlayUrl={underlayUrl}
+        zones={Object.values(zones).filter(z => z.floorId === activeFloorId)}
+        onCancel={() => setIsSyncAlignmentOpen(false)}
+        onConfirm={(transformFn) => {
+          setIsSyncAlignmentOpen(false);
+          toast.success("Kalibracja zakończona pomyślnie. Dane CAD są gotowe do synchronizacji.");
+          console.log("Transform function ready for layer:", selectedSyncLayer, syncMultiplier, transformFn);
+        }}
       />
       </div>
     </div>

@@ -10,6 +10,7 @@ interface Point {
 interface SyncAlignmentModalProps {
   isOpen: boolean;
   dxfData: any; // Parsed DXF from dxf-parser
+  selectedLayer: string; // Filter geometry to this layer
   underlayUrl: string | null;
   zones: any[]; // Existing zones to display on the project side
   onConfirm: (transformFn: (x: number, y: number) => Point) => void;
@@ -18,7 +19,7 @@ interface SyncAlignmentModalProps {
 
 const CROSS_SIZE = 10;
 
-export function SyncAlignmentModal({ isOpen, dxfData, underlayUrl, zones, onConfirm, onCancel }: SyncAlignmentModalProps) {
+export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl, zones, onConfirm, onCancel }: SyncAlignmentModalProps) {
   const [mode, setMode] = useState<'1-point' | '2-point'>('1-point');
   
   // Alignment points
@@ -148,6 +149,11 @@ export function SyncAlignmentModal({ isOpen, dxfData, underlayUrl, zones, onConf
   const renderDxfEntities = (entities: any[], isGhost = false) => {
     if (!entities) return null;
     return entities.map((ent, idx) => {
+      // Filter by layer if specified (only for source view, not ghost)
+      if (!isGhost && selectedLayer && ent.layer !== selectedLayer && ent.type !== 'INSERT') {
+         return null;
+      }
+
       let points: number[] = [];
       if (ent.type === 'LINE' && ent.vertices) {
         points = [ent.vertices[0].x, ent.vertices[0].y, ent.vertices[1].x, ent.vertices[1].y];

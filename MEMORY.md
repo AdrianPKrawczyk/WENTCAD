@@ -176,13 +176,11 @@
 - **Redefinicja**: Przycisk "Redefiniuj" w `ZonePropertiesPanel.tsx` pozwala na szybkie przerysowanie strefy od nowa. Poprzedni obrys jest renderowany na czerwono (`#ef4444`) dla ułatwienia odczytu.
 - **Precyzja**: Wymuszono zaokrąglanie wyliczanej powierzchni (`area`) do 2 miejsc po przecinku (`Math.round(val * 100) / 100`) bezpośrednio w akcjach rysowania.
 
-### 3. Smart Sync: Moduł Kalibracji (`SyncAlignmentModal.tsx`)
-- **Split-Screen Alignment:** Nowoczesny interfejs 50/50 pozwalający na precyzyjne dopasowanie podkładu DXF do istniejącego projektu.
-- **Transformacja 2-punktowa:** Zaawansowana matematyka przeliczająca skalę i obrót na podstawie dwóch par punktów referencyjnych.
-- **Ghost Preview:** Wizualny podgląd "ducha" DXF nakładanego w czasie rzeczywistym na projekt, co pozwala wyeliminować błędy przesunięcia przed zatwierdzeniem.
-
-### 4. Poprawki UX w `Workspace2D.tsx`
-### Iteracja 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0
+### 3. Smart Sync: Niezależne pozyskiwanie danych CAD
+- **Rozdzielenie od Podkładu:** Funkcja synchronizacji nie jest już powiązana z tłem wizualnym. Można mieć wgrany PDF jako tło i jednocześnie "zasysać" geometrię z osobnego pliku DXF.
+- **SyncSettingsModal:** Dodano filtr warstw, pozwalający inżynierowi skupić się tylko na istotnej geometrii (np. tylko obrysy ścian/stref).
+- **Split-Screen Context:** Okno kalibracji poprawnie wyświetla obecny podkład projektu (PDF/IMG) jako tło dla prawego ekranu, co ułatwia precyzyjne wskazanie punktów kontrolnych.
+- **Dedykowany przycisk:** Nowa ikona "✨ Synchronizuj z CAD" w tabeli bilansu powietrza.
 - **Relatywne Przesuwanie**: Zmodyfikowano `handleMouseDown` w `Workspace2D.tsx`. Przy zmianie `referenceOrigin`, wszystkie narysowane poligi (`polygons`) aktywnej kondygnacji są automatycznie przesuwane o wektor różnicy (delta X/Y). Pozwala to na zachowanie pozycji stref względem charakterystycznych punktów budynku po zmianie przesuniętego podkładu.
 - **Opis Punktu 0,0**: Dodano pole `originDescription` do interfejsu `Floor`. 
   - **Toolbar**: Wprowadzono input w pasku narzędzi Workspace2D do edycji opisu (np. "Przecięcie osi A-1").
@@ -221,8 +219,8 @@
   - **Renderowanie (Super-Resolution & Grayscale)**: Wprowadzono strategię `MAX_CANVAS_SIZE` (4000px). Podkłady są teraz renderowane wyłącznie w odcieniach szarości (`#94a3b8`), co zapewnia spójny i przejrzysty wygląd rzutu architektonicznego.
   - **Uproszczenie Struktur**: Usunięto obsługę encji `DIMENSION` oraz logikę dekodowania kolorów ACI. Zrezygnowano również z importu atrybutów bloków (`ATTRIB`/`ATTDEF`). Dodano opcję globalnego ignorowania encji `INSERT` (Blocks), co pozwala na szybkie wyczyszczenie rysunku z wyposażenia i mebli.
   - **Pamięć Warstw**: Wybór warstw dla konkretnego pliku jest zapamiętywany w `localStorage`.
-- **Smart Sync - Krok 2: Ekran Kalibracji**:
-  - **Komponent**: Stworzono `SyncAlignmentModal.tsx`.
-  - **Tryby**: Obsługa kalibracji 1-punktowej (przesunięcie) oraz 2-punktowej (przesunięcie + skala + obrót).
-  - **Matematyka**: Zaimplementowano precyzyjny silnik transformacji wektorowej do mapowania współrzędnych DXF na współrzędne Canvasa projektu.
-  - **UX**: Interfejs split-screen z podglądem "ducha" (ghost overlay) dla wizualnej weryfikacji dopasowania.
+- **Smart Sync - Refaktoryzacja Architektury**:
+  - **Niezależność**: Rozdzielono proces ustawiania tła (Underlay) od procesu pozyskiwania danych geometrycznych (Smart Sync).
+  - **Nowy punkt wejścia**: Dodano przycisk "✨ Synchronizuj z CAD" w pasku narzędzi `AirBalanceTable.tsx`.
+  - **SyncSettingsModal**: Nowy krok pośredni pozwalający inżynierowi wybrać konkretną warstwę DXF (np. "POMIESZCZENIA") oraz jednostki skali.
+  - **Ulepszony SyncAlignmentModal**: Teraz wyświetla tylko wybraną warstwę geometryczną na lewym panelu, a na prawym panelu zachowuje pełny kontekst projektu (obecny podkład PDF/Image + narysowane strefy).
