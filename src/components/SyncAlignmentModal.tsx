@@ -20,7 +20,7 @@ interface SyncAlignmentModalProps {
 const CROSS_SIZE = 10;
 
 export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl, zones, onConfirm, onCancel }: SyncAlignmentModalProps) {
-  const [mode, setMode] = useState<'1-point' | '2-point'>('1-point');
+  const [mode, setMode] = useState<'1-point' | '3-point'>('1-point');
   
   // Alignment points
   const [dxfPoints, setDxfPoints] = useState<Point[]>([]);
@@ -69,50 +69,48 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
 
   // Transformation logic
   const transformFn = useMemo(() => {
-    const pts = {
-      p1Dxf: dxfPoints[0],
-      p2Dxf: dxfPoints[1],
-      p1Canvas: canvasPoints[0],
-      p2Canvas: canvasPoints[1]
-    };
-
     if (mode === '1-point') {
-      const { p1Dxf, p1Canvas } = pts;
+      const p1Dxf = dxfPoints[0];
+      const p1Canvas = canvasPoints[0];
       if (!p1Dxf || !p1Canvas) return null;
       const dx = p1Canvas.x - p1Dxf.x;
       const dy = p1Canvas.y - p1Dxf.y;
       return (x: number, y: number) => ({ x: x + dx, y: y + dy });
     } 
 
-    if (mode === '2-point') {
-      const { p1Dxf, p2Dxf, p1Canvas, p2Canvas } = pts;
-      if (!p1Dxf || !p2Dxf || !p1Canvas || !p2Canvas) return null;
+    if (mode === '3-point') {
+      if (dxfPoints.length < 3 || canvasPoints.length < 3) return null;
       
-      const vDxf = { x: p2Dxf.x - p1Dxf.x, y: p2Dxf.y - p1Dxf.y };
-      const vCanvas = { x: p2Canvas.x - p1Canvas.x, y: p2Canvas.y - p1Canvas.y };
-      const lenDxf = Math.sqrt(vDxf.x * vDxf.x + vDxf.y * vDxf.y);
-      const lenCanvas = Math.sqrt(vCanvas.x * vCanvas.x + vCanvas.y * vCanvas.y);
+      const p1Dxf = dxfPoints[0], p2Dxf = dxfPoints[1], p3Dxf = dxfPoints[2];
+      const p1Canvas = canvasPoints[0], p2Canvas = canvasPoints[1], p3Canvas = canvasPoints[2];
       
-      if (lenDxf === 0) return null;
+      // Obliczanie wyznacznika głównego macierzy (Det)
+      const det = p1Dxf.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y);
+      
+      if (Math.abs(det) < 1e-6) {
+        console.warn("Punkty są współliniowe - transformacja niemożliwa.");
+        return (x: number, y: number) => ({ x, y }); // Fallback
+      }
 
-      const scale = lenCanvas / lenDxf;
-      const angleDxf = Math.atan2(vDxf.y, vDxf.x);
-      const angleCanvas = Math.atan2(vCanvas.y, vCanvas.x);
-      const rotation = angleCanvas - angleDxf;
+      // Wyliczanie współczynników macierzy afinicznej
+      const a = (p1Canvas.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.x - p3Canvas.x) + (p2Canvas.x * p3Dxf.y - p3Canvas.x * p2Dxf.y)) / det;
+      const b = (p1Dxf.x * (p2Canvas.x - p3Canvas.x) - p1Canvas.x * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x)) / det;
+      const c = (p1Dxf.x * (p2Dxf.y * p3Canvas.x - p3Dxf.y * p2Canvas.x) - p1Dxf.y * (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x) + p1Canvas.x * (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
 
-      return (x: number, y: number) => {
-        const dx = x - p1Dxf.x;
-        const dy = y - p1Dxf.y;
-        const rx = (dx * Math.cos(rotation) - dy * Math.sin(rotation)) * scale;
-        const ry = (dx * Math.sin(rotation) + dy * Math.cos(rotation)) * scale;
-        return { x: p1Canvas.x + rx, y: p1Canvas.y + ry };
-      };
+      const d = (p1Canvas.y * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.y - p3Canvas.y) + (p2Canvas.y * p3Dxf.y - p3Canvas.y * p2Dxf.y)) / det;
+      const e = (p1Dxf.x * (p2Canvas.y - p3Canvas.y) - p1Canvas.y * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Canvas.y - p3Dxf.x * p2Canvas.y)) / det;
+      const f = (p1Dxf.x * (p2Dxf.y * p3Canvas.y - p3Dxf.y * p2Canvas.y) - p1Dxf.y * (p2Dxf.x * p3Canvas.y - p3Dxf.x * p2Canvas.y) + p1Canvas.y * (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
+
+      return (x: number, y: number) => ({
+        x: a * x + b * y + c,
+        y: d * x + e * y + f
+      });
     }
     return null;
   }, [mode, dxfPoints, canvasPoints]);
 
   const canConfirm = (mode === '1-point' && dxfPoints.length >= 1 && canvasPoints.length >= 1) ||
-                    (mode === '2-point' && dxfPoints.length >= 2 && canvasPoints.length >= 2);
+                    (mode === '3-point' && dxfPoints.length >= 3 && canvasPoints.length >= 3);
 
   if (!isOpen) return null;
 
@@ -126,7 +124,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
     if (mode === '1-point') {
       setDxfPoints([pos]);
     } else {
-      if (dxfPoints.length >= 2) setDxfPoints([pos]);
+      if (dxfPoints.length >= 3) setDxfPoints([pos]);
       else setDxfPoints((prev: Point[]) => [...prev, pos]);
     }
   };
@@ -140,7 +138,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
     if (mode === '1-point') {
       setCanvasPoints([pos]);
     } else {
-      if (canvasPoints.length >= 2) setCanvasPoints([pos]);
+      if (canvasPoints.length >= 3) setCanvasPoints([pos]);
       else setCanvasPoints((prev: Point[]) => [...prev, pos]);
     }
   };
@@ -225,10 +223,10 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
             1 PUNKT (Przesunięcie)
           </button>
           <button 
-            onClick={() => setMode('2-point')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === '2-point' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => setMode('3-point')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === '3-point' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
           >
-            2 PUNKTY (Skala + Obrót)
+            3 PUNKTY (Adaptacja afiniczna)
           </button>
         </div>
 
@@ -297,7 +295,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
             </div>
             {mode === '1-point' ? 
               "Znajdź charakterystyczny punkt (np. róg budynku) na podkładzie DXF, a następnie kliknij w to samo miejsce na rzucie projektu." :
-              "Wskaż dwa punkty na DXF (p1, p2) oraz ich odpowiedniki na projekcie (p1', p2'). System dopasuje skalę i obrót automatycznie."
+              "Wskaż trzy punkty na DXF (p1, p2, p3) oraz ich odpowiedniki na projekcie (p1', p2', p3'). System dopasuje skalę, obrót i odbicie lustrzane."
             }
           </div>
 
@@ -358,24 +356,30 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       {/* Bottom Bar */}
       <div className="h-20 border-t border-slate-800 bg-slate-900 flex items-center justify-between px-8">
         <div className="flex gap-8">
-           <div className="flex flex-col">
+            <div className="flex flex-col">
               <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-2">PUNKTY KROSTOWE DXF</span>
               <div className="flex gap-2">
-                 {[0, 1].map(i => (
-                   <div key={`s-dxf-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${dxfPoints[i] ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
-                      {dxfPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
-                   </div>
-                 ))}
+                 {[0, 1, 2].map(i => {
+                   if (mode === '1-point' && i > 0) return null;
+                   return (
+                    <div key={`s-dxf-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${dxfPoints[i] ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                        {dxfPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
+                    </div>
+                   );
+                 })}
               </div>
            </div>
            <div className="flex flex-col">
               <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-2">PUNKTY PROJEKTU</span>
               <div className="flex gap-2">
-                 {[0, 1].map(i => (
-                   <div key={`s-can-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${canvasPoints[i] ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
-                      {canvasPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
-                   </div>
-                 ))}
+                 {[0, 1, 2].map(i => {
+                   if (mode === '1-point' && i > 0) return null;
+                   return (
+                    <div key={`s-can-${i}`} className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${canvasPoints[i] ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-inner' : 'bg-slate-800 border-slate-700 text-slate-600'}`}>
+                        {canvasPoints[i] ? <Check className="w-5 h-5 stroke-[3]" /> : <span className="font-mono text-xs font-bold">{i + 1}</span>}
+                    </div>
+                   );
+                 })}
               </div>
            </div>
         </div>

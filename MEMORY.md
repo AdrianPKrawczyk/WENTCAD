@@ -227,5 +227,6 @@
 - **Smart Sync - Silnik Ekstrakcji i Link Tool (Krok 3)**:
   - **syncEngine.ts**: Implementacja `extractAndTransformPolygons` do automatycznego wybiórczego importu geometrii CAD po kalibracji.
   - **Automatyczne Dopasowanie**: System automatycznie aktualizuje istniejące strefy (overlap detection) lub tworzy nowe w ZoneStore na podstawie danych DXF.
-  - **Narzędzie "Połącz" (Link Tool)**: Pozwala na ręczne powiązanie dowolnego obrysu z rzutu z konkretnym wierszem w tabeli Air Balance.
+  - **Transformacja Afiniczna (3 pkt)**: Ulepszono `SyncAlignmentModal` do obsługi 3 punktów, co zapewnia pełną korekcję skali, obrotu i odbicia lustrzanego (Mirror).
+  - **Ciągłe Łączenie (Continuous Linking)**: Narzędzie "Połącz" automatycznie prowadzi użytkownika przez kolejne nieprzypisane strefy, sortując je po numerze (`nr`).
   - **Workspace2D Integration**: Dynamiczna zmiana kursora i podświetlenie poligonów w trybie łączenia.
