@@ -198,7 +198,7 @@
   - **Renderowanie**: W `Workspace2D.tsx` zastosowano warstwowe podejście – poligon rysuje tło (`fill`), a następnie nakładana jest druga warstwa z wzorem (`fillPatternImage`) i przezroczystością.
   - **Skalowanie**: `fillPatternScale` jest dynamicznie przeliczane jako `1 / scale`, dzięki czemu gęstość wzoru na ekranie pozostaje stała niezależnie od poziomu przybliżenia.
   - **Mapowanie**: Dodano logikę mapującą polskie nazwy z UI (np. „Ukośne”) na techniczne identyfikatory wzorów.
-- **REZOLUCJA (Poprawa Deseniu)**: Naprawiono błąd wyświetlania wzorów poprzez dynamiczne cachowanie stylów i Canvasów w Workspace2D.tsx.
+- **REZOLUCJA (Poprawa Deseniu)**: Naprawiono błąd wyświetlania wzorów poprzez dynamiczne cachowanie stylów w `Workspace2D.tsx`. Wprowadzono logikę wymuszającą **solidny kolor** wzoru (usuwanie przezroczystości `rgba`) oraz zwiększono grubość linii do **2px**, co zapewnia widoczność deseniu niezależnie od globalnych ustawień przezroczystości stref.
 - **Filtracja Widoczności**:
   - **Zone Store**: Dodano stany `showZonesOnCanvas` (globalny przełącznik) oraz `hiddenSystemIdsOnCanvas` (lista ukrytych systemów).
   - **Filtr Panel**: Implementacja pływającego panelu „Widoczność Stref” w Workspace2D. Pozwala na selektywne ukrywanie stref przypisanych do konkretnych systemów oraz stref bez przypisanego systemu („Brak systemu”).

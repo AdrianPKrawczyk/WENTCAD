@@ -804,12 +804,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
               }
             }
 
+            // Pobranie oryginalnego systemu, by bezpiecznie wyciągnąć patternId z pominięciem resolveZoneStyle
+            const targetSystem = (systems as any[]).find(s => s.id === zone.systemSupplyId) || (systems as any[]).find(s => s.id === zone.systemExhaustId);
+            const activePatternId = (style as any).patternId || targetSystem?.patternId;
+
+            // Wyciągnięcie solidnego koloru (usunięcie przezroczystości z rgba) dla ostrego deseniu
+            const solidColor = style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9';
+
             // === GENERATE PATTERN IMAGE FROM CACHE ON THE FLY ===
             let patternImg: HTMLCanvasElement | null = null;
-            if (shouldUseSystemStyle && style.patternId) {
-              const cacheKey = `${style.patternId}-${baseColor}`;
+            if (shouldUseSystemStyle && activePatternId) {
+              const cacheKey = `${activePatternId}-${solidColor}`;
               if (!patternCache.current[cacheKey]) {
-                const newPattern = createPatternImage(style.patternId, baseColor);
+                const newPattern = createPatternImage(activePatternId as string, solidColor);
                 if (newPattern) patternCache.current[cacheKey] = newPattern;
               }
               patternImg = patternCache.current[cacheKey] || null;

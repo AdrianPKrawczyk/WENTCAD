@@ -17,7 +17,7 @@ export function createPatternImage(patternType: string, color: string): HTMLCanv
   ctx.clearRect(0, 0, size, size);
   
   ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 2;
   ctx.lineCap = 'round';
 
   // Map Polish names from UI to technical IDs
