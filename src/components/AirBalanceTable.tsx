@@ -366,17 +366,27 @@ export function AirBalanceTable() {
       const ids = selectedNodes.map(node => node.data?.id).filter(Boolean);
       setCheckedZoneIds(ids);
 
-      // UX: Pozwalamy ręcznie zmienić cel łączenia (Link Tool) poprzez kliknięcie w tabelę
+      // Jeśli wybrano dokładnie jedno, to jest to nasz nowy focus
       if (ids.length === 1) {
-        useZoneStore.getState().setSelectedZone(ids[0]);
-        if (useZoneStore.getState().linkingZoneId) {
-          useZoneStore.getState().setLinkingZoneId(ids[0]);
+        if (selectedZoneId !== ids[0]) {
+          setSelectedZone(ids[0]);
         }
-      } else {
-        useZoneStore.getState().setSelectedZone(null);
+      } 
+      // Podświetlenie wielu: jeśli nasz obecny focus NIE jest wśród zaznaczonych, 
+      // a zaznaczono nowe elementy, ustawiamy focus na jeden z nich (ostatni).
+      else if (ids.length > 1) {
+        if (!ids.includes(selectedZoneId || '')) {
+          setSelectedZone(ids[ids.length - 1]);
+        }
+      }
+      // Jeśli nic nie wybrano, czyścimy focus
+      else if (ids.length === 0) {
+        if (selectedZoneId !== null) {
+          setSelectedZone(null);
+        }
       }
     }
-  }, [setCheckedZoneIds]);
+  }, [setCheckedZoneIds, selectedZoneId, setSelectedZone]);
 
   const handleBulkDelete = () => {
     if (checkedZoneIds.length === 0) return;
@@ -420,18 +430,22 @@ export function AirBalanceTable() {
     }
   }, [selectedZoneId]);
 
-  // UX Fix: Synchronizacja zaznaczenia w tabeli ag-Grid z wybraną strefą (setSelectedZoneId(null) deselects all)
+  // UX Fix: Synchronizacja zaznaczenia w tabeli ag-Grid z wybraną strefą
   useEffect(() => {
     if (gridRef.current && gridRef.current.api) {
       if (!selectedZoneId) {
-        gridRef.current.api.deselectAll();
+        const selectedNodes = gridRef.current.api.getSelectedNodes();
+        if (selectedNodes.length > 0) {
+          gridRef.current.api.deselectAll();
+        }
       } else {
-        gridRef.current.api.forEachNode((node) => {
-          if (node.data.id === selectedZoneId) {
-            node.setSelected(true);
-            gridRef.current.api.ensureNodeVisible(node);
-          }
-        });
+        const node = gridRef.current.api.getRowNode(selectedZoneId);
+        if (node && !node.isSelected()) {
+          // Kliknięcie z zewnątrz (canvas/inspektor) czyści multi-zaznaczenie i focusuje na nowym
+          gridRef.current.api.deselectAll();
+          node.setSelected(true);
+          gridRef.current.api.ensureNodeVisible(node);
+        }
       }
     }
   }, [selectedZoneId]);

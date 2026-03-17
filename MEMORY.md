@@ -244,4 +244,7 @@
 - **Link Existing Room**: Nowy modal `LinkOutlineModal.tsx` dostępny z panelu obrysu na rzucie.
     - **Filtrowanie**: Lista pomieszczeń jest filtrowana po `activeFloorId`.
     - **UX**: Skondensowany widok (lista `90vh`) dla szybkiej pracy na dużych projektach.
-- **Bi-directional Sync**: Kliknięcie wiersza w `AirBalanceTable` centruje widok na rzucie, a kliknięcie strefy na rzucie zaznacza odpowiedni wiersz w ag-Grid (z synchronizacją `ensureNodeVisible`).
+- **Bi-directional Sync & Selection Stability**: 
+    - Kliknięcie wiersza w `AirBalanceTable` centruje widok na rzucie, a kliknięcie strefy na rzucie zaznacza odpowiedni wiersz w ag-Grid (z synchronizacją `ensureNodeVisible`).
+    - **Fix**: Rozwiązano problem pętli zwrotnej (selection feedback loop) pomiędzy stanem Zustand a ag-Grid. 
+    - **Behavior**: Checkboxy w tabeli służą do stabilnej pracy masowej (nie odznaczają się przy dodawaniu kolejnych), natomiast kliknięcie obiektu na rzucie focusuje tabelę na nowym elemencie, czyszcząc poprzednie zaznaczenia (standardowy UX projektowy).
