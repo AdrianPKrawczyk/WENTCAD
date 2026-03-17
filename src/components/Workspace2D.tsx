@@ -6,11 +6,12 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 import { renderDxfToDataUrl, parseDxfFile } from '../lib/dxfUtils';
 import { DxfUnitModal } from './DxfUnitModal';
+import { LinkOutlineModal } from './LinkOutlineModal';
 
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
@@ -138,6 +139,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [underlayImage, setUnderlayImage] = useState<HTMLImageElement | null>(null);
   const [dxfModalOpen, setDxfModalOpen] = useState(false);
   const [pendingDxf, setPendingDxf] = useState<any>(null); // przechowuje zdekodowany obiekt
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
 
@@ -1189,6 +1191,13 @@ export function Workspace2D({ className }: Workspace2DProps) {
             + Utwórz Pomieszczenie
           </button>
           <button 
+            className="bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 active:scale-95"
+            onClick={() => setIsLinkModalOpen(true)}
+          >
+            <Link className="w-4 h-4" />
+            Przyłącz istniejące
+          </button>
+          <button 
             className="text-red-600 hover:bg-red-50 text-sm font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95"
             onClick={() => {
               const filteredOutlines = (floorState.dxfOutlines || []).filter(o => o.id !== selectedDxfOutlineId);
@@ -1486,6 +1495,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
           }, 50);
         }}
       />
+
+      {isLinkModalOpen && selectedDxfOutlineId && (
+        <LinkOutlineModal
+          isOpen={isLinkModalOpen}
+          onClose={() => setIsLinkModalOpen(false)}
+          outlineId={selectedDxfOutlineId}
+        />
+      )}
     </div>
   );
 }
