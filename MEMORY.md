@@ -18,9 +18,14 @@
 * [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
 * [x] **FAZA 2.1: Silnik Graficzny 2D (react-konva, Pan, Zoom)** - Done
 * [x] **FAZA 2.2: Menadżer Podkładów Rastrowych (PNG/JPG)** - Done
-* [ ] **FAZA 2.3: Kalibrator Skali** - Pending
-* [ ] **FAZA 2.4: Rysowanie Stref (Zone Polygons)** - Pending
-* [ ] **FAZA 2.5: Import DXF** - Pending
+* [x] **FAZA 2.3: Kalibrator Skali i Narzędzie Pomiaru** - Done
+* [x] **FAZA 2.4: Rysowanie Stref (Zone Polygons) & Synchronizacja** - Done
+* [x] **FAZA 2.4.1: Optymalizacja rysowania (Snapping, Visuals, Manual Close)** - Done
+* [x] **FAZA 2.5: Pływający Przełącznik Kondygnacji (Workspace2D Overlay)** - Done
+* [x] **FAZA 2.6: Architektura UI Etapowa (7 Etapów Projektu)** - Done
+* [x] **FAZA 2.7: Kontekstowe Paski Narzędzi (Secondary Toolbar)** - Done
+* [x] **FAZA 2.8: Tryb Widoku Reversed Vertical Split** - Done
+* [ ] **FAZA 2.9: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -131,3 +136,18 @@
 - Faza 2.2 (PNG/JPG): `FileReader.readAsDataURL()` → `HTMLImageElement` → `<KonvaImage>` na Layer "background".
 - Rozmiar podkładu zapisany w `useCanvasStore` → automatyczny fit-to-screen po załadowaniu.
 - PDF (Supabase Storage) — do implementacji w Fazie 2.2 zaawansowanej.
+
+### Iteracja 2.3 & 2.4: Kalibracja i Rysowanie (BIM foundations)
+- **Logika Skalowania**: `scaleFactor` zapisywany w `useCanvasStore` dla każdej kondygnacji. Obliczenia powierzchni: `areaPixels * (scaleFactor^2)`.
+- **Rysowanie stref**: Wykorzystanie `react-konva` do interaktywnego tworzenia wielokątów. 
+- **Snapping**: Przyciąganie do pierwszego punktu (snap-to-close) z wizualną informacją zwrotną (powiększenie punktu, zmiana koloru na zielony).
+- **Manualny fallback**: Przycisk "Zakończ obrys" w toolbarze dla długich/złożonych figur.
+- **Synchronizacja**: Pole `isAreaLinkedToGeometry` w `ZoneData` blokuje edycję AG-Grid, gdy strefa posiada obrys.
+
+### Iteracja 2.5 & 2.6: Nawigacja i Architektura UI
+- **Floor Switcher**: Pływający panel nad Stage pozwala na szybkie przełączanie kontekstu bez opuszczania widoku rysunku.
+- **Stage Navigation**: Wprowadzenie `currentStage` (1-7) w `useUIStore`. Sidebar pionowy staje się głównym nawigatorem procesu projektowego.
+- **Secondary Toolbar**: Kontekstowy pasek obok Sidebaru, zawierający narzędzia specyficzne dla danego etapu (np. layouty Canvas/Tabela w Etapie 2).
+
+### Iteracja 2.8: Elastyczność Layoutu
+- **Reversed Split**: Nowy tryb `split-vertical-reversed` (Tabela po prawej, Canvas po lewej). Wymagał optymalizacji `handleMouseMove` dla obliczeń procentowych od prawej krawędzi.
