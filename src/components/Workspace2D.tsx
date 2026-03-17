@@ -1,11 +1,12 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag } from 'react-konva';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag, Group } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea } from '../lib/geometryUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon } from 'lucide-react';
+import { createPatternImage } from '../lib/patternUtils';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { toast } from 'sonner';
 
@@ -90,6 +91,12 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const updateZone = useZoneStore((s) => s.updateZone);
   const updateFloor = useZoneStore((s) => s.updateFloor);
   const checkedZoneIds = useZoneStore((s) => s.checkedZoneIds);
+  const showZonesOnCanvas = useZoneStore((s) => s.showZonesOnCanvas);
+  const toggleShowZonesOnCanvas = useZoneStore((s) => s.toggleShowZonesOnCanvas);
+  const hiddenSystemIdsOnCanvas = useZoneStore((s) => s.hiddenSystemIdsOnCanvas);
+  const toggleSystemVisibility = useZoneStore((s) => s.toggleSystemVisibility);
+  const isZoneFilterPanelOpen = useZoneStore((s) => s.isZoneFilterPanelOpen);
+  const setZoneFilterPanelOpen = useZoneStore((s) => s.setZoneFilterPanelOpen);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -139,6 +146,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setReferenceOrigin = useCallback((point: Point | null) => {
     updateFloorState(activeFloorId, { referenceOrigin: point });
   }, [activeFloorId, updateFloorState]);
+
+  // Hatch Pattern memoization
+  const systemPatterns = useMemo(() => {
+    const patterns: Record<string, HTMLImageElement> = {};
+    systems.forEach(sys => {
+      if (sys.patternId && sys.color) {
+        const img = createPatternImage(sys.patternId, sys.color);
+        if (img) patterns[sys.id] = img;
+      }
+    });
+    return patterns;
+  }, [systems]);
 
   useEffect(() => {
     if (!underlayUrl) {
@@ -593,6 +612,71 @@ export function Workspace2D({ className }: Workspace2DProps) {
           ))}
         </div>
       </div>
+      {/* FLOATING FILTER PANEL */}
+      {isZoneFilterPanelOpen && (
+        <div className="absolute top-4 right-4 z-20 w-64 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl p-4 flex flex-col gap-3 pointer-events-auto">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-indigo-600" />
+              Widoczność Stref
+            </h3>
+            <button 
+              onClick={() => setZoneFilterPanelOpen(false)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1">
+            <label className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
+              <div className="flex items-center gap-3">
+                {showZonesOnCanvas ? <Eye className="w-4 h-4 text-indigo-500" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                <span className={`text-xs ${showZonesOnCanvas ? 'font-bold text-slate-700' : 'text-slate-400'}`}>Wszystkie strefy</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={showZonesOnCanvas} 
+                onChange={() => toggleShowZonesOnCanvas()}
+                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" 
+              />
+            </label>
+
+            <div className="h-px bg-slate-100 my-1" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Systemy Wentylacyjne</span>
+
+            {systems.map((sys) => (
+              <label key={sys.id} className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-sm border border-gray-200" style={{ backgroundColor: sys.color || '#cbd5e1' }} />
+                  <span className={`text-xs ${!hiddenSystemIdsOnCanvas.includes(sys.id) ? 'font-medium text-slate-700' : 'text-slate-400 italic'}`}>
+                    {sys.name}
+                  </span>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={!hiddenSystemIdsOnCanvas.includes(sys.id)} 
+                  onChange={() => toggleSystemVisibility(sys.id)}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" 
+                />
+              </label>
+            ))}
+
+            <label className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-sm border border-dashed border-slate-300" />
+                <span className={`text-xs ${!hiddenSystemIdsOnCanvas.includes('none') ? 'font-medium text-slate-700' : 'text-slate-400 italic'}`}>Brak systemu</span>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={!hiddenSystemIdsOnCanvas.includes('none')} 
+                onChange={() => toggleSystemVisibility('none')}
+                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" 
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
       <Stage
         ref={stageRef}
@@ -677,10 +761,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
             <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
           ))}
           {/* Polygons */}
-          {polygons.map((poly) => {
+          {showZonesOnCanvas && polygons.map((poly) => {
             const zone = zones[poly.zoneId];
             if (!zone) return null;
             
+            // System Filtering Logic
+            const systemId = zone.systemSupplyId || zone.systemExhaustId || 'none';
+            if (hiddenSystemIdsOnCanvas.includes(systemId)) return null;
+
             const style = resolveZoneStyle(zone, systems); 
             
             const isRedefining = redefiningZoneId === poly.zoneId;
@@ -704,49 +792,62 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 currentStrokeWidth = 3 / scale;
               }
             }
+
+            const patternImg = zone.systemSupplyId ? systemPatterns[zone.systemSupplyId] : (zone.systemExhaustId ? systemPatterns[zone.systemExhaustId] : null);
             
             return (
-              <Line
-                key={poly.id}
-                points={poly.points}
-                closed={true}
-                fill={currentFill}
-                stroke={currentStroke}
-                strokeWidth={currentStrokeWidth}
-                dash={isRedefining ? [5 / scale, 5 / scale] : []}
-                opacity={isRedefining ? 0.8 : 1}
-                {...shadowProps}
-                onMouseEnter={(e) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) {
-                    if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
-                    else container.style.cursor = 'pointer';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'default';
-                }}
-                onClick={(e) => {
-                  if (currentTool === 'ERASER') {
-                    if (window.confirm("Czy na pewno usunąć obrys tej strefy?")) {
+              <Group key={poly.id}>
+                <Line
+                  points={poly.points}
+                  closed={true}
+                  fill={currentFill}
+                  stroke={currentStroke}
+                  strokeWidth={currentStrokeWidth}
+                  dash={isRedefining ? [5 / scale, 5 / scale] : []}
+                  opacity={isRedefining ? 0.8 : 1}
+                  {...shadowProps}
+                  onMouseEnter={(e) => {
+                    const container = e.target.getStage()?.container();
+                    if (container) {
+                      if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
+                      else container.style.cursor = 'pointer';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    const container = e.target.getStage()?.container();
+                    if (container) container.style.cursor = 'default';
+                  }}
+                  onClick={(e) => {
+                    if (currentTool === 'ERASER') {
+                      if (window.confirm("Czy na pewno usunąć obrys tej strefy?")) {
+                        const updatedPolygons = polygons.filter(p => p.id !== poly.id);
+                        updateFloorState(activeFloorId, { polygons: updatedPolygons });
+                        updateZone(poly.zoneId, { geometryArea: null });
+                        toast.success('Usunięto obrys.');
+                      }
+                      return;
+                    }
+                    if (e.evt.shiftKey) {
                       const updatedPolygons = polygons.filter(p => p.id !== poly.id);
                       updateFloorState(activeFloorId, { polygons: updatedPolygons });
-                      updateZone(poly.zoneId, { geometryArea: null });
-                      toast.success('Usunięto obrys.');
+                      toast.success('Usunięto obrys strefy.');
+                    } else {
+                      useZoneStore.getState().setSelectedZone(poly.zoneId);
+                      toast.info(`Wybrano strefę: ${zone.nr} - ${zone.name}`);
                     }
-                    return;
-                  }
-                  if (e.evt.shiftKey) {
-                    const updatedPolygons = polygons.filter(p => p.id !== poly.id);
-                    updateFloorState(activeFloorId, { polygons: updatedPolygons });
-                    toast.success('Usunięto obrys strefy.');
-                  } else {
-                    useZoneStore.getState().setSelectedZone(poly.zoneId);
-                    toast.info(`Wybrano strefę: ${zone.nr} - ${zone.name}`);
-                  }
-                }}
-              />
+                  }}
+                />
+                {!isRedefining && patternImg && (
+                  <Line
+                    points={poly.points}
+                    closed={true}
+                    fillPatternImage={patternImg}
+                    fillPatternRepeat="repeat"
+                    fillPatternScale={{ x: 1 / scale, y: 1 / scale }}
+                    listening={false} // Click should fall through to the base Line
+                  />
+                )}
+              </Group>
             );
           })}
 

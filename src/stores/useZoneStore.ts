@@ -116,6 +116,12 @@ interface ZoneStore {
   clearZoneGeometry: (id: string) => void;
   checkedZoneIds: string[];
   setCheckedZoneIds: (ids: string[]) => void;
+  showZonesOnCanvas: boolean;
+  toggleShowZonesOnCanvas: () => void;
+  hiddenSystemIdsOnCanvas: string[];
+  toggleSystemVisibility: (systemId: string) => void;
+  isZoneFilterPanelOpen: boolean;
+  setZoneFilterPanelOpen: (open: boolean) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -139,12 +145,23 @@ export const useZoneStore = create<ZoneStore>()(
       globalSystemOpacity: 20,
       columnState: null,
       checkedZoneIds: [],
+      showZonesOnCanvas: true,
+      hiddenSystemIdsOnCanvas: [],
+      isZoneFilterPanelOpen: false,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
       setActiveFloor: (floorId) => set({ activeFloorId: floorId }),
       setCheckedZoneIds: (ids) => set({ checkedZoneIds: ids }),
+      toggleShowZonesOnCanvas: () => set((s) => ({ showZonesOnCanvas: !s.showZonesOnCanvas })),
+      toggleSystemVisibility: (systemId) => set((s) => {
+        const hidden = s.hiddenSystemIdsOnCanvas.includes(systemId)
+          ? s.hiddenSystemIdsOnCanvas.filter(id => id !== systemId)
+          : [...s.hiddenSystemIdsOnCanvas, systemId];
+        return { hiddenSystemIdsOnCanvas: hidden };
+      }),
+      setZoneFilterPanelOpen: (open) => set({ isZoneFilterPanelOpen: open }),
 
       addZone: (zone) => {
         set((state) => {
@@ -403,7 +420,11 @@ export const useZoneStore = create<ZoneStore>()(
         analysisPresets, 
         stylePresets, 
         isSystemColoringEnabled, 
-        globalSystemOpacity
+        globalSystemOpacity,
+        checkedZoneIds,
+        showZonesOnCanvas,
+        hiddenSystemIdsOnCanvas,
+        isZoneFilterPanelOpen
       } = state;
       return { 
         zones, 
