@@ -15,7 +15,7 @@ import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import type { ZoneData, ActivityType } from '../types';
 import type { ColDef } from 'ag-grid-community';
 import { resolveZoneStyle } from '../lib/VisualStyles';
-import { Wand2, Link, X as XIcon } from 'lucide-react';
+import { Wand2, Link, Box, X as XIcon } from 'lucide-react';
 import { parseDxfFile } from '../lib/dxfUtils';
 import { extractAndTransformPolygons } from '../lib/syncEngine';
 import { SyncAlignmentModal } from './SyncAlignmentModal';
@@ -61,6 +61,9 @@ export function AirBalanceTable() {
   const [isOutlinesModalOpen, setOutlinesModalOpen] = useState(false);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
+  
+  const activeFloor = useZoneStore((state) => state.floors[state.activeFloorId]);
+  const dxfOutlinesCount = activeFloor?.dxfOutlines?.length || 0;
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
@@ -411,9 +414,25 @@ export function AirBalanceTable() {
     if (gridRef.current?.api && selectedZoneId) {
       const node = gridRef.current.api.getRowNode(selectedZoneId);
       if (node) {
-        gridRef.current.api.ensureNodeVisible(node, 'middle');
+        gridRef.current.api.ensureNodeVisible(node);
+        gridRef.current.api.redrawRows();
       }
-      gridRef.current.api.redrawRows(); // Wymusza odświeżenie stylów, by nałożyć podświetlenie
+    }
+  }, [selectedZoneId]);
+
+  // UX Fix: Synchronizacja zaznaczenia w tabeli ag-Grid z wybraną strefą (setSelectedZoneId(null) deselects all)
+  useEffect(() => {
+    if (gridRef.current && gridRef.current.api) {
+      if (!selectedZoneId) {
+        gridRef.current.api.deselectAll();
+      } else {
+        gridRef.current.api.forEachNode((node) => {
+          if (node.data.id === selectedZoneId) {
+            node.setSelected(true);
+            gridRef.current.api.ensureNodeVisible(node);
+          }
+        });
+      }
     }
   }, [selectedZoneId]);
 
@@ -590,21 +609,6 @@ export function AirBalanceTable() {
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-bold text-gray-800">Air Balance (Krok 1.5)</h2>
-          {(() => {
-            const activeFloor = useZoneStore.getState().floors[activeFloorId];
-            const dxfOutlinesCount = activeFloor?.dxfOutlines?.length || 0;
-            if (dxfOutlinesCount > 0) {
-              return (
-                <button 
-                  onClick={() => setOutlinesModalOpen(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold border border-slate-200 transition-all active:scale-95 animate-in fade-in slide-in-from-left-2"
-                >
-                  📦 Szuflada Obrysów ({dxfOutlinesCount})
-                </button>
-              );
-            }
-            return null;
-          })()}
         </div>
         <div className="flex gap-2">
           {checkedZoneIds.length > 1 && (
@@ -693,6 +697,17 @@ export function AirBalanceTable() {
             <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
             ✨ Synchronizuj z CAD
           </button>
+
+          {dxfOutlinesCount > 0 && (
+            <button
+              onClick={() => setOutlinesModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-sm font-medium border border-indigo-100 transition-colors animate-in fade-in slide-in-from-right-2"
+              title="Pokaż listę obrysów wczytanych z pliku CAD"
+            >
+              <Box className="w-4 h-4" />
+              Szuflada Obrysów ({dxfOutlinesCount})
+            </button>
+          )}
 
           <button
             onClick={() => {
@@ -827,11 +842,6 @@ export function AirBalanceTable() {
         }}
       />
 
-      <DxfOutlinesModal 
-        isOpen={isOutlinesModalOpen}
-        onClose={() => setOutlinesModalOpen(false)}
-      />
-
       <SyncAlignmentModal 
         isOpen={isSyncAlignmentOpen}
         dxfData={syncDxfData}
@@ -904,6 +914,13 @@ export function AirBalanceTable() {
           toast.success(`Zakończono analizę CAD. Znaleziono i dodano do szuflady ${newDxfOutlines.length} nowych obrysów.`);
         }}
       />
+
+      {isOutlinesModalOpen && (
+        <DxfOutlinesModal 
+          isOpen={isOutlinesModalOpen} 
+          onClose={() => setOutlinesModalOpen(false)} 
+        />
+      )}
       </div>
     </div>
   );

@@ -849,42 +849,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
                       isAreaManual: false
                     });
 
-                    // 4. FIND NEXT UNLINKED ZONE (Continuous flow)
-                    const allZones = Object.values(useZoneStore.getState().zones).sort((a, b) => 
-                      a.nr.localeCompare(b.nr, undefined, { numeric: true })
-                    );
-                    
-                    const floors = useCanvasStore.getState().floors;
-                    const allLinkedZoneIds = new Set(
-                      Object.values(floors).flatMap(f => f.polygons.map(p => p.zoneId))
-                    );
-                    allLinkedZoneIds.add(linkingZoneId);
-
-                    const currentIndex = allZones.findIndex(z => z.id === linkingZoneId);
-                    let nextZone = null;
-                    for (let i = currentIndex + 1; i < allZones.length; i++) {
-                      if (!allLinkedZoneIds.has(allZones[i].id)) {
-                        nextZone = allZones[i];
-                        break;
-                      }
-                    }
-                    if (!nextZone) {
-                      for (let i = 0; i < currentIndex; i++) {
-                        if (!allLinkedZoneIds.has(allZones[i].id)) {
-                          nextZone = allZones[i];
-                          break;
-                        }
-                      }
-                    }
-
-                    if (nextZone) {
-                      setLinkingZoneId(nextZone.id);
-                      useZoneStore.getState().setSelectedZone(nextZone.id);
-                      toast.success(`Połączono! Teraz kliknij obrys dla: ${nextZone.nr} - ${nextZone.name}`);
-                    } else {
-                      setLinkingZoneId(null);
-                      toast.success('Połączono ostatnie pomieszczenie!');
-                    }
+                    // 4. ZAKAŃCZAMY OPERACJĘ I ODZNACZAMY WIERSZ (UX Fix: No auto-jump)
+                    setLinkingZoneId(null);
+                    useZoneStore.getState().setSelectedZone(null);
+                    toast.success("Pomyślnie przypisano obrys do pomieszczenia.");
+                    return;
                   } else {
                     setSelectedDxfOutlineId(outline.id);
                   }
@@ -1024,37 +993,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
                         isAreaManual: false
                       });
 
-                      // 6. ZNAJDŹ KOLEJNY NIEPOŁĄCZONY POKÓJ (Ciągłe łączenie)
-                      const allZones = Object.values(useZoneStore.getState().zones).sort((a, b) => 
-                        a.nr.localeCompare(b.nr, undefined, { numeric: true })
-                      );
-                      
-                      const floors = useCanvasStore.getState().floors;
-                      const allLinkedZoneIds = new Set(
-                        Object.values(floors).flatMap(f => f.polygons.map(p => p.zoneId))
-                      );
-                      allLinkedZoneIds.add(linkingZoneId); // Ten już połączyliśmy
-
-                      const currentIndex = allZones.findIndex(z => z.id === linkingZoneId);
-                      let nextZone = null;
-
-                      // Szukamy tylko w dół tabeli (UX Requirement)
-                      for (let i = currentIndex + 1; i < allZones.length; i++) {
-                        if (!allLinkedZoneIds.has(allZones[i].id)) {
-                          nextZone = allZones[i];
-                          break;
-                        }
-                      }
-
-                      if (nextZone) {
-                        setLinkingZoneId(nextZone.id);
-                        useZoneStore.getState().setSelectedZone(nextZone.id); // Przewiń tabelę
-                        toast.success(`Połączono! Teraz kliknij obrys dla: ${nextZone.nr} - ${nextZone.name}`);
-                      } else {
-                        setLinkingZoneId(null);
-                        toast.success('Połączono ostatnie pomieszczenie!');
-                      }
-
+                      // 6. ZAKAŃCZAMY OPERACJĘ I ODZNACZAMY WIERSZ (UX Fix: No auto-jump)
+                      setLinkingZoneId(null);
+                      useZoneStore.getState().setSelectedZone(null);
+                      toast.success("Pomyślnie przypisano obrys do pomieszczenia.");
                       return;
                     }
 
