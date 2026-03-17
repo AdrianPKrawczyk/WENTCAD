@@ -58,6 +58,11 @@ export interface Floor {
   elevation: number; // Rzędna terenu [m], np. 0.0, 3.5
   order: number;     // Kolejność wyświetlania
   originDescription?: string; // np. "Przecięcie osi A i 1"
+  dxfOutlines?: {
+    id: string;
+    points: number[];
+    area: number;
+  }[];
 }
 
 export interface ZoneData {

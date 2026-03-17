@@ -126,6 +126,8 @@ interface ZoneStore {
   setGlobalPatternScale: (scale: number) => void;
   linkingZoneId: string | null;
   setLinkingZoneId: (id: string | null) => void;
+  selectedDxfOutlineId: string | null;
+  setSelectedDxfOutlineId: (id: string | null) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -154,6 +156,7 @@ export const useZoneStore = create<ZoneStore>()(
       isZoneFilterPanelOpen: false,
       globalPatternScale: 1.0,
       linkingZoneId: null,
+      selectedDxfOutlineId: null,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -170,6 +173,7 @@ export const useZoneStore = create<ZoneStore>()(
       setZoneFilterPanelOpen: (open: boolean) => set({ isZoneFilterPanelOpen: open }),
       setGlobalPatternScale: (scale: number) => set({ globalPatternScale: scale }),
       setLinkingZoneId: (id: string | null) => set({ linkingZoneId: id }),
+      setSelectedDxfOutlineId: (id: string | null) => set({ selectedDxfOutlineId: id }),
 
       addZone: (zone) => {
         set((state) => {

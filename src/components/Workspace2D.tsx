@@ -91,6 +91,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const zones = useZoneStore((s) => s.zones);
   const systems = useZoneStore((s) => s.systems);
   const updateZone = useZoneStore((s) => s.updateZone);
+  const addZone = useZoneStore((s) => s.addZone);
   const updateFloor = useZoneStore((s) => s.updateFloor);
   const checkedZoneIds = useZoneStore((s) => s.checkedZoneIds);
   const showZonesOnCanvas = useZoneStore((s) => s.showZonesOnCanvas);
@@ -142,6 +143,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
+  const selectedDxfOutlineId = useZoneStore((s) => s.selectedDxfOutlineId);
+  const setSelectedDxfOutlineId = useZoneStore((s) => s.setSelectedDxfOutlineId);
 
   // Update floor-specific state helpers
   const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
@@ -731,6 +734,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onClick={() => setSelectedDxfOutlineId(null)}
         style={{ background: '#f0f2f5' }}
       >
         <Layer name="background">
@@ -801,6 +805,93 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {isCalibrating && calibrationPoints.map((p, i) => (
             <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
           ))}
+
+          {/* RENDEROWANIE OBRYSÓW CAD (Szuflada DXF) */}
+          {floorState.dxfOutlines?.map((outline: any) => {
+            const isSelected = selectedDxfOutlineId === outline.id;
+            return (
+              <Line
+                key={outline.id}
+                points={outline.points}
+                closed={true}
+                fill={isSelected ? 'rgba(148, 163, 184, 0.4)' : 'rgba(148, 163, 184, 0.1)'}
+                stroke={isSelected ? '#475569' : '#94a3b8'}
+                strokeWidth={isSelected ? 3 / scale : 2 / scale}
+                dash={[10 / scale, 10 / scale]}
+                onMouseEnter={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'pointer';
+                }}
+                onMouseLeave={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+                onClick={(e: any) => {
+                  e.cancelBubble = true;
+                  if (linkingZoneId) {
+                    // LINKING LOGIC: Assign DXF outline to specific Zone
+                    const newPoly = { id: crypto.randomUUID(), zoneId: linkingZoneId, points: outline.points };
+                    
+                    // 1. Remove from DXF drawer
+                    const filteredOutlines = (floorState.dxfOutlines || []).filter(o => o.id !== outline.id);
+                    // 2. Add to Polygons
+                    const filteredPolys = (polygons || []).filter(p => p.zoneId !== linkingZoneId);
+                    updateFloorState(activeFloorId, { 
+                       dxfOutlines: filteredOutlines,
+                       polygons: [...filteredPolys, newPoly] 
+                    });
+
+                    // 3. Update Area
+                    const floorScale = scaleFactor || 1;
+                    const areaSqM = calculatePolygonArea(outline.points) * (floorScale ** 2);
+                    updateZone(linkingZoneId, { 
+                      geometryArea: areaSqM,
+                      isAreaManual: false
+                    });
+
+                    // 4. FIND NEXT UNLINKED ZONE (Continuous flow)
+                    const allZones = Object.values(useZoneStore.getState().zones).sort((a, b) => 
+                      a.nr.localeCompare(b.nr, undefined, { numeric: true })
+                    );
+                    
+                    const floors = useCanvasStore.getState().floors;
+                    const allLinkedZoneIds = new Set(
+                      Object.values(floors).flatMap(f => f.polygons.map(p => p.zoneId))
+                    );
+                    allLinkedZoneIds.add(linkingZoneId);
+
+                    const currentIndex = allZones.findIndex(z => z.id === linkingZoneId);
+                    let nextZone = null;
+                    for (let i = currentIndex + 1; i < allZones.length; i++) {
+                      if (!allLinkedZoneIds.has(allZones[i].id)) {
+                        nextZone = allZones[i];
+                        break;
+                      }
+                    }
+                    if (!nextZone) {
+                      for (let i = 0; i < currentIndex; i++) {
+                        if (!allLinkedZoneIds.has(allZones[i].id)) {
+                          nextZone = allZones[i];
+                          break;
+                        }
+                      }
+                    }
+
+                    if (nextZone) {
+                      setLinkingZoneId(nextZone.id);
+                      toast.success(`Połączono! Teraz kliknij obrys dla: ${nextZone.nr} - ${nextZone.name}`);
+                    } else {
+                      setLinkingZoneId(null);
+                      toast.success('Wspaniale! Wszystkie pomieszczenia w projekcie mają przypisane obrysy.');
+                    }
+                  } else {
+                    setSelectedDxfOutlineId(outline.id);
+                  }
+                }}
+              />
+            );
+          })}
+
           {/* Polygons */}
           {showZonesOnCanvas && polygons.map((poly) => {
             const zone = zones[poly.zoneId];
@@ -1091,6 +1182,90 @@ export function Workspace2D({ className }: Workspace2DProps) {
         </Layer>
         <Layer name="content" />
       </Stage>
+
+      {/* DXF OUTLINE PANEL */}
+      {selectedDxfOutlineId && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 flex items-center gap-4 z-50 animate-in fade-in slide-in-from-top-4">
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-slate-800">Nieprzypisany Obrys CAD</span>
+            <span className="text-xs text-slate-500">
+              Pow.: {floorState.dxfOutlines?.find(o => o.id === selectedDxfOutlineId)?.area?.toFixed(2) || 0} m²
+            </span>
+          </div>
+          <div className="w-px h-8 bg-slate-200 mx-2"></div>
+          <button 
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95"
+            onClick={() => {
+              const outline = floorState.dxfOutlines?.find(o => o.id === selectedDxfOutlineId);
+              if (!outline) return;
+              
+              const newZoneId = crypto.randomUUID();
+              const nextNumber = Object.keys(zones).length + 1;
+              addZone({
+                id: newZoneId,
+                nr: `P-${nextNumber.toString().padStart(2, '0')}`,
+                name: "Nowe Pomieszczenie",
+                activityType: 'CUSTOM',
+                calculationMode: 'AUTO_MAX',
+                systemSupplyId: '',
+                systemExhaustId: '',
+                area: 0,
+                manualArea: 0,
+                height: 3,
+                geometryArea: outline.area,
+                isAreaManual: false,
+                occupants: 1,
+                dosePerOccupant: 30,
+                isTargetACHManual: false,
+                manualTargetACH: null,
+                targetACH: 0,
+                normativeVolume: 0,
+                normativeExhaust: 0,
+                totalHeatGain: 0,
+                roomTemp: 24,
+                roomRH: 50,
+                supplyTemp: 16,
+                supplyRH: 80,
+                acousticAbsorption: 'MEDIUM',
+                maxAllowedDbA: 35,
+                isMaxDbAManual: false,
+                manualMaxAllowedDbA: null,
+                transferIn: [],
+                transferOut: [],
+                calculatedVolume: 0,
+                calculatedExhaust: 0,
+                transferInSum: 0,
+                transferOutSum: 0,
+                netBalance: 0,
+                realACH: 0,
+                floorId: activeFloorId,
+              });
+
+              const newPoly = { id: crypto.randomUUID(), zoneId: newZoneId, points: outline.points };
+              const filteredOutlines = (floorState.dxfOutlines || []).filter(o => o.id !== selectedDxfOutlineId);
+              updateFloorState(activeFloorId, { 
+                 dxfOutlines: filteredOutlines,
+                 polygons: [...(polygons || []), newPoly] 
+              });
+
+              setSelectedDxfOutlineId(null);
+              toast.success("Utworzono nowe pomieszczenie na podstawie obrysu!");
+            }}
+          >
+            + Utwórz Pomieszczenie
+          </button>
+          <button 
+            className="text-red-600 hover:bg-red-50 text-sm font-bold px-4 py-2.5 rounded-xl transition-all active:scale-95"
+            onClick={() => {
+              const filteredOutlines = (floorState.dxfOutlines || []).filter(o => o.id !== selectedDxfOutlineId);
+              updateFloorState(activeFloorId, { dxfOutlines: filteredOutlines });
+              setSelectedDxfOutlineId(null);
+            }}
+          >
+            Usuń Obrys
+          </button>
+        </div>
+      )}
 
       {/* TOOLBAR */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg px-2 py-1.5 z-10">

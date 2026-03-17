@@ -816,13 +816,17 @@ export function AirBalanceTable() {
             return;
           }
 
-          const currentCanvasFloors = useCanvasStore.getState().floors;
-          const floorPolygons = currentCanvasFloors[activeFloorId]?.polygons || [];
+          const currentCanvasFloor = useCanvasStore.getState().getFloorState(activeFloorId);
+          const floorPolygons = currentCanvasFloor.polygons || [];
+          
+          let updatedPolygons = [...floorPolygons];
+          let newDxfOutlines: { id: string, points: number[], area: number }[] = [];
+          
           let updatedCount = 0;
           let addedCount = 0;
 
           extracted.forEach((ext) => {
-            // Overlap check: is centerX/Y inside bounding box of any existing polygon?
+            // Overlap check
             const overlapping = floorPolygons.find(p => {
               let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
               for (let i = 0; i < p.points.length; i += 2) {
@@ -831,18 +835,15 @@ export function AirBalanceTable() {
                 if (p.points[i+1] < minY) minY = p.points[i+1];
                 if (p.points[i+1] > maxY) maxY = p.points[i+1];
               }
-              // Simple AABB check
               return ext.centerX >= minX && ext.centerX <= maxX && ext.centerY >= minY && ext.centerY <= maxY;
             });
 
             if (overlapping) {
               // Update existing
-              const newPolygons = useCanvasStore.getState().floors[activeFloorId].polygons.map(p => 
+              updatedPolygons = updatedPolygons.map(p => 
                 p.id === overlapping.id ? { ...p, points: ext.points } : p
               );
-              useCanvasStore.getState().updateFloorState(activeFloorId, { polygons: newPolygons });
               
-              // Recalculate area for this zone
               const area = calculatePolygonArea(ext.points) * (syncMultiplier ** 2);
               updateZone(overlapping.zoneId, { 
                 geometryArea: area,
@@ -850,56 +851,23 @@ export function AirBalanceTable() {
               });
               updatedCount++;
             } else {
-              // Create new
-              const newZoneId = `zone-dxf-${crypto.randomUUID()}`;
-              addZone({
-                id: newZoneId,
-                nr: `[DXF] ${selectedSyncLayer}`,
-                name: "Nowa strefa (CAD)",
-                activityType: 'CUSTOM',
-                calculationMode: 'AUTO_MAX',
-                systemSupplyId: '',
-                systemExhaustId: '',
-                area: 0,
-                manualArea: 0,
-                height: 3,
-                geometryArea: calculatePolygonArea(ext.points) * (syncMultiplier ** 2),
-                isAreaManual: false,
-                occupants: 1,
-                dosePerOccupant: 30,
-                isTargetACHManual: false,
-                manualTargetACH: null,
-                targetACH: 0,
-                normativeVolume: 0,
-                normativeExhaust: 0,
-                totalHeatGain: 0,
-                roomTemp: 24,
-                roomRH: 50,
-                supplyTemp: 16,
-                supplyRH: 80,
-                acousticAbsorption: 'MEDIUM',
-                maxAllowedDbA: 35,
-                isMaxDbAManual: false,
-                manualMaxAllowedDbA: null,
-                transferIn: [],
-                transferOut: [],
-                calculatedVolume: 0,
-                calculatedExhaust: 0,
-                transferInSum: 0,
-                transferOutSum: 0,
-                netBalance: 0,
-                realACH: 0,
-                floorId: activeFloorId,
+              // Add to DXF drawer instead of creating zone
+              newDxfOutlines.push({
+                id: crypto.randomUUID(),
+                points: ext.points,
+                area: calculatePolygonArea(ext.points) * (syncMultiplier ** 2)
               });
-
-              const newPoly = { id: crypto.randomUUID(), zoneId: newZoneId, points: ext.points };
-              const updatedPolys = [...(useCanvasStore.getState().floors[activeFloorId]?.polygons || []), newPoly];
-              useCanvasStore.getState().updateFloorState(activeFloorId, { polygons: updatedPolys });
               addedCount++;
             }
           });
 
-          toast.success(`Synchronizacja zakończona: zaktualizowano ${updatedCount}, dodano ${addedCount} nowych obrysów.`);
+          // Final update to floor state
+          useCanvasStore.getState().updateFloorState(activeFloorId, {
+            polygons: updatedPolygons,
+            dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines]
+          });
+
+          toast.success(`Synchronizacja zakończona: zaktualizowano ${updatedCount}, dodano ${addedCount} do szuflady CAD.`);
         }}
       />
       </div>

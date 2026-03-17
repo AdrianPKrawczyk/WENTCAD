@@ -34,6 +34,7 @@ export interface FloorCanvasState {
   polygons: { id: string, zoneId: string, points: number[] }[];
   currentTool: 'PEN' | 'RECT' | 'ERASER' | null;
   redefiningZoneId: string | null;
+  dxfOutlines: { id: string; points: number[]; area: number }[];
 }
 
 interface CanvasState {
@@ -78,6 +79,7 @@ const DEFAULT_FLOOR_STATE: FloorCanvasState = {
   polygons: [],
   currentTool: null,
   redefiningZoneId: null,
+  dxfOutlines: [],
 };
 
 export const useCanvasStore = create<CanvasState>()(
