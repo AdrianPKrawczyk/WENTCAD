@@ -31,6 +31,7 @@ export interface FloorCanvasState {
   referenceOrigin: Point | null; // (0,0) point on building
   panPosition: Point;
   zoomLevel: number;
+  polygons: { id: string, zoneId: string, points: number[] }[];
 }
 
 interface CanvasState {
@@ -41,6 +42,8 @@ interface CanvasState {
   calibrationPoints: Point[];
   isMeasuring: boolean;
   isSettingOrigin: boolean;
+  isDrawingPolygon: boolean;
+  currentPolygonPoints: Point[];
 
   // Actions
   getFloorState: (floorId: string) => FloorCanvasState;
@@ -51,6 +54,8 @@ interface CanvasState {
   setCalibrationPoints: (points: Point[]) => void;
   setIsMeasuring: (value: boolean) => void;
   setIsSettingOrigin: (value: boolean) => void;
+  setIsDrawingPolygon: (value: boolean) => void;
+  setCurrentPolygonPoints: (points: Point[]) => void;
   
   resetFloor: (floorId: string) => void;
   resetAll: () => void;
@@ -63,7 +68,8 @@ const DEFAULT_FLOOR_STATE: FloorCanvasState = {
   scaleFactor: null,
   referenceOrigin: null,
   panPosition: { x: 0, y: 0 },
-  zoomLevel: 1
+  zoomLevel: 1,
+  polygons: []
 };
 
 export const useCanvasStore = create<CanvasState>()(
@@ -75,6 +81,8 @@ export const useCanvasStore = create<CanvasState>()(
       calibrationPoints: [],
       isMeasuring: false,
       isSettingOrigin: false,
+      isDrawingPolygon: false,
+      currentPolygonPoints: [],
 
       getFloorState: (floorId: string) => {
         return get().floors[floorId] || DEFAULT_FLOOR_STATE;
@@ -109,8 +117,18 @@ export const useCanvasStore = create<CanvasState>()(
       setIsSettingOrigin: (isSettingOrigin) => set((state) => ({
         isSettingOrigin,
         isCalibrating: isSettingOrigin ? false : state.isCalibrating,
-        isMeasuring: isSettingOrigin ? false : state.isMeasuring
+        isMeasuring: isSettingOrigin ? false : state.isMeasuring,
+        isDrawingPolygon: isSettingOrigin ? false : state.isDrawingPolygon
       })),
+
+      setIsDrawingPolygon: (isDrawingPolygon) => set((state) => ({
+        isDrawingPolygon,
+        isCalibrating: isDrawingPolygon ? false : state.isCalibrating,
+        isMeasuring: isDrawingPolygon ? false : state.isMeasuring,
+        isSettingOrigin: isDrawingPolygon ? false : state.isSettingOrigin
+      })),
+
+      setCurrentPolygonPoints: (currentPolygonPoints) => set({ currentPolygonPoints }),
 
       resetFloor: (floorId) => {
         set((state) => {
@@ -125,7 +143,9 @@ export const useCanvasStore = create<CanvasState>()(
         isCalibrating: false,
         calibrationPoints: [],
         isMeasuring: false,
-        isSettingOrigin: false
+        isSettingOrigin: false,
+        isDrawingPolygon: false,
+        currentPolygonPoints: []
       }),
     }),
     {

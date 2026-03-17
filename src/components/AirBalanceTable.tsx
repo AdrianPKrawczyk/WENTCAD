@@ -95,10 +95,16 @@ export function AirBalanceTable() {
     { 
       field: 'area', 
       headerName: 'Pow. [m²]', 
-      editable: true, 
+      editable: (params) => !params.data?.isAreaLinkedToGeometry, 
       type: 'numericColumn', 
       width: 120,
-      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
+      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00',
+      cellStyle: (params) => {
+        if (params.data?.isAreaLinkedToGeometry) {
+          return { backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 'bold' };
+        }
+        return null;
+      }
     },
     { 
       field: 'height', 
