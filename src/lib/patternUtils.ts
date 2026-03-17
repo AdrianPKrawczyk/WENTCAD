@@ -2,7 +2,7 @@
  * Utility for creating Konva compatible hatch patterns
  */
 
-export function createPatternImage(patternType: string, color: string): HTMLImageElement | undefined {
+export function createPatternImage(patternType: string, color: string): HTMLCanvasElement | undefined {
   if (typeof document === 'undefined') return undefined;
 
   const size = 20;
@@ -20,7 +20,14 @@ export function createPatternImage(patternType: string, color: string): HTMLImag
   ctx.lineWidth = 1;
   ctx.lineCap = 'round';
 
-  switch (patternType.toUpperCase()) {
+  // Map Polish names from UI to technical IDs
+  let type = patternType.toUpperCase();
+  if (type === 'UKOŚNE') type = 'DIAGONAL';
+  if (type === 'KRATKA') type = 'GRID';
+  if (type === 'KROPKI') type = 'DOTS';
+  if (type === 'PODWÓJNE UKOŚNE') type = 'DIAGONAL_DOUBLE';
+
+  switch (type) {
     case 'DIAGONAL':
       ctx.beginPath();
       ctx.moveTo(0, size);
@@ -58,7 +65,5 @@ export function createPatternImage(patternType: string, color: string): HTMLImag
       return undefined;
   }
 
-  const img = new Image();
-  img.src = canvas.toDataURL();
-  return img;
+  return canvas;
 }

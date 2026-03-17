@@ -3,7 +3,7 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.9.3 ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.9.4 ZAKOŃCZONA
 * **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
 * **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
@@ -16,20 +16,12 @@
 * [x] **KROK 2.0: System Undo/Redo** - Done
 * [x] **KROK 2.3 UI: System Manager Enhancements** - Done
 * [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
-* [x] **FAZA 2.1: Silnik Graficzny 2D (react-konva, Pan, Zoom)** - Done
-* [x] **FAZA 2.2: Menadżer Podkładów Rastrowych (PNG/JPG)** - Done
-* [x] **FAZA 2.3: Kalibrator Skali i Narzędzie Pomiaru** - Done
-* [x] **FAZA 2.4: Rysowanie Stref (Zone Polygons) & Synchronizacja** - Done
-* [x] **FAZA 2.4.1: Optymalizacja rysowania (Snapping, Visuals, Manual Close)** - Done
-* [x] **FAZA 2.5: Pływający Przełącznik Kondygnacji (Workspace2D Overlay)** - Done
-* [x] **FAZA 2.6: Architektura UI Etapowa (7 Etapów Projektu)** - Done
-* [x] **FAZA 2.7: Kontekstowe Paski Narzędzi (Secondary Toolbar)** - Done
-* [x] **FAZA 2.8: Tryb Widoku Reversed Vertical Split** - Done
-* [x] **FAZA 2.4.2: Manual Area Override (v2) & Precyzja** - Done
-* [x] **FAZA 2.9: Workspace 2.0 (RECT, ERASER, Stable Floors)** - Done
-* [x] **FAZA 2.9.1: CAD Persistence Fix & Advanced Tools (Snap, Redefine)** - Done
 * [x] **FAZA 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
+* [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
+    *   Implementacja pływającego panelu filtracji (widoczność globalna + systemowa).
+    *   Wzory deseniu (Hatch) renderowane jako warstwa nakładkowa na rzucie 2D.
+    *   Poprawka mapowania nazw (polskie nazwy UI -> techniczne ID) oraz renderowanie synchroniczne (Canvas).
 * [ ] **FAZA 2.10: Eksport danych do raportu PDF** - Pending
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -98,7 +90,7 @@
 ### Iteracja 2.4: Kreator Systemów (System Wizard)
 - **Logika**: 5-krokowy kreator (`SystemWizardModal.tsx`) automatyzujący generowanie par Nawiew/Wywiew dla central (AHU) wraz z wentylatorami.
 - **Stylizacja Rodzin (Family Styling)**: Systemy powiązane (np. N1, W1, W1.1) otrzymują ten sam kolor bazowy. Wentylatory dodatkowo otrzymują deseń (pattern), co pozwala na wizualną hierarchizację.
-- **Undo/Redo Stability**: Wszystkie systemy generowane w kreatorze są dodawane do store'a za pomocą jednej akcji `addSystems`, co gwarantuje, że cała operacja zajmuje dokładnie JEDEN krok w historii (`zundo`).
+- **Undo/Redo Stability**: Wszystkie systemy generowane w kreatorze są dodawane do store'a za pomocą jednej akcji `addSystems`, co gwarantuje, że cała operacja zajmuje dokładnie JEDEN krok in historii (`zundo`).
 
 ## ARCHITEKTURA SILNIKA 2D (FAZA 2.1 & 2.2)
 
@@ -143,7 +135,7 @@
 - PDF (Supabase Storage) — do implementacji w Fazie 2.2 zaawansowanej.
 
 ### Iteracja 2.3 & 2.4: Kalibracja i Rysowanie (BIM foundations)
-- **Logika Skalowania**: `scaleFactor` zapisywany w `useCanvasStore` dla każdej kondygnacji. Obliczenia powierzchni: `areaPixels * (scaleFactor^2)`.
+- **Logika Skalowania**: `scaleFactor` zapisywany in `useCanvasStore` dla każdej kondygnacji. Obliczenia powierzchni: `areaPixels * (scaleFactor^2)`.
 - **Rysowanie stref**: Wykorzystanie `react-konva` do interaktywnego tworzenia wielokątów. 
 - **Snapping**: Przyciąganie do pierwszego punktu (snap-to-close) z wizualną informacją zwrotną (powiększenie punktu, zmiana koloru na zielony).
 - **Manualny fallback**: Przycisk "Zakończ obrys" w toolbarze dla długich/złożonych figur.
@@ -151,7 +143,7 @@
 
 ### Iteracja 2.5 & 2.6: Nawigacja i Architektura UI
 - **Floor Switcher**: Pływający panel nad Stage pozwala na szybkie przełączanie kontekstu bez opuszczania widoku rysunku.
-- **Stage Navigation**: Wprowadzenie `currentStage` (1-7) w `useUIStore`. Sidebar pionowy staje się głównym nawigatorem procesu projektowego.
+- **Stage Navigation**: Wprowadzenie `currentStage` (1-7) in `useUIStore`. Sidebar pionowy staje się głównym nawigatorem procesu projektowego.
 - **Secondary Toolbar**: Kontekstowy pasek obok Sidebaru, zawierający narzędzia specyficzne dla danego etapu (np. layouty Canvas/Tabela w Etapie 2).
 
 ### Iteracja 2.8: Elastyczność Layoutu
@@ -199,3 +191,15 @@
   - **Checked Multi-Select**: Strefy zaznaczone checkboxami w tabeli otrzymują na rzucie bursztynowy/pomarańczowy kolor (`#f59e0b80`) z efektem poświaty (`shadowBlur`).
   - **Active Selection**: Strefa wybrana (kliknięta) jest wyróżniona kolorem indygo (`#4f46e560`).
   - **Priorytety**: Logika stylizacji uwzględnia tryb redefinicji (czerwony) oraz nakłada wyróżnienia na bazowe kolory systemowe (jeśli włączone).
+
+### Iteracja 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji
+- **Hatch Patterns (Desenie)**:
+  - **Mechanizm**: Wprowadzono `createPatternImage` w `src/lib/patternUtils.ts`, który generuje wzory (ukośne, kratka, kropki) jako elementy Canvas.
+  - **Renderowanie**: W `Workspace2D.tsx` zastosowano warstwowe podejście – poligon rysuje tło (`fill`), a następnie nakładana jest druga warstwa z wzorem (`fillPatternImage`) i przezroczystością.
+  - **Skalowanie**: `fillPatternScale` jest dynamicznie przeliczane jako `1 / scale`, dzięki czemu gęstość wzoru na ekranie pozostaje stała niezależnie od poziomu przybliżenia.
+  - **Mapowanie**: Dodano logikę mapującą polskie nazwy z UI (np. „Ukośne”) na techniczne identyfikatory wzorów.
+- **Filtracja Widoczności**:
+  - **Zone Store**: Dodano stany `showZonesOnCanvas` (globalny przełącznik) oraz `hiddenSystemIdsOnCanvas` (lista ukrytych systemów).
+  - **Filtr Panel**: Implementacja pływającego panelu „Widoczność Stref” w Workspace2D. Pozwala na selektywne ukrywanie stref przypisanych do konkretnych systemów oraz stref bez przypisanego systemu („Brak systemu”).
+  - **Logika**: Strefa jest ukrywana, jeśli którykolwiek z jej systemów (nawiewny lub wywiewny) znajduje się na liście `hiddenSystemIdsOnCanvas`.
+- **TopBar**: Dodano interaktywne ikony 👁️ (Widoczność) i 🎛️ (Filtry) integrujące się ze stanem stref.

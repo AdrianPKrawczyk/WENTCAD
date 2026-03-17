@@ -149,11 +149,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   // Hatch Pattern memoization
   const systemPatterns = useMemo(() => {
-    const patterns: Record<string, HTMLImageElement> = {};
+    const patterns: Record<string, HTMLCanvasElement> = {};
     systems.forEach(sys => {
       if (sys.patternId && sys.color) {
-        const img = createPatternImage(sys.patternId, sys.color);
-        if (img) patterns[sys.id] = img;
+        const patternElement = createPatternImage(sys.patternId, sys.color);
+        if (patternElement) patterns[sys.id] = patternElement;
       }
     });
     return patterns;
@@ -766,8 +766,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
             if (!zone) return null;
             
             // System Filtering Logic
-            const systemId = zone.systemSupplyId || zone.systemExhaustId || 'none';
-            if (hiddenSystemIdsOnCanvas.includes(systemId)) return null;
+            const hasSupplySystem = !!zone.systemSupplyId;
+            const hasExhaustSystem = !!zone.systemExhaustId;
+            
+            const isSupplyHidden = zone.systemSupplyId ? hiddenSystemIdsOnCanvas.includes(zone.systemSupplyId) : false;
+            const isExhaustHidden = zone.systemExhaustId ? hiddenSystemIdsOnCanvas.includes(zone.systemExhaustId) : false;
+            const isNoneHidden = (!hasSupplySystem && !hasExhaustSystem) ? hiddenSystemIdsOnCanvas.includes('none') : false;
+
+            // If any associated system is hidden, or if no system and 'none' is hidden
+            if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
 
             const style = resolveZoneStyle(zone, systems); 
             
@@ -841,7 +848,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   <Line
                     points={poly.points}
                     closed={true}
-                    fillPatternImage={patternImg}
+                    fillPatternImage={patternImg as any}
                     fillPatternRepeat="repeat"
                     fillPatternScale={{ x: 1 / scale, y: 1 / scale }}
                     listening={false} // Click should fall through to the base Line
