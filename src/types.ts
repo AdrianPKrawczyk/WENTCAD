@@ -30,7 +30,6 @@ export interface GlobalTagSettings {
   fillColor: string; // Tło metki, np. '#ffffff'
   strokeColor: string; // Ramka metki, np. '#000000'
   isFixedSize: boolean;
-  leftColumnWidth: number;
 }
 
 // ============================================

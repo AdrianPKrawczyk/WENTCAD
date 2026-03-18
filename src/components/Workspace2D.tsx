@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag, Group } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag, Group, Rect } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
@@ -21,6 +21,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 const ZOOM_SENSITIVITY = 1.12;
+
+const measureTextWidth = (text: string, fontSize: number): number => {
+  if (!text) return 0;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.font = `${fontSize}px sans-serif`;
+    const lines = text.split('\n');
+    return Math.max(...lines.map(line => context.measureText(line).width));
+  }
+  return 0;
+};
 
 interface Workspace2DProps {
   className?: string;
@@ -1095,10 +1107,28 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const texts = generateTagText(zone.id);
             if (!texts.col1 && !texts.col2) return null;
 
+            const fontSize = globalTagSettings.fontSize;
+            const lineHeight = 1.2;
+            const padding = 8;
+            const gap = 15;
+
+            const col1Width = measureTextWidth(texts.col1, fontSize);
+            const col2Width = measureTextWidth(texts.col2, fontSize);
+            
+            const col1Lines = texts.col1 ? texts.col1.split('\n').length : 0;
+            const col2Lines = texts.col2 ? texts.col2.split('\n').length : 0;
+            const maxLines = Math.max(col1Lines, col2Lines);
+
+            const totalWidth = (texts.col1 ? col1Width : 0) + 
+                               (texts.col2 ? col2Width : 0) + 
+                               (texts.col1 && texts.col2 ? gap : 0) + 
+                               padding * 2;
+            const totalHeight = (maxLines * fontSize * lineHeight) + padding * 2;
+
             const tagScale = globalTagSettings.isFixedSize ? (1 / scale) : 1;
 
             return (
-              <Label
+              <Group
                 key={`tag-${zone.id}`}
                 x={tagPos.x}
                 y={tagPos.y}
@@ -1110,14 +1140,17 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     tagPosition: { x: e.target.x(), y: e.target.y() } 
                   });
                 }}
+                onClick={(e) => e.cancelBubble = true}
               >
-                <Tag
+                <Rect
+                  width={totalWidth}
+                  height={totalHeight}
                   fill={globalTagSettings.fillColor}
-                  cornerRadius={4}
                   stroke={globalTagSettings.strokeColor}
                   strokeWidth={1}
-                  shadowColor="black"
-                  shadowBlur={4}
+                  cornerRadius={4}
+                  shadowColor="rgba(0,0,0,0.15)"
+                  shadowBlur={5}
                   shadowOffset={{ x: 2, y: 2 }}
                   shadowOpacity={0.2}
                 />
@@ -1126,11 +1159,13 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 {texts.col1 && (
                   <Text
                     text={texts.col1}
+                    x={padding}
+                    y={padding}
                     fontFamily="sans-serif"
-                    fontSize={globalTagSettings.fontSize}
-                    padding={6}
+                    fontSize={fontSize}
                     fill="#1e293b"
-                    lineHeight={1.2}
+                    lineHeight={lineHeight}
+                    align="left"
                   />
                 )}
 
@@ -1138,15 +1173,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 {texts.col2 && (
                   <Text
                     text={texts.col2}
-                    x={texts.col1 ? globalTagSettings.leftColumnWidth : 0}
+                    x={texts.col1 ? padding + col1Width + gap : padding}
+                    y={padding}
                     fontFamily="sans-serif"
-                    fontSize={globalTagSettings.fontSize}
-                    padding={6}
+                    fontSize={fontSize}
                     fill="#1e293b"
-                    lineHeight={1.2}
+                    lineHeight={lineHeight}
+                    align="left"
                   />
                 )}
-              </Label>
+              </Group>
             );
           })}
 

@@ -249,12 +249,14 @@
     - **Fix**: Rozwiązano problem pętli zwrotnej (selection feedback loop) pomiędzy stanem Zustand a ag-Grid. 
     - **Behavior**: Checkboxy w tabeli służą do stabilnej pracy masowej (nie odznaczają się przy dodawaniu kolejnych), natomiast kliknięcie obiektu na rzucie focusuje tabelę na nowym elemencie, czyszcząc poprzednie zaznaczenia (standardowy UX projektowy).
 
-###- [x] Phase 2.9.8: Smart Tag Refinements (Fixed Size, Preview Reactivity)
-- [x] Phase 2.9.9: Two-Column Tag Layout (Configurable columns, dynamic offset)
-### Iteracja 2.9.7: Smart Tag Builder (Metki)
-- **Interfejsy**: Dodano `TagFieldConfig` i `GlobalTagSettings` do `types.ts`. Obiekt `ZoneData` rozszerzony o `tagPosition`.
-- **Zustand**: `useZoneStore` przechowuje globalną konfigurację pól (prefix, suffix, order). Implementacja `updateGlobalTagSettings`.
-- **Geometria**: Nowy moduł `calculatePolygonCentroid` w `geometryUtils.ts` (Shoelace algorithm).
-- **UI (Modal)**: `SmartTagModal.tsx` z obsługą `react-hook-form` i Live Preview. Pozwala na dynamiczną reorganizację wierszy metki.
-- **Canvas**: Renderowanie za pomocą Konva `<Label>` i `<Tag>`. Obsługa natywnego **Drag & Drop** dla każdej metki z zapisem pozycji do store.
-- **Zależności**: Dodano `react-hook-form` do projektu.
+### Iteracja 2.9.7 - 2.9.11: Smart Tag Builder (Metki)
+- **Architektura**: Wprowadzono system metek sterowany globalną konfiguracją (`GlobalTagSettings` w `useZoneStore.ts`).
+- **Dynamiczny Layout**: 
+    - Porzucono sztywne pozycjonowanie i szerokości na rzecz automatycznego obliczania rozmiaru (`measureTextWidth`) za pomocą Canvas API.
+    - Metki renderowane jako `Group` zawierająca `Rect` i dwa komponenty `Text`, co zapewnia idealne dopasowanie tła do zawartości obu kolumn.
+- **Dwie Kolumny**: Pełna obsługa podziału pól na dwie kolumny z automatycznym pozycjonowaniem i odstępem (`gap`).
+- **Skalowanie**: Opcja `isFixedSize` (stały rozmiar na ekranie) realizowana przez odwrotną skalę (`1 / scale`) na poziomie grupy.
+- **Konfigurator (Modal)**: 
+    - Wykorzystanie `react-hook-form` i `useFieldArray` do zarządzania kolejnością, widocznością i przypisaniem do kolumn.
+    - **Live Preview**: Wierna reprezentacja metki (`inline-flex`) z ręcznym przyciskiem wymuszenia odświeżenia ("Odśwież").
+- **Interakcja**: Natywna obsługa Drag & Drop z zapisem pozycji `tagPosition` bezpośrednio w danych strefy (`ZoneData`).

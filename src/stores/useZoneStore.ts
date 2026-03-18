@@ -32,7 +32,6 @@ const DEFAULT_TAG_SETTINGS: GlobalTagSettings = {
   fillColor: '#ffffff',
   strokeColor: '#cbd5e1',
   isFixedSize: true,
-  leftColumnWidth: 100,
   fields: DEFAULT_TAG_FIELDS,
 };
 

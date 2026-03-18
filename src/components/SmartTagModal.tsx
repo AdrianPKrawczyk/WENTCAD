@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useZoneStore } from '../stores/useZoneStore';
 import type { TagFieldConfig, TagFieldType, GlobalTagSettings } from '../types';
-import { X, ChevronUp, ChevronDown, Tag as TagIcon, Eye } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, Tag as TagIcon, Eye, RefreshCw } from 'lucide-react';
 
 interface SmartTagModalProps {
   isOpen: boolean;
@@ -41,6 +41,7 @@ const MOCK_ZONE: any = {
 export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
   const updateGlobalTagSettings = useZoneStore((s) => s.updateGlobalTagSettings);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const { register, control, handleSubmit, watch, reset } = useForm<GlobalTagSettings>({
     defaultValues: globalTagSettings
@@ -111,7 +112,7 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
       col1: generateColText(activeFields.filter(f => f.column === 1)),
       col2: generateColText(activeFields.filter(f => f.column === 2))
     };
-  }, [watchedFields]);
+  }, [watchedFields, watchedFontSize, refreshTick]);
 
   if (!isOpen) return null;
 
@@ -244,14 +245,6 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Odsunięcie kolumny (px)</label>
-                    <input 
-                      type="number" 
-                      {...register('leftColumnWidth', { valueAsNumber: true })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-                  <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Kolor Tła</label>
                     <input 
                       type="color" 
@@ -259,7 +252,7 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
                       className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
                     />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Kolor Ramki</label>
                     <input 
                       type="color" 
@@ -274,35 +267,44 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
 
           {/* Right: Live Preview */}
           <div className="w-80 bg-slate-50 p-6 flex flex-col gap-6">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-              <Eye className="w-4 h-4" />
-              Podgląd na żywo
-            </h3>
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Eye className="w-4 h-4 text-indigo-600" />
+                Podgląd na żywo
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRefreshTick(t => t + 1)}
+                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors group"
+                title="Odśwież podgląd"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshTick > 0 ? 'group-active:animate-spin' : ''}`} />
+              </button>
+            </div>
             
             <div className="flex-1 flex items-center justify-center p-8 bg-white border border-slate-200 rounded-2xl shadow-inner relative overflow-hidden pattern-dots">
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
               <div 
-                className="p-6 rounded-xl border-2 shadow-2xl transition-all duration-300 max-w-full overflow-hidden flex"
+                className="inline-flex gap-6 rounded-xl border-2 shadow-2xl transition-all duration-300 p-4"
                 style={{ 
                   backgroundColor: watchedFillColor,
-                  borderColor: watchedStrokeColor
+                  borderColor: watchedStrokeColor,
+                  fontSize: `${watchedFontSize}px`
                 }}
               >
-                <div 
-                  className="font-sans text-slate-800 whitespace-pre-wrap leading-relaxed border-r border-slate-200 pr-4 mr-4"
-                  style={{ 
-                    fontSize: `${watchedFontSize * 1.5}px`,
-                    minWidth: `${(watch('leftColumnWidth') || 100) * 1.5}px`
-                  }}
-                >
-                  {previewColumns.col1 || <span className="text-slate-300 italic">Kolumna 1</span>}
-                </div>
-                <div 
-                  className="font-sans text-slate-800 whitespace-pre-wrap leading-relaxed"
-                  style={{ fontSize: `${watchedFontSize * 1.5}px` }}
-                >
-                  {previewColumns.col2 || <span className="text-slate-300 italic">Kolumna 2</span>}
-                </div>
+                {previewColumns.col1 && (
+                  <div className="whitespace-pre-wrap text-slate-800 text-left leading-relaxed font-sans">
+                    {previewColumns.col1}
+                  </div>
+                )}
+                {previewColumns.col2 && (
+                  <div className="whitespace-pre-wrap text-slate-800 text-left leading-relaxed font-sans">
+                    {previewColumns.col2}
+                  </div>
+                )}
+                {!previewColumns.col1 && !previewColumns.col2 && (
+                  <span className="text-slate-300 italic font-sans">Brak wybranych pól</span>
+                )}
               </div>
             </div>
 
