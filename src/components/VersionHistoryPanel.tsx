@@ -17,6 +17,8 @@ export function VersionHistoryPanel() {
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const columnState = useZoneStore((s) => s.columnState);
+  const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
+  const globalPatternScale = useZoneStore((s) => s.globalPatternScale);
 
   const [newSnapshotName, setNewSnapshotName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -32,7 +34,9 @@ export function VersionHistoryPanel() {
       stylePresets, 
       isSystemColoringEnabled, 
       globalSystemOpacity,
-      columnState 
+      columnState,
+      globalTagSettings,
+      globalPatternScale
     });
     setNewSnapshotName('');
     setIsSaving(false);

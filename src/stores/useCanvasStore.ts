@@ -32,7 +32,7 @@ export interface FloorCanvasState {
   panPosition: Point;
   zoomLevel: number;
   polygons: { id: string, zoneId: string, points: number[] }[];
-  currentTool: 'PEN' | 'RECT' | 'ERASER' | null;
+  currentTool: 'PEN' | 'RECT' | 'ERASER' | 'CROP' | null;
   redefiningZoneId: string | null;
   dxfOutlines: { id: string; points: number[]; area: number }[];
 }
@@ -63,7 +63,7 @@ interface CanvasState {
   resetFloor: (floorId: string) => void;
   resetAll: () => void;
   clearUnderlay: (floorId: string) => void;
-  setCurrentTool: (floorId: string, tool: 'PEN' | 'RECT' | 'ERASER' | null) => void;
+  setCurrentTool: (floorId: string, tool: 'PEN' | 'RECT' | 'ERASER' | 'CROP' | null) => void;
   setRedefiningZoneId: (floorId: string, zoneId: string | null) => void;
   removePolygonByZoneId: (floorId: string, zoneId: string) => void;
 }

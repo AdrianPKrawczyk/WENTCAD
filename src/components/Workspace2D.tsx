@@ -6,13 +6,15 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
 import { renderDxfToDataUrl, parseDxfFile } from '../lib/dxfUtils';
 import { DxfUnitModal } from './DxfUnitModal';
 import { LinkOutlineModal } from './LinkOutlineModal';
+import { ExportModal } from './ExportModal';
+import { exportToDXF, downloadDXF } from '../lib/dxfExport';
 
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
@@ -156,7 +158,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
-  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [forceHideUnderlay, setForceHideUnderlay] = useState(false);
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
@@ -361,6 +365,38 @@ export function Workspace2D({ className }: Workspace2DProps) {
             setIsDrawingPolygon(false);
             setCurrentPolygonPoints([]);
             toast.success('Narysowano prostokąt.');
+          }
+        } else if (currentTool === 'CROP') {
+          if (currentPolygonPoints.length === 0) {
+            setCurrentPolygonPoints([canvasPos]);
+          } else {
+            // Finish crop frame
+            const p1 = currentPolygonPoints[0];
+            const p2 = canvasPos;
+            const x = Math.min(p1.x, p2.x);
+            const y = Math.min(p1.y, p2.y);
+            const width = Math.abs(p2.x - p1.x);
+            const height = Math.abs(p2.y - p1.y);
+
+            if (width > 5 && height > 5) {
+              const regionName = window.prompt("Podaj nazwę kadru (np. Kuchnia, Skrzydło A):", "Kadr 1");
+              if (regionName) {
+                const newRegion = {
+                  id: `crop-${Date.now()}`,
+                  name: regionName,
+                  x, y, width, height
+                };
+                const existingRegions = activeFloorMetadata?.exportRegions || [];
+                updateFloor(activeFloorId, {
+                  exportRegions: [...existingRegions, newRegion]
+                });
+                toast.success(`Zapisano kadr: ${regionName}`);
+              }
+            }
+            
+            setIsDrawingPolygon(false);
+            setCurrentPolygonPoints([]);
+            setCurrentTool(activeFloorId, null);
           }
         } else {
           // PEN tool logic
@@ -647,6 +683,62 @@ export function Workspace2D({ className }: Workspace2DProps) {
     e.target.value = '';
   }, [setUnderlay]);
 
+  const handleExportPNG = useCallback(async (regionId: string, includeBackground: boolean) => {
+    const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
+    if (!region || !stageRef.current) return;
+
+    if (!includeBackground) setForceHideUnderlay(true);
+
+    // Give time for React to re-render without underlay
+    setTimeout(() => {
+      try {
+        const stage = stageRef.current!;
+        const dataUrl = stage.toDataURL({
+          x: region.x * scale + position.x,
+          y: region.y * scale + position.y,
+          width: region.width * scale,
+          height: region.height * scale,
+          pixelRatio: 2
+        });
+
+        const link = document.createElement('a');
+        link.download = `${underlayName || 'WENTCAD'}_${region.name}_export.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Wyeksportowano kadr: ${region.name}`);
+      } catch (err) {
+        console.error(err);
+        toast.error('Błąd podczas generowania PNG.');
+      } finally {
+        setForceHideUnderlay(false);
+        setIsExportModalOpen(false);
+      }
+    }, 100);
+  }, [activeFloorMetadata, scale, position, underlayName]);
+
+  const handleExportDXF = useCallback((regionId: string) => {
+    const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
+    if (!region) return;
+
+    try {
+      const dxfString = exportToDXF(
+        floorState,
+        zones,
+        generateTagText
+      );
+      
+      downloadDXF(dxfString, `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`);
+      toast.success(`Wyeksportowano DXF: ${region.name}`);
+      setIsExportModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Błąd podczas generowania DXF.');
+    }
+  }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName]);
+
   const zoomPercent = Math.round(scale * 100);
 
   const drawGrid = () => {
@@ -792,7 +884,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       >
         <Layer name="background">
           {drawGrid()}
-          {underlayImage && underlaySize && (
+          {underlayImage && underlaySize && !forceHideUnderlay && (
             <KonvaImage
               image={underlayImage}
               x={0}
@@ -1226,6 +1318,69 @@ export function Workspace2D({ className }: Workspace2DProps) {
             />
           )}
 
+          {/* Current Drawing Crop (CROP) */}
+          {(isDrawingPolygon && currentTool === 'CROP') && currentPolygonPoints.length === 1 && (
+            <Line
+              points={[
+                currentPolygonPoints[0].x, currentPolygonPoints[0].y,
+                mousePos.x, currentPolygonPoints[0].y,
+                mousePos.x, mousePos.y,
+                currentPolygonPoints[0].x, mousePos.y
+              ]}
+              closed={true}
+              stroke="#10b981"
+              strokeWidth={2 / scale}
+              fill="#10b98120"
+              dash={[5 / scale, 5 / scale]}
+            />
+          )}
+
+          {/* Render Saved Export Regions */}
+          {activeFloorMetadata?.exportRegions?.map((region) => (
+            <Group key={region.id}>
+              <Rect
+                x={region.x}
+                y={region.y}
+                width={region.width}
+                height={region.height}
+                stroke="#10b981"
+                strokeWidth={1 / scale}
+                dash={[10 / scale, 10 / scale]}
+                opacity={0.6}
+              />
+              <Text
+                x={region.x}
+                y={region.y - 12 / scale}
+                text={`📷 ${region.name}`}
+                fontSize={10 / scale}
+                fill="#059669"
+                fontStyle="bold"
+              />
+              <Group
+                x={region.x + region.width - 12 / scale}
+                y={region.y}
+                onClick={(e) => {
+                  e.cancelBubble = true;
+                  if (confirm(`Czy usunąć kadr "${region.name}"?`)) {
+                    const filtered = (activeFloorMetadata.exportRegions || []).filter(r => r.id !== region.id);
+                    updateFloor(activeFloorId, { exportRegions: filtered });
+                  }
+                }}
+                onMouseEnter={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'pointer';
+                }}
+                onMouseLeave={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+              >
+                 <Rect width={12 / scale} height={12 / scale} fill="#fee2e2" cornerRadius={2 / scale} />
+                 <Text text="×" x={3 / scale} y={-1 / scale} fontSize={12 / scale} fill="#ef4444" fontStyle="bold" />
+              </Group>
+            </Group>
+          ))}
+
           {/* Measuring Line Visual */}
           {(isMeasuring || measurePoints.length === 2) && measurePoints.length > 0 && (
             <>
@@ -1442,6 +1597,19 @@ export function Workspace2D({ className }: Workspace2DProps) {
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
+          <button
+            onClick={() => {
+              setCurrentTool(activeFloorId, 'CROP');
+              setIsDrawingPolygon(true);
+              setCurrentPolygonPoints([]);
+              toast.info('Tryb kadrowania: Narysuj prostokąt eksportu.');
+            }}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${currentTool === 'CROP' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Kadrowanie (Eksport)"
+          >
+            <Crop className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold">Kadr</span>
+          </button>
         </div>
 
         <button
@@ -1473,6 +1641,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
         >
           <TagIcon className="w-4 h-4 text-slate-500" />
           Metki
+        </button>
+
+        <button
+          onClick={() => setIsExportModalOpen(true)}
+          title="Eksportuj do PNG/DXF"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
+        >
+          <Download className="w-4 h-4 text-indigo-500" />
+          Eksport
         </button>
 
         {isDrawingPolygon && currentPolygonPoints.length > 2 && (
@@ -1662,6 +1839,13 @@ export function Workspace2D({ className }: Workspace2DProps) {
       <SmartTagModal
         isOpen={isTagModalOpen}
         onClose={() => setIsTagModalOpen(false)}
+      />
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExportPNG={handleExportPNG}
+        onExportDXF={handleExportDXF}
       />
     </div>
   );

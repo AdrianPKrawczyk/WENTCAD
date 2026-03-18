@@ -91,6 +91,7 @@ export interface Floor {
     points: number[];
     area: number;
   }[];
+  exportRegions?: { id: string; name: string; x: number; y: number; width: number; height: number }[];
 }
 
 export interface ZoneData {
