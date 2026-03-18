@@ -703,67 +703,73 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
     if (!region || !stageRef.current) return;
 
+    const stage = stageRef.current!;
+    const stageWidth = stage.width();
+    const stageHeight = stage.height();
+
     try {
-      const stage = stageRef.current!;
-      
-      // 1. Ukryj warstwy UI (siatka, ramki, znaczniki, podkład)
-      if (uiLayerRef.current) {
-        uiLayerRef.current.hide();
-      }
-      if (uiOverlayLayerRef.current) {
-        uiOverlayLayerRef.current.hide();
-      }
-      
-      // 2. Ukryj podkład jeśli nie chcemy go w eksporcie
-      const hideUnderlay = !includeBackground;
-      if (hideUnderlay && underlayImage) {
-        setForceHideUnderlay(true);
-      }
-      
-      // 3. Poczekaj na re-render i wymuś redraw
-      await new Promise(resolve => setTimeout(resolve, 50));
-      stage.draw();
-      
-      // 4. Zapisz obecny widok
+      // 1. Zapisz obecny widok
       const oldScale = stage.scaleX();
       const oldPos = stage.position();
       
-      // 5. Przelicz współrzędne kadru do układu sceny przy scale=1
-      // Współrzędne kadru są zapisane w scene coords przy aktualnym zoomie
-      // Musimy je przeskalować, bo teraz scale będzie = 1
-      const exportX = (region.x * oldScale) + oldPos.x;
-      const exportY = (region.y * oldScale) + oldPos.y;
-      const exportWidth = region.width * oldScale;
-      const exportHeight = region.height * oldScale;
+      // 2. Ukryj warstwy UI (siatka, ramki, znaczniki)
+      if (uiLayerRef.current) uiLayerRef.current.hide();
+      if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.hide();
       
-      // 6. Resetuj widok do scale=1, position=(0,0)
+      // 3. Ukryj podkład jeśli nie chcemy go w eksporcie
+      const hideUnderlay = !includeBackground;
+      if (hideUnderlay) setForceHideUnderlay(true);
+      
+      // 4. Poczekaj na re-render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      stage.draw();
+      
+      // 5. Resetuj widok do scale=1, position=(0,0)
+      // UWAGA: Po resecie scene coords = screen coords, więc region.* można użyć bezpośrednio
       stage.scale({ x: 1, y: 1 });
       stage.position({ x: 0, y: 0 });
       stage.draw();
       
-      // 7. Pobierz zrzut z dokładnym kadrem
+      // 6. Waliduj współrzędne kadru
+      // Jeśli kadr wykracza poza canvas, ogranicz go
+      let exportX = region.x;
+      let exportY = region.y;
+      let exportWidth = region.width;
+      let exportHeight = region.height;
+      
+      if (exportX < 0) {
+        exportWidth += exportX;
+        exportX = 0;
+      }
+      if (exportY < 0) {
+        exportHeight += exportY;
+        exportY = 0;
+      }
+      exportWidth = Math.min(exportWidth, stageWidth - exportX);
+      exportHeight = Math.min(exportHeight, stageHeight - exportY);
+      
+      if (exportWidth <= 0 || exportHeight <= 0) {
+        toast.error('Kadr znajduje się poza widocznym obszarem.');
+        throw new Error('Kadr poza obszarem');
+      }
+      
+      // 7. Pobierz zrzut z dokładnym kadrem (scene coords = screen coords po resecie)
       const dataUrl = stage.toDataURL({
         x: exportX,
         y: exportY,
         width: exportWidth,
         height: exportHeight,
-        pixelRatio: 3
+        pixelRatio: 3 // Wysoka jakość dla CAD
       });
       
       // 8. Przywróć obecny widok użytkownika
       stage.scale({ x: oldScale, y: oldScale });
       stage.position(oldPos);
       
-      // 9. Pokaż warstwy UI z powrotem
-      if (uiLayerRef.current) {
-        uiLayerRef.current.show();
-      }
-      if (uiOverlayLayerRef.current) {
-        uiOverlayLayerRef.current.show();
-      }
-      if (hideUnderlay) {
-        setForceHideUnderlay(false);
-      }
+      // 9. Przywróć widoczność UI
+      if (uiLayerRef.current) uiLayerRef.current.show();
+      if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.show();
+      if (hideUnderlay) setForceHideUnderlay(false);
       
       stage.draw();
       
@@ -780,16 +786,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
     } catch (err) {
       console.error(err);
       toast.error('Błąd podczas generowania PNG.');
-      // Przywróć UI nawet w przypadku błędu
       if (stageRef.current) {
         stageRef.current.draw();
       }
-      if (uiLayerRef.current) {
-        uiLayerRef.current.show();
-      }
-      if (uiOverlayLayerRef.current) {
-        uiOverlayLayerRef.current.show();
-      }
+      if (uiLayerRef.current) uiLayerRef.current.show();
+      if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.show();
       setForceHideUnderlay(false);
     }
   }, [activeFloorMetadata, underlayImage, underlayName]);
