@@ -1723,7 +1723,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         </div>
 
         <button
-          disabled={!selectedZoneId || !scaleFactor}
+          disabled={!scaleFactor}
           onClick={() => {
             if (isDrawingPolygon) {
               setIsDrawingPolygon(false);
