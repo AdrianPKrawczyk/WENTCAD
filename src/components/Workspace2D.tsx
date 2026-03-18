@@ -65,6 +65,8 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
 export function Workspace2D({ className }: Workspace2DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const uiLayerRef = useRef<Konva.Layer>(null);
+  const contentLayerRef = useRef<Konva.Layer>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { width: containerWidth, height: containerHeight } = useContainerSize(containerRef);
@@ -687,39 +689,87 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
     if (!region || !stageRef.current) return;
 
-    if (!includeBackground) setForceHideUnderlay(true);
-
-    // Give time for React to re-render without underlay
-    setTimeout(() => {
-      try {
-        const stage = stageRef.current!;
-        // region.x, y, width, height są już w scene coordinates (nie w screen coords)
-        // Konva.toDataURL() oczekuje współrzędnych sceny, więc używamy ich bezpośrednio
-        const dataUrl = stage.toDataURL({
-          x: region.x,
-          y: region.y,
-          width: region.width,
-          height: region.height,
-          pixelRatio: 2
-        });
-
-        const link = document.createElement('a');
-        link.download = `${underlayName || 'WENTCAD'}_${region.name}_export.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success(`Wyeksportowano kadr: ${region.name}`);
-      } catch (err) {
-        console.error(err);
-        toast.error('Błąd podczas generowania PNG.');
-      } finally {
-        setForceHideUnderlay(false);
-        setIsExportModalOpen(false);
+    try {
+      const stage = stageRef.current!;
+      
+      // 1. Ukryj warstwę UI (siatka, ramki, znaczniki)
+      if (uiLayerRef.current) {
+        uiLayerRef.current.hide();
       }
-    }, 100);
-  }, [activeFloorMetadata, scale, position, underlayName]);
+      
+      // 2. Ukryj podkład jeśli nie chcemy go w eksporcie
+      const hideUnderlay = !includeBackground;
+      if (hideUnderlay && underlayImage) {
+        setForceHideUnderlay(true);
+      }
+      
+      // 3. Poczekaj na re-render i wymuś redraw
+      await new Promise(resolve => setTimeout(resolve, 50));
+      stage.draw();
+      
+      // 4. Zapisz obecny widok
+      const oldScale = stage.scaleX();
+      const oldPos = stage.position();
+      
+      // 5. Przelicz współrzędne kadru do układu sceny przy scale=1
+      // Współrzędne kadru są zapisane w scene coords przy aktualnym zoomie
+      // Musimy je przeskalować, bo teraz scale będzie = 1
+      const exportX = (region.x * oldScale) + oldPos.x;
+      const exportY = (region.y * oldScale) + oldPos.y;
+      const exportWidth = region.width * oldScale;
+      const exportHeight = region.height * oldScale;
+      
+      // 6. Resetuj widok do scale=1, position=(0,0)
+      stage.scale({ x: 1, y: 1 });
+      stage.position({ x: 0, y: 0 });
+      stage.draw();
+      
+      // 7. Pobierz zrzut z dokładnym kadrem
+      const dataUrl = stage.toDataURL({
+        x: exportX,
+        y: exportY,
+        width: exportWidth,
+        height: exportHeight,
+        pixelRatio: 3
+      });
+      
+      // 8. Przywróć obecny widok użytkownika
+      stage.scale({ x: oldScale, y: oldScale });
+      stage.position(oldPos);
+      
+      // 9. Pokaż warstwę UI z powrotem
+      if (uiLayerRef.current) {
+        uiLayerRef.current.show();
+      }
+      if (hideUnderlay) {
+        setForceHideUnderlay(false);
+      }
+      
+      stage.draw();
+      
+      // 10. Pobierz i zapisz plik
+      const link = document.createElement('a');
+      link.download = `${underlayName || 'WENTCAD'}_${region.name}_export.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(`Wyeksportowano kadr: ${region.name}`);
+      setIsExportModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Błąd podczas generowania PNG.');
+      //确保即使出错也恢复UI状态
+      if (stageRef.current) {
+        stageRef.current.draw();
+      }
+      if (uiLayerRef.current) {
+        uiLayerRef.current.show();
+      }
+      setForceHideUnderlay(false);
+    }
+  }, [activeFloorMetadata, underlayImage, underlayName]);
 
   const handleExportDXF = useCallback((regionId: string) => {
     const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
@@ -741,6 +791,34 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
       toast.error('Błąd podczas generowania DXF.');
     }
   }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName]);
+
+  const handleEditRegion = useCallback((region: { id: string; name: string; x: number; y: number; width: number; height: number }) => {
+    // Zamknij modal eksportu
+    setIsExportModalOpen(false);
+    
+    // Przełącz na kondygnację do której należy kadr
+    if (activeFloorId) {
+      // Ustaw narzędzie CROP i tryb edycji
+      setCurrentTool(activeFloorId, 'CROP');
+      
+      // Rozpocznij "redraw" - ustaw punkt początkowy na lewy górny róg kadru
+      setCurrentPolygonPoints([{ x: region.x, y: region.y }]);
+      setIsDrawingPolygon(true);
+      
+      toast.info(`Edytujesz kadr "${region.name}". Przeciągnij, aby zmienić rozmiar.`);
+    }
+  }, [activeFloorId]);
+
+  const handleDeleteRegion = useCallback((regionId: string) => {
+    if (!activeFloorMetadata?.exportRegions) return;
+    
+    const region = activeFloorMetadata.exportRegions.find(r => r.id === regionId);
+    if (region && confirm(`Czy na pewno usunąć kadr "${region.name}"?`)) {
+      const filtered = activeFloorMetadata.exportRegions.filter(r => r.id !== regionId);
+      updateFloor(activeFloorId, { exportRegions: filtered });
+      toast.success(`Usunięto kadr: ${region.name}`);
+    }
+  }, [activeFloorId, activeFloorMetadata, updateFloor]);
 
   const zoomPercent = Math.round(scale * 100);
 
@@ -885,7 +963,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
         onClick={() => setSelectedDxfOutlineId(null)}
         style={{ background: '#f0f2f5' }}
       >
-        <Layer name="background">
+        <Layer ref={uiLayerRef} name="ui">
           {drawGrid()}
           {underlayImage && underlaySize && !forceHideUnderlay && (
             <KonvaImage
@@ -1420,7 +1498,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             </>
           )}
         </Layer>
-        <Layer name="content" />
+        <Layer ref={contentLayerRef} name="content" />
       </Stage>
 
       {/* DXF OUTLINE PANEL */}
@@ -1849,6 +1927,8 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
         onClose={() => setIsExportModalOpen(false)}
         onExportPNG={handleExportPNG}
         onExportDXF={handleExportDXF}
+        onEditRegion={handleEditRegion}
+        onDeleteRegion={handleDeleteRegion}
       />
     </div>
   );

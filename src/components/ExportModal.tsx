@@ -1,24 +1,37 @@
 import { useState } from 'react';
-import { X, Download, Image as ImageIcon, FileCode, Layers } from 'lucide-react';
+import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2 } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
+
+interface ExportRegion {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onExportPNG: (regionId: string, includeBackground: boolean) => void;
   onExportDXF: (regionId: string) => void;
+  onEditRegion: (region: ExportRegion) => void;
+  onDeleteRegion: (regionId: string) => void;
 }
 
-export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF }: ExportModalProps) {
+export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditRegion, onDeleteRegion }: ExportModalProps) {
   const activeFloorId = useZoneStore((s) => s.activeFloorId);
   const floors = useZoneStore((s) => s.floors);
   const activeFloor = activeFloorId ? floors[activeFloorId] : null;
-  const regions = activeFloor?.exportRegions || [];
+  const regions = (activeFloor?.exportRegions || []) as ExportRegion[];
 
   const [selectedRegionId, setSelectedRegionId] = useState<string>(regions[0]?.id || '');
   const [includeBackground, setIncludeBackground] = useState(true);
 
   if (!isOpen) return null;
+
+  const selectedRegion = regions.find(r => r.id === selectedRegionId);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -48,17 +61,43 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF }: Expor
               Wybierz Kadr Eksportu
             </label>
             {regions.length > 0 ? (
-              <select
-                value={selectedRegionId}
-                onChange={(e) => setSelectedRegionId(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm font-medium outline-none"
-              >
-                {regions.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} ({r.width.toFixed(0)}x{r.height.toFixed(0)} px)
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-2">
+                <select
+                  value={selectedRegionId}
+                  onChange={(e) => setSelectedRegionId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm font-medium outline-none"
+                >
+                  {regions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.width.toFixed(0)}x{r.height.toFixed(0)} px)
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Region Actions */}
+                {selectedRegion && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onEditRegion(selectedRegion)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors border border-slate-200"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edytuj kadr
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Czy na pewno usunąć kadr "${selectedRegion.name}"?`)) {
+                          onDeleteRegion(selectedRegion.id);
+                          setSelectedRegionId(regions[0]?.id || '');
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors border border-red-200"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex flex-col gap-2">
                 <p className="text-xs text-amber-800 font-medium">Brak zdefiniowanych kadrów na tej kondygnacji.</p>

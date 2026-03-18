@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.10 ZAKOŃCZONA
-* **Active Step:** FAZA 2.11 (Zestawienia do PDF) - PENDING
-* **Pending Task:** Implementacja generowania tabelarycznych zestawień do PDF.
+## CURRENT STATE: FAZA 2.10.2 W TRAKCIE
+* **Active Step:** FAZA 2.10.2 (Poprawki Kadrowania Eksportu) - W TRAKCIE
+* **Pending Task:** Testowanie poprawek eksportu PNG/DXF, następnie FAZA 2.11 (Zestawienia do PDF)
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -285,3 +285,30 @@
     - **Transformacja originu**: Gdy `exportFrame` jest aktywny, współrzędne DXF są przesuwane tak, aby lewy górny róg kadru stał się punktem (0,0) w pliku CAD (`frameOffset.x`, `frameOffset.y`).
     - **Punkt (0,0)**: Marker punktu zero jest rysowany tylko gdy NIE ma aktywnego kadrowania (aby nie zaśmiecać eksportu częściowego).
 - **Aktualizacja Workspace2D**: `handleExportDXF` teraz przekazuje `region` jako czwarty argument do `exportToDXF`.
+
+### Iteracja 2.10.2: Poprawki Kadrowania i Eksportu (FAZA 2)
+- **Struktura Warstw (`Workspace2D.tsx`)**:
+    - Wydzielono warstwę UI (`<Layer ref={uiLayerRef} name="ui">`) zawierającą: siatkę (`drawGrid()`), ramki kadru, znaczniki punktu zero, linie kalibracji, pomiary.
+    - Warstwa content (`<Layer ref={contentLayerRef} name="content">`) dla obiektów biznesowych (strefy, obrysy CAD, metki).
+- **Naprawa Eksportu PNG (`handleExportPNG`)**:
+    - **Problem**: Podwójna konwersja współrzędnych i brak ukrycia UI layer powodowały widoczną siatkę i ramki na eksporcie.
+    - **Rozwiązanie**: 
+        1. Ukrycie warstwy UI (`uiLayerRef.current.hide()`) przed eksportem
+        2. Zapis obecnego scale i position sceny
+        3. Reset widoku do scale=1, position=(0,0)
+        4. Przeliczenie współrzędnych kadru na układ ekranu: `exportX = region.x * oldScale + oldPos.x`
+        5. Eksport z `pixelRatio: 3` dla wysokiej jakości
+        6. Przywrócenie obecnego widoku i pokazanie UI layer
+- **Naprawa Eksportu DXF (`src/lib/dxfExport.ts`)**:
+    - **Walidacja liczb**: Dodano funkcje `isValidNumber()` i `safeToFixed()` zapobiegające wartościom NaN/Infinity
+    - **Bezpieczne punkty**: Wszystkie punkty są filtrowane przed dodaniem do DXF
+    - **Obsługa błędów**: Hatch i MText są opakowane w try-catch, aby błąd jednego elementu nie korumpował całego pliku
+    - **Nowa warstwa**: Dodano `WENTCAD_KADRY` do rysowania ramki eksportu w DXF
+    - **Weryfikacja EOF**: Sprawdzanie czy plik kończy się poprawnie
+- **Edycja Kadrów (`ExportModal.tsx`)**:
+    - Dodano interfejs `ExportRegion` do typowania
+    - Dodano przyciski "Edytuj kadr" (`Pencil`) i "Usuń kadr" (`Trash2`)
+    - Nowe props: `onEditRegion` i `onDeleteRegion`
+- **Handler Edycji (`Workspace2D.tsx`)**:
+    - `handleEditRegion()`: Przełącza na narzędzie CROP i rozpoczyna edycję od zapisanego kadru
+    - `handleDeleteRegion()`: Usuwa kadr z `exportRegions` po potwierdzeniu
