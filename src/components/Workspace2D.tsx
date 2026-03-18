@@ -848,6 +848,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       const dxfString = exportToDXF(
         floorState,
         zones,
+        systems,
         generateTagText,
         region
       );

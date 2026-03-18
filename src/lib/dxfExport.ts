@@ -1,5 +1,5 @@
 import { DxfWriter, point3d } from "@tarikjabiri/dxf";
-import type { ZoneData } from "../types";
+import type { ZoneData, SystemDef } from "../types";
 import type { FloorCanvasState, Point } from "../stores/useCanvasStore";
 
 interface ExportFrame {
@@ -11,35 +11,6 @@ interface ExportFrame {
 
 function isValidNumber(val: number): boolean {
   return typeof val === 'number' && !isNaN(val) && isFinite(val);
-}
-
-const polishCharMap: Record<string, string> = {
-  'ą': '\\U+0105',
-  'ć': '\\U+0107',
-  'ę': '\\U+0119',
-  'ł': '\\U+0142',
-  'ń': '\\U+0144',
-  'ó': '\\U+00F3',
-  'ś': '\\U+015B',
-  'ź': '\\U+017A',
-  'ż': '\\U+017C',
-  'Ą': '\\U+0104',
-  'Ć': '\\U+0106',
-  'Ę': '\\U+0118',
-  'Ł': '\\U+0141',
-  'Ń': '\\U+0143',
-  'Ó': '\\U+00D3',
-  'Ś': '\\U+015A',
-  'Ź': '\\U+0179',
-  'Ż': '\\U+017B'
-};
-
-function escapePolishChars(text: string): string {
-  let result = '';
-  for (const char of text) {
-    result += polishCharMap[char] || char;
-  }
-  return result;
 }
 
 function safeToFixed(val: number, decimals: number = 3): number {
@@ -75,16 +46,63 @@ function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
   );
 }
 
+const polishCharMap: Record<string, string> = {
+  'ą': '\\U+0105',
+  'ć': '\\U+0107',
+  'ę': '\\U+0119',
+  'ł': '\\U+0142',
+  'ń': '\\U+0144',
+  'ó': '\\U+00F3',
+  'ś': '\\U+015B',
+  'ź': '\\U+017A',
+  'ż': '\\U+017C',
+  'Ą': '\\U+0104',
+  'Ć': '\\U+0106',
+  'Ę': '\\U+0118',
+  'Ł': '\\U+0141',
+  'Ń': '\\U+0143',
+  'Ó': '\\U+00D3',
+  'Ś': '\\U+015A',
+  'Ź': '\\U+0179',
+  'Ż': '\\U+017B'
+};
+
+function escapePolishChars(text: string): string {
+  let result = '';
+  for (const char of text) {
+    result += polishCharMap[char] || char;
+  }
+  return result;
+}
+
+function measureTextWidth(text: string, fontSize: number): number {
+  const charWidths: Record<string, number> = {
+    ' ': 0.3, '.': 0.25, '-': 0.25, ',': 0.2, ':': 0.2, ';': 0.2,
+    '1': 0.5, '2': 0.5, '3': 0.5, '4': 0.5, '5': 0.5, '6': 0.5, '7': 0.5, '8': 0.5, '9': 0.5, '0': 0.5,
+    'A': 0.7, 'B': 0.65, 'C': 0.7, 'D': 0.7, 'E': 0.6, 'F': 0.55, 'G': 0.7, 'H': 0.7, 'I': 0.3,
+    'J': 0.5, 'K': 0.7, 'L': 0.55, 'M': 0.85, 'N': 0.7, 'O': 0.75, 'P': 0.65, 'Q': 0.75, 'R': 0.7,
+    'S': 0.65, 'T': 0.6, 'U': 0.7, 'V': 0.65, 'W': 0.95, 'X': 0.65, 'Y': 0.65, 'Z': 0.6,
+  };
+  let width = 0;
+  for (const char of text.toUpperCase()) {
+    width += charWidths[char] || 0.65;
+  }
+  return width * fontSize;
+}
+
 export function exportToDXF(
   floorState: FloorCanvasState,
   zones: Record<string, ZoneData>,
+  _systems: SystemDef[],
   getTagText: (zoneId: string) => { col1: string; col2: string },
   exportFrame?: ExportFrame
 ): string {
   const dxf = new DxfWriter();
   
-  dxf.addLayer("WENTCAD_OBRYSY", 5);
+  dxf.addLayer("WENTCAD_OBRYSY", 7);
   dxf.addLayer("WENTCAD_KADRY", 3);
+  dxf.addLayer("WENTCAD_METKI_RAMKI", 7);
+  dxf.addLayer("WENTCAD_METKI_TEKST", 7);
 
   const origin = floorState.referenceOrigin || { x: 0, y: 0 };
   const scale = floorState.scaleFactor || 1;
@@ -103,7 +121,6 @@ export function exportToDXF(
     };
   };
 
-  // Rysuj ramkę kadrowania
   if (exportFrame) {
     const p1 = toCAD({ x: exportFrame.x, y: exportFrame.y });
     const p2 = toCAD({ x: exportFrame.x + exportFrame.width, y: exportFrame.y });
@@ -145,14 +162,12 @@ export function exportToDXF(
     const validPoints = cadPoints.filter(p => isValidNumber(p.x) && isValidNumber(p.y));
     if (validPoints.length < 3) return;
 
-    // Dodaj obrys jako linie
     for (let i = 0; i < validPoints.length; i++) {
       const p1 = validPoints[i];
       const p2 = validPoints[(i + 1) % validPoints.length];
       dxf.addLine(point3d(p1.x, p1.y, 0), point3d(p2.x, p2.y, 0), { layerName: "WENTCAD_OBRYSY" });
     }
 
-    // Dodaj tekst metki
     const tagPosPx = zone.tagPosition || calculateCentroid(poly.points);
     
     if (exportFrame && !isPointInFrame(tagPosPx.x, tagPosPx.y, exportFrame)) {
@@ -164,26 +179,99 @@ export function exportToDXF(
 
     const tagText = getTagText(zone.id);
     if (tagText.col1 || tagText.col2) {
-      const fullText = `${tagText.col1}${tagText.col1 && tagText.col2 ? " | " : ""}${tagText.col2}`;
-      const lines = fullText.split('\n');
-      const fontSize = 0.15;
-      const lineHeight = fontSize * 1.5;
+      const fontSize = 0.2;
+      const lineHeight = fontSize * 1.8;
+      const paddingX = 0.15;
+      const paddingY = 0.08;
       
-      lines.forEach((line, index) => {
-        const escapedLine = escapePolishChars(line);
-        const lineY = tagPosCAD.y - (index * lineHeight);
-        try {
-          dxf.addText(point3d(tagPosCAD.x, lineY, 0), fontSize, escapedLine, { 
-            layerName: "WENTCAD_OBRYSY"
-          });
-        } catch (e) {
-          console.warn('Failed to add text line:', e);
-        }
-      });
+      const line1 = tagText.col1 || '';
+      const line2 = tagText.col2 || '';
+      
+      const line1Width = measureTextWidth(line1, fontSize);
+      const line2Width = measureTextWidth(line2, fontSize);
+      const tagWidth = Math.max(line1Width, line2Width) + paddingX * 2;
+      const tagHeight = (line1 ? lineHeight : 0) + (line2 ? lineHeight : 0) + paddingY * 2;
+      
+      const tagX = tagPosCAD.x - tagWidth / 2;
+      const tagY = tagPosCAD.y - tagHeight / 2;
+
+      dxf.addLine(point3d(tagX, tagY, 0), point3d(tagX + tagWidth, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
+      dxf.addLine(point3d(tagX + tagWidth, tagY, 0), point3d(tagX + tagWidth, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
+      dxf.addLine(point3d(tagX + tagWidth, tagY + tagHeight, 0), point3d(tagX, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
+      dxf.addLine(point3d(tagX, tagY + tagHeight, 0), point3d(tagX, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
+      
+      if (line1) {
+        const textX = tagX + paddingX;
+        const textY = tagY + paddingY + fontSize;
+        dxf.addText(point3d(textX, textY, 0), fontSize, escapePolishChars(line1), { 
+          layerName: "WENTCAD_METKI_TEKST"
+        });
+      }
+      
+      if (line2) {
+        const textX = tagX + paddingX;
+        const textY = tagY + paddingY + (line1 ? lineHeight : 0) + fontSize;
+        dxf.addText(point3d(textX, textY, 0), fontSize, escapePolishChars(line2), { 
+          layerName: "WENTCAD_METKI_TEKST"
+        });
+      }
     }
   });
 
-  return dxf.stringify();
+  const rawContent = dxf.stringify();
+  
+  const properHeader = `0
+SECTION
+2
+HEADER
+9
+$ACADVER
+1
+AC1027
+9
+$INSUNITS
+70
+5
+9
+$EXTMIN
+10
+-1.0
+20
+-1.0
+30
+0.0
+9
+$EXTMAX
+10
+1000000.0
+20
+1000000.0
+30
+0.0
+9
+$LIMMIN
+10
+0.0
+20
+0.0
+9
+$LIMMAX
+10
+1000000.0
+20
+1000000.0
+0
+ENDSEC
+`;
+
+  const headerStart = rawContent.indexOf('0\nSECTION\n2\nHEADER');
+  const headerEnd = rawContent.indexOf('0\nENDSEC\n', headerStart) + 10;
+  
+  if (headerStart !== -1) {
+    return rawContent.slice(0, headerStart) + properHeader + rawContent.slice(headerEnd);
+  }
+  
+  return properHeader + rawContent;
 }
 
 function calculateCentroid(points: number[]): Point {

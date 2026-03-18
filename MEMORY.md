@@ -3,8 +3,8 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.10.3 ZAKOŃCZONA (wraz z 2.10.3a)
-* **Active Step:** FAZA 2.10.3a (Naprawa eksportu PNG - limit viewportu) - ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.10.3f ZAKOŃCZONA
+* **Active Step:** FAZA 2.10.3f (Naprawa pozycji sekcji HEADER w DXF) - ZAKOŃCZONA
 * **Pending Task:** FAZA 2.11 (Zestawienia do PDF)
 
 ## PROGRESS LOG
@@ -357,6 +357,26 @@
     2. Zmieniono font w Konva Text z `"Arial, sans-serif"` na `"Segoe UI, Arial, sans-serif"` - Segoe UI jest fontem systemowym Windows z pełną obsługą polskich znaków
 - **Lokalizacja**: `index.html:2`, `Workspace2D.tsx:1406,1417`
 
-(End of file - total 380 lines)
+### FAZA 2.10.3d (2026-03-18): Ulepszenia eksportu DXF (Bazowa wersja)
+- **Stan**: Przywrócono podstawową wersję eksportu DXF po błędach w funkcjach TrueColor/Arial
+- **Dodane warstwy**: `WENTCAD_METKI_RAMKI`, `WENTCAD_METKI_TEKST`
+- **Ramki metek**: Rysowane jako 4 linie (prostsza implementacja niż LWPolyline)
+- **Polskie znaki**: Funkcja `escapePolishChars()` działa
+- **DO ZROBIENIA**: Kolory TrueColor i czcionka Arial wymagają dalszych testów z dokumentacją `@tarikjabiri/dxf`
+- **Lokalizacja**: `src/lib/dxfExport.ts`
+
+(End of file - total 400 lines)
 
 (End of file - total 350 lines)
+
+### FAZA 2.10.3e (2026-03-18): Naprawa struktury DXF dla AutoCAD
+- **Problem**: Wygenerowany DXF nie otwierał się w AutoCAD. Brakowało sekcji HEADER oraz wywołanie `setVariable()` generowało niepoprawną strukturę.
+- **Struktura DXF**: Dodano prawidłową sekcję HEADER z zmiennymi systemowymi ($ACADVER, $INSUNITS, $EXTMIN, $EXTMAX, $LIMMIN, $LIMMAX)
+- **Usunięto**: Wywołanie `dxf.setVariable('$TEXTSTYLE', {...})` które generowało złą strukturę
+- **Wersja AutoCAD**: AC1027 (AutoCAD 2013)
+- **Lokalizacja**: `src/lib/dxfExport.ts:221-272`
+
+### FAZA 2.10.3f (2026-03-18): Naprawa pozycji sekcji HEADER w DXF
+- **Problem**: Biblioteka `@tarikjabiri/dxf` generuje własną sekcję HEADER i wstawiałem ją w złym miejscu (po ENTITIES).
+- **Rozwiązanie**: Wyszukuję początek sekcji HEADER w stringify output i zamieniam ją na prawidłową wersję.
+- **Lokalizacja**: `src/lib/dxfExport.ts`
