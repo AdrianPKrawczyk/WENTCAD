@@ -986,18 +986,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {/* === SIATKA === */}
           {drawGrid()}
 
-          {/* === PODKŁAD (PDF/IMG) === */}
-          {underlayImage && underlaySize && !forceHideUnderlay && (
-            <KonvaImage
-              image={underlayImage}
-              x={0}
-              y={0}
-              width={underlaySize.width}
-              height={underlaySize.height}
-              listening={false}
-            />
-          )}
-
           {/* === WSPÓŁRZĘDNE POCZĄTKOWE === */}
           {referenceOrigin && (
             <>
@@ -1092,6 +1080,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         {/* === WARSTWA ZAWARTOŚCI - EKSportowANA === */}
         <Layer ref={contentLayerRef} name="content">
+          {/* === PODKŁAD (PDF/IMG) === */}
+          {underlayImage && underlaySize && !forceHideUnderlay && (
+            <KonvaImage
+              image={underlayImage}
+              x={0}
+              y={0}
+              width={underlaySize.width}
+              height={underlaySize.height}
+              listening={false}
+            />
+          )}
+
           {/* === OBRYSY CAD (SZUFLADA DXF) === */}
           {floorState.dxfOutlines?.map((outline: any) => {
             const isSelected = selectedDxfOutlineId === outline.id;

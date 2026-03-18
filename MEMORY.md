@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.10.2 W TRAKCIE
-* **Active Step:** FAZA 2.10.2 (Poprawki Kadrowania Eksportu) - W TRAKCIE
-* **Pending Task:** Testowanie poprawek eksportu PNG/DXF, następnie FAZA 2.11 (Zestawienia do PDF)
+## CURRENT STATE: FAZA 2.10.3 ZAKOŃCZONA
+* **Active Step:** FAZA 2.10.3 (Naprawa eksportu DXF i PNG) - ZAKOŃCZONA
+* **Pending Task:** FAZA 2.11 (Zestawienia do PDF)
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -325,3 +325,12 @@
   - Trzeci argument: treść tekstu (`string`)
   - Czwarty argument: opcje (`TextOptions` z `layerName`)
 - **Usunięto nieużywany import**: `point2d`
+
+### FAZA 2.10.3: Naprawa eksportu DXF i PNG
+- **Eksport DXF (`src/lib/dxfExport.ts`)**:
+    - **Problem**: Plik DXF uszkodzony - znaki nowej linii (\n) w tekstach powodowały błąd "Invalid group code" w programach CAD. Polskie znaki (np. "ó") eksportowały się jako puste.
+    - **Rozwiązanie wielolinijkowości**: Podzielono tekst metki na linie używając `split('\n')`, każda linia renderowana jako osobny obiekt TEXT z przesunięciem Y (`fontSize * 1.5`).
+    - **Rozwiązanie polskich znaków**: Dodano funkcję `escapePolishChars()` zamieniającą polskie znaki na sekwencje Unicode (np. `ó` → `\U+00F3`, `ą` → `\U+0105`).
+- **Eksport PNG (`src/components/Workspace2D.tsx`)**:
+    - **Problem**: Podkład architektoniczny (PDF/IMG) znikał podczas eksportu PNG, ponieważ znajdował się w warstwie UI (`uiLayerRef`) która była ukrywana przed eksportem.
+    - **Rozwiązanie**: Przeniesiono `KonvaImage` z `uiLayerRef` do `contentLayerRef`. Teraz podkład jest widoczny na eksporcie, a flaga `forceHideUnderlay` nadal kontroluje opcję "eksport bez podkładu".

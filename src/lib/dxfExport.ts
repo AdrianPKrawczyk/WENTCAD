@@ -13,6 +13,35 @@ function isValidNumber(val: number): boolean {
   return typeof val === 'number' && !isNaN(val) && isFinite(val);
 }
 
+const polishCharMap: Record<string, string> = {
+  'ą': '\\U+0105',
+  'ć': '\\U+0107',
+  'ę': '\\U+0119',
+  'ł': '\\U+0142',
+  'ń': '\\U+0144',
+  'ó': '\\U+00F3',
+  'ś': '\\U+015B',
+  'ź': '\\U+017A',
+  'ż': '\\U+017C',
+  'Ą': '\\U+0104',
+  'Ć': '\\U+0106',
+  'Ę': '\\U+0118',
+  'Ł': '\\U+0141',
+  'Ń': '\\U+0143',
+  'Ó': '\\U+00D3',
+  'Ś': '\\U+015A',
+  'Ź': '\\U+0179',
+  'Ż': '\\U+017B'
+};
+
+function escapePolishChars(text: string): string {
+  let result = '';
+  for (const char of text) {
+    result += polishCharMap[char] || char;
+  }
+  return result;
+}
+
 function safeToFixed(val: number, decimals: number = 3): number {
   if (!isValidNumber(val)) return 0;
   const mult = Math.pow(10, decimals);
@@ -136,8 +165,20 @@ export function exportToDXF(
     const tagText = getTagText(zone.id);
     if (tagText.col1 || tagText.col2) {
       const fullText = `${tagText.col1}${tagText.col1 && tagText.col2 ? " | " : ""}${tagText.col2}`;
-      dxf.addText(point3d(tagPosCAD.x, tagPosCAD.y, 0), 0.15, fullText, { 
-        layerName: "WENTCAD_OBRYSY"
+      const lines = fullText.split('\n');
+      const fontSize = 0.15;
+      const lineHeight = fontSize * 1.5;
+      
+      lines.forEach((line, index) => {
+        const escapedLine = escapePolishChars(line);
+        const lineY = tagPosCAD.y - (index * lineHeight);
+        try {
+          dxf.addText(point3d(tagPosCAD.x, lineY, 0), fontSize, escapedLine, { 
+            layerName: "WENTCAD_OBRYSY"
+          });
+        } catch (e) {
+          console.warn('Failed to add text line:', e);
+        }
       });
     }
   });
