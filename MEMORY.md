@@ -264,7 +264,7 @@
     - **Live Preview**: Wierna reprezentacja metki (`inline-flex`) z ręcznym przyciskiem wymuszenia odświeżenia ("Odśwież").
 - **Interakcja**: Natywna obsługa Drag & Drop z zapisem pozycji `tagPosition` bezpośrednio w danych strefy (`ZoneData`).
 ### Iteracja 2.10: Profesjonalny Eksport (PNG & DXF)
-- **Kadr Eksportu (ExportRegion)**: Wprowadzono `exportRegions` do interfejsu `Floor`. Każdy kadr posiada `id`, `name` oraz wymiary `x, y, width, height` w pikselach Stage'a.
+- **Kadr Eksportu (ExportRegion)**: Wprowadzono `exportRegions` do interfejsu `Floor`. Każdy kadr posiada `id`, `name` oraz wymiary `x, y, width, height` w pikselach sceny Konva.
 - **Narzędzie Kadr (Crop Tool)**: Wprowadzono nową ikonę `Crop` z etykietą "Kadr" w toolbarze rysowania. Działa analogicznie do narzędzia `RECT`, ale zamiast stref, tworzy i zapisuje definicje kadrów do aktualnej kondygnacji.
 - **Silnik DXF (`src/lib/dxfExport.ts`)**:
     - Wykorzystuje bibliotekę `@tarikjabiri/dxf` do generowania plików wektorowych.
@@ -272,3 +272,16 @@
     - **Warstwy**: Separacja logiczna: `WENTCAD_OBRYSY` (niebieski), `WENTCAD_WYPELNIENIA` (hatch solid), `WENTCAD_METKI_TEKST` (MText).
     - **Metki**: Eksport tekstu w formacie MText z zachowaniem wyśrodkowania (`attachmentPoint: 5`).
 - **Generator PNG**: Wykorzystuje `stage.toDataURL()` z opcją `pixelRatio: 2` dla wysokiej jakości. Opcja `includeBackground` steruje widocznością podkładu PDF/IMG podczas generowania obrazu.
+
+### Iteracja 2.10.1: Poprawki Kadrowania Eksportu
+- **Dokumentacja**: Utworzono `docs/02.6-export-framing-spec.md` z pełną specyfikacją mechanizmu kadrowania.
+- **Bug Fix PNG (`Workspace2D.tsx:handleExportPNG`)**:
+    - Naprawiono podwójną konwersję współrzędnych. Wcześniej `region.x * scale + position.x` konwertowało scene coords z powrotem na screen coords, co powodowało nieprawidłowe kadrowanie.
+    - Poprawka: Współrzędne kadru są już w scene coordinates (jak widać w `handleMouseDown`), więc `toDataURL` otrzymuje je bezpośrednio bez przeliczania.
+- **Bug Fix DXF (`src/lib/dxfExport.ts`)**:
+    - Dodano opcjonalny parametr `exportFrame` do funkcji `exportToDXF`.
+    - **Filtrowanie AABB**: Funkcja `isPolygonInFrame()` sprawdza, czy jakikolwiek wierzchołek poligonu znajduje się wewnątrz kadru. Poligony poza kadrem są pomijane.
+    - **Filtrowanie metek**: Funkcja `isPointInFrame()` sprawdza pozycję metki - metki poza kadrem nie są eksportowane.
+    - **Transformacja originu**: Gdy `exportFrame` jest aktywny, współrzędne DXF są przesuwane tak, aby lewy górny róg kadru stał się punktem (0,0) w pliku CAD (`frameOffset.x`, `frameOffset.y`).
+    - **Punkt (0,0)**: Marker punktu zero jest rysowany tylko gdy NIE ma aktywnego kadrowania (aby nie zaśmiecać eksportu częściowego).
+- **Aktualizacja Workspace2D**: `handleExportDXF` teraz przekazuje `region` jako czwarty argument do `exportToDXF`.

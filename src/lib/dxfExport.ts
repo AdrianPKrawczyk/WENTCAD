@@ -2,14 +2,46 @@ import { DxfWriter, point3d, point2d, Colors, HatchPredefinedPatterns, HatchBoun
 import type { ZoneData } from "../types";
 import type { FloorCanvasState, Point } from "../stores/useCanvasStore";
 
+interface ExportFrame {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function isPolygonInFrame(points: number[], frame: ExportFrame): boolean {
+  for (let i = 0; i < points.length; i += 2) {
+    const px = points[i];
+    const py = points[i + 1];
+    if (
+      px >= frame.x &&
+      px <= frame.x + frame.width &&
+      py >= frame.y &&
+      py <= frame.y + frame.height
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
+  return (
+    x >= frame.x &&
+    x <= frame.x + frame.width &&
+    y >= frame.y &&
+    y <= frame.y + frame.height
+  );
+}
+
 export function exportToDXF(
   floorState: FloorCanvasState,
   zones: Record<string, ZoneData>,
-  getTagText: (zoneId: string) => { col1: string; col2: string }
+  getTagText: (zoneId: string) => { col1: string; col2: string },
+  exportFrame?: ExportFrame
 ) {
   const dxf = new DxfWriter();
   
-  // 1. Setup Layers
   dxf.addLayer("WENTCAD_PUNKT_ZERO", Colors.White);
   dxf.addLayer("WENTCAD_OBRYSY", Colors.Blue);
   dxf.addLayer("WENTCAD_WYPELNIENIA", Colors.Cyan);
@@ -17,29 +49,35 @@ export function exportToDXF(
   dxf.addLayer("WENTCAD_METKI_TEKST", Colors.White);
 
   const origin = floorState.referenceOrigin || { x: 0, y: 0 };
-  const scale = floorState.scaleFactor || 1; // meters per pixel
+  const scale = floorState.scaleFactor || 1;
 
-  // Transformation helper: Konva px -> CAD meters
+  const frameOffset = exportFrame
+    ? { x: exportFrame.x, y: exportFrame.y }
+    : { x: 0, y: 0 };
+
   const toCAD = (p: Point) => {
     return {
-      x: (p.x - origin.x) * scale,
-      y: -(p.y - origin.y) * scale // Y is up in CAD
+      x: (p.x - origin.x - frameOffset.x) * scale,
+      y: -(p.y - origin.y - frameOffset.y) * scale
     };
   };
 
-  // 2. Add Point Zero Marker
-  dxf.addLine(point3d(-0.5, 0), point3d(0.5, 0), { layerName: "WENTCAD_PUNKT_ZERO" });
-  dxf.addLine(point3d(0, -0.5), point3d(0, 0.5), { layerName: "WENTCAD_PUNKT_ZERO" });
-  dxf.addCircle(point3d(0, 0), 0.2, { layerName: "WENTCAD_PUNKT_ZERO" });
+  if (!exportFrame) {
+    dxf.addLine(point3d(-0.5, 0), point3d(0.5, 0), { layerName: "WENTCAD_PUNKT_ZERO" });
+    dxf.addLine(point3d(0, -0.5), point3d(0, 0.5), { layerName: "WENTCAD_PUNKT_ZERO" });
+    dxf.addCircle(point3d(0, 0), 0.2, { layerName: "WENTCAD_PUNKT_ZERO" });
+  }
 
-  // 3. Process Zones
   const floorPolygons = floorState.polygons || [];
   
   floorPolygons.forEach(poly => {
+    if (exportFrame && !isPolygonInFrame(poly.points, exportFrame)) {
+      return;
+    }
+
     const zone = zones[poly.zoneId];
     if (!zone) return;
 
-    // a) Draw Outline
     const cadPoints: { x: number, y: number }[] = [];
     for (let i = 0; i < poly.points.length; i += 2) {
       cadPoints.push(toCAD({ x: poly.points[i], y: poly.points[i + 1] }));
@@ -47,10 +85,9 @@ export function exportToDXF(
 
     dxf.addLWPolyline(cadPoints.map(p => ({ point: point2d(p.x, p.y) })), {
       layerName: "WENTCAD_OBRYSY",
-      flags: 1 // Closed
+      flags: 1
     });
 
-    // b) Add Fill (Hatch)
     const boundary = new HatchPolylineBoundary();
     cadPoints.forEach(p => boundary.add(vertex(p.x, p.y)));
     
@@ -59,11 +96,15 @@ export function exportToDXF(
 
     dxf.addHatch(paths, { name: HatchPredefinedPatterns.SOLID }, {
       layerName: "WENTCAD_WYPELNIENIA",
-      colorNumber: 7 // Stick to standard layers or use specific ACI
+      colorNumber: 7
     });
 
-    // c) Draw Smart Tag
     const tagPosPx = zone.tagPosition || calculateCentroid(poly.points);
+    
+    if (exportFrame && !isPointInFrame(tagPosPx.x, tagPosPx.y, exportFrame)) {
+      return;
+    }
+
     const tagPosCAD = toCAD(tagPosPx);
     const tagText = getTagText(zone.id);
 
@@ -73,7 +114,7 @@ export function exportToDXF(
       
       dxf.addMText(point3d(tagPosCAD.x, tagPosCAD.y), textHeight, fullText, {
         layerName: "WENTCAD_METKI_TEKST",
-        attachmentPoint: 5 // Middle Center
+        attachmentPoint: 5
       });
 
       const frameWidth = 1.5;

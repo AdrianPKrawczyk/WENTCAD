@@ -693,11 +693,13 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     setTimeout(() => {
       try {
         const stage = stageRef.current!;
+        // region.x, y, width, height są już w scene coordinates (nie w screen coords)
+        // Konva.toDataURL() oczekuje współrzędnych sceny, więc używamy ich bezpośrednio
         const dataUrl = stage.toDataURL({
-          x: region.x * scale + position.x,
-          y: region.y * scale + position.y,
-          width: region.width * scale,
-          height: region.height * scale,
+          x: region.x,
+          y: region.y,
+          width: region.width,
+          height: region.height,
           pixelRatio: 2
         });
 
@@ -727,7 +729,8 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
       const dxfString = exportToDXF(
         floorState,
         zones,
-        generateTagText
+        generateTagText,
+        region
       );
       
       downloadDXF(dxfString, `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`);
