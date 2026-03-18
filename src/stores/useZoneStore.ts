@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings } from '../types';
+import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
 const DEFAULT_FLOOR_ID = 'floor-parter';
@@ -153,6 +154,8 @@ interface ZoneStore {
   setSelectedDxfOutlineId: (id: string | null) => void;
   globalTagSettings: GlobalTagSettings;
   updateGlobalTagSettings: (settings: Partial<GlobalTagSettings>) => void;
+  dxfExportSettings: DxfExportSettings;
+  setDxfFontHeight: (height: number) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -183,6 +186,7 @@ export const useZoneStore = create<ZoneStore>()(
       linkingZoneId: null,
       selectedDxfOutlineId: null,
       globalTagSettings: DEFAULT_TAG_SETTINGS,
+      dxfExportSettings: DEFAULT_DXF_EXPORT_SETTINGS,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -203,6 +207,10 @@ export const useZoneStore = create<ZoneStore>()(
       updateGlobalTagSettings: (settings) => set((s) => ({
         globalTagSettings: { ...s.globalTagSettings, ...settings }
       })),
+      setDxfFontHeight: (height: number) => set((s) => {
+        const clampedHeight = Math.max(0.05, Math.min(0.5, height));
+        return { dxfExportSettings: { ...s.dxfExportSettings, fontHeight: clampedHeight } };
+      }),
 
       addZone: (zone) => {
         set((state) => {
@@ -465,7 +473,8 @@ export const useZoneStore = create<ZoneStore>()(
         isSystemColoringEnabled, 
         globalSystemOpacity,
         globalPatternScale,
-        globalTagSettings
+        globalTagSettings,
+        dxfExportSettings
       } = state;
       return { 
         zones, 
@@ -476,7 +485,8 @@ export const useZoneStore = create<ZoneStore>()(
         isSystemColoringEnabled, 
         globalSystemOpacity,
         globalPatternScale,
-        globalTagSettings
+        globalTagSettings,
+        dxfExportSettings
       };
     },
   }

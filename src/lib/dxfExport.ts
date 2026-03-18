@@ -91,7 +91,7 @@ function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
   );
 }
 
-function measureTextWidth(text: string, height: number = 0.1): number {
+function measureTextWidth(text: string, fontHeight: number = 0.1): number {
   if (!text || text.length === 0) return 0;
 
   let sum = 0;
@@ -110,7 +110,7 @@ function measureTextWidth(text: string, height: number = 0.1): number {
   }
 
   sum -= tracking;
-  return Math.round(sum * height * 100) / 100;
+  return Math.round(sum * fontHeight * 100) / 100;
 }
 
 export function exportToDXF(
@@ -119,12 +119,12 @@ export function exportToDXF(
   _systems: SystemDef[],
   getTagText: (zoneId: string) => { col1: string; col2: string },
   exportFrame?: ExportFrame,
-  _fontSize: number = 10
+  fontHeight: number = 0.1
 ): string {
   const dxf = new DxfWriter();
 
-  // Stały rozmiar tekstu dla DXF (w jednostkach modelu - metry)
-  const CAD_FONT_SIZE = 0.1;
+  // Rozmiar tekstu dla DXF (w jednostkach modelu - metry)
+  // fontHeight jest teraz parametrem z zakresu 0.05 - 0.5
   
   dxf.addLayer("WENTCAD_OBRYSY", 7);
   dxf.addLayer("WENTCAD_KADRY", 3);
@@ -206,17 +206,16 @@ export function exportToDXF(
 
     const tagText = getTagText(zone.id);
     if (tagText.col1 || tagText.col2) {
-      const fontSize = CAD_FONT_SIZE;
-      const lineHeight = fontSize * 1.25;
-      const paddingX = 0.1;
-      const paddingY = 0.036;
+      const lineHeight = fontHeight * 1.25;
+      const paddingX = fontHeight * 1.0;
+      const paddingY = fontHeight * 0.36;
       
       const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
       const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
       
       let maxLineWidth = 0;
       nonEmptyLines.forEach(line => {
-        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line));
+        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line, fontHeight));
       });
       
       const tagWidth = maxLineWidth + paddingX * 2;
@@ -232,14 +231,14 @@ export function exportToDXF(
       
       const boxMaxY = tagY + tagHeight;
       const boxMinX = tagX;
-      const pad = 0.05;
+      const pad = fontHeight * 0.5;
 
-      let currentY = boxMaxY - pad - fontSize;
+      let currentY = boxMaxY - pad - fontHeight;
 
       nonEmptyLines.forEach(line => {
         dxf.addText(
           point3d(boxMinX + pad, currentY, 0),
-          fontSize,
+          fontHeight,
           sanitizeDxfText(line),
           { layerName: "WENTCAD_METKI_TEKST" }
         );

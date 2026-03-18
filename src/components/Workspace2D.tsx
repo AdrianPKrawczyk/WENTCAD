@@ -123,6 +123,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const globalPatternScale = useZoneStore((s) => s.globalPatternScale) || 1.0;
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
+  const dxfExportSettings = useZoneStore((s) => s.dxfExportSettings);
   const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
@@ -851,7 +852,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         systems,
         generateTagText,
         region,
-        globalTagSettings.fontSize
+        dxfExportSettings.fontHeight
       );
       
       downloadDXF(dxfString, `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`);
@@ -861,7 +862,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       console.error(err);
       toast.error('Błąd podczas generowania DXF.');
     }
-  }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName]);
+  }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName, dxfExportSettings]);
 
   const handleEditRegion = useCallback((region: { id: string; name: string; x: number; y: number; width: number; height: number }) => {
     setIsExportModalOpen(false);

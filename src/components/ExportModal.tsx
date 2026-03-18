@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2 } from 'lucide-react';
+import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2, Type } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
 
 interface ExportRegion {
@@ -23,15 +23,25 @@ interface ExportModalProps {
 export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditRegion, onDeleteRegion }: ExportModalProps) {
   const activeFloorId = useZoneStore((s) => s.activeFloorId);
   const floors = useZoneStore((s) => s.floors);
+  const dxfExportSettings = useZoneStore((s) => s.dxfExportSettings);
+  const setDxfFontHeight = useZoneStore((s) => s.setDxfFontHeight);
+  
   const activeFloor = activeFloorId ? floors[activeFloorId] : null;
   const regions = (activeFloor?.exportRegions || []) as ExportRegion[];
 
   const [selectedRegionId, setSelectedRegionId] = useState<string>(regions[0]?.id || '');
   const [includeBackground, setIncludeBackground] = useState(true);
+  const [localFontHeight, setLocalFontHeight] = useState(dxfExportSettings.fontHeight);
 
   if (!isOpen) return null;
 
   const selectedRegion = regions.find(r => r.id === selectedRegionId);
+
+  const handleFontHeightChange = (value: number) => {
+    const clamped = Math.max(0.05, Math.min(0.5, value));
+    setLocalFontHeight(clamped);
+    setDxfFontHeight(clamped);
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -125,6 +135,45 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
                 <span className="text-[10px] text-slate-500">Wyłącz, aby uzyskać przezroczysty obraz PNG stref.</span>
               </div>
             </label>
+
+            {/* Font Height Control */}
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-slate-400" />
+                <span className="text-sm font-bold text-slate-700">Wysokość czcionki metek (DXF)</span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0.05"
+                  max="0.5"
+                  step="0.01"
+                  value={localFontHeight}
+                  onChange={(e) => handleFontHeightChange(parseFloat(e.target.value))}
+                  className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0.05"
+                    max="0.5"
+                    step="0.01"
+                    value={localFontHeight}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val)) handleFontHeightChange(val);
+                    }}
+                    className="w-16 px-2 py-1.5 text-sm text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                  <span className="text-sm text-slate-500 font-medium">m</span>
+                </div>
+              </div>
+              
+              <p className="text-[10px] text-slate-400">
+                Wartość zostanie zapamiętana przy następnym eksporcie.
+              </p>
+            </div>
           </div>
         </div>
 

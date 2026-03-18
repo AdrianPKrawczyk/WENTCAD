@@ -272,3 +272,15 @@ export interface ProjectVersion {
 }
 
 export type SyncStatus = 'SAVED' | 'SAVING' | 'ERROR';
+
+// ============================================
+// DXF EXPORT SETTINGS
+// ============================================
+
+export interface DxfExportSettings {
+  fontHeight: number; // Wysokość czcionki metek w metrach [0.05 - 0.5]
+}
+
+export const DEFAULT_DXF_EXPORT_SETTINGS: DxfExportSettings = {
+  fontHeight: 0.1, // 10 cm jako domyślna wysokość czcionki
+};

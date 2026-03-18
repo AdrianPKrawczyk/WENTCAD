@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.11 W TRAKCIE
-* **Active Step:** FAZA 2.11 (Naprawa eksportu DXF - 4 krytyczne poprawki)
-* **Pending Task:** FAZA 2.11 kontynuacja / Testy eksportu DXF
+## CURRENT STATE: FAZA 2.11.1 W TRAKCIE
+* **Active Step:** FAZA 2.11.1 (Konfigurowalna wysokość czcionki DXF)
+* **Pending Task:** FAZA 2.11.1 kontynuacja / Testy eksportu DXF z nową czcionką
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -389,3 +389,15 @@
   - `paddingX = 0.1`, `paddingY = 0.05` - zmniejszono marginesy
   - Biblioteka `@tarikjabiri/dxf` zawsze używa stylu "STANDARD" (nie można zmienić przez API)
 - **Lokalizacja**: `src/lib/dxfExport.ts:68-87, 201-205`
+
+### FAZA 2.11.1 (2026-03-18): Konfigurowalna wysokość czcionki DXF
+- **Funkcjonalność**: Użytkownik może teraz ustalić wysokość czcionki metek podczas eksportu DXF
+- **Zakres**: 0.05 m - 0.5 m (domyślnie 0.1 m = 10 cm)
+- **Interfejs**: Suwak + pole numeryczne w oknie eksportu (ExportModal.tsx)
+- **Persystencja**: Wartość jest zapisywana w localStorage (via Zustand persist) i przywracana po odświeżeniu przeglądarki
+- **Implementacja**:
+  - `DxfExportSettings` interface w `src/types.ts`
+  - `dxfExportSettings.fontHeight` w `useZoneStore.ts` z partialize
+  - `setDxfFontHeight()` action z walidacją zakresu
+  - `measureTextWidth()` teraz przyjmuje fontHeight jako parametr
+  - Wszystkie wymiary metki (padding, lineHeight) skalują się względem fontHeight
