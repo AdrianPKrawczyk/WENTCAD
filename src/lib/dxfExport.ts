@@ -91,27 +91,27 @@ function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
   );
 }
 
-function measureTextWidth(text: string): number {
-  // Usuń sekwencje Unicode \\U+XXXX przed obliczeniem szerokości
-  const normalizedText = text.replace(/\\U\+[0-9A-Fa-f]{4}/g, 'W');
-  
-  // Szerokości znaków dla fontu 0.075m - skalowane dla AutoCAD
-  // "Vw: 46 m3/h" = 0.78m w AutoCAD (11 znaków) → ~0.071m/symbol
-  const charWidths: Record<string, number> = {
-    ' ': 0.04, '.': 0.025, '-': 0.03, ',': 0.025, ':': 0.025, ';': 0.025, '/': 0.025,
-    '1': 0.06, '2': 0.06, '3': 0.06, '4': 0.06, '5': 0.06, '6': 0.06, '7': 0.06, '8': 0.06, '9': 0.06, '0': 0.06,
-    'A': 0.1, 'B': 0.095, 'C': 0.1, 'D': 0.1, 'E': 0.088, 'F': 0.082, 'G': 0.1, 'H': 0.1, 'I': 0.035,
-    'J': 0.06, 'K': 0.1, 'L': 0.082, 'M': 0.123, 'N': 0.1, 'O': 0.112, 'P': 0.096, 'Q': 0.112, 'R': 0.1,
-    'S': 0.096, 'T': 0.088, 'U': 0.1, 'V': 0.096, 'W': 0.13, 'X': 0.096, 'Y': 0.096, 'Z': 0.088,
-  };
-  let width = 0;
-  for (const char of normalizedText.toUpperCase()) {
-    width += charWidths[char] || 0.094;
-  }
-  return width;
-}
+function measureTextWidth(text: string, height: number = 0.1): number {
+  if (!text || text.length === 0) return 0;
 
-// Wstrzyknięcie definicji stylu Arial do tabeli STYLE
+  let sum = 0;
+  const tracking = 0.341;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    let charWidth = 0.66;
+
+    if ('VMW'.includes(char)) charWidth = 1.00;
+    else if (':Il|i'.includes(char)) charWidth = 0.00;
+    else if ('1jfł'.includes(char)) charWidth = 0.30;
+    else if (char === 'A') charWidth = 0.67;
+
+    sum += charWidth + tracking;
+  }
+
+  sum -= tracking;
+  return Math.round(sum * height * 100) / 100;
+}
 
 export function exportToDXF(
   floorState: FloorCanvasState,
@@ -122,18 +122,6 @@ export function exportToDXF(
   _fontSize: number = 10
 ): string {
   const dxf = new DxfWriter();
-
-  // ============================================
-  // REJESTRACJA CZCIONKI ARIAL (WŁASNY STYL)
-  // ============================================
-  try {
-    (dxf as any).addStyle?.({
-      name: 'ARIAL_WENTCAD',
-      primaryFontFileName: 'arial.ttf'
-    });
-  } catch (e) {
-    console.warn("Styl ARIAL_WENTCAD już istnieje lub nie mógł zostać dodany:", e);
-  }
 
   // Stały rozmiar tekstu dla DXF (w jednostkach modelu - metry)
   const CAD_FONT_SIZE = 0.1;
@@ -220,8 +208,8 @@ export function exportToDXF(
     if (tagText.col1 || tagText.col2) {
       const fontSize = CAD_FONT_SIZE;
       const lineHeight = fontSize * 1.25;
-      const paddingX = 0.015;
-      const paddingY = 0.012;
+      const paddingX = 0.1;
+      const paddingY = 0.036;
       
       const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
       const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
@@ -235,7 +223,7 @@ export function exportToDXF(
       const tagHeight = nonEmptyLines.length * lineHeight + paddingY * 2;
       
       const tagX = tagPosCAD.x - tagWidth / 2;
-      const tagY = tagPosCAD.y - tagHeight / 2;
+      const tagY = tagPosCAD.y - tagHeight / 2 - 0.03;
 
       dxf.addLine(point3d(tagX, tagY, 0), point3d(tagX + tagWidth, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       dxf.addLine(point3d(tagX + tagWidth, tagY, 0), point3d(tagX + tagWidth, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
@@ -253,10 +241,7 @@ export function exportToDXF(
           point3d(boxMinX + pad, currentY, 0),
           fontSize,
           sanitizeDxfText(line),
-          {
-            layerName: "WENTCAD_METKI_TEKST",
-            styleName: 'ARIAL_WENTCAD'
-          } as any
+          { layerName: "WENTCAD_METKI_TEKST" }
         );
         currentY -= lineHeight;
       });
