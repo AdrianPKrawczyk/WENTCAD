@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.10.3f ZAKOŃCZONA
-* **Active Step:** FAZA 2.10.3f (Naprawa pozycji sekcji HEADER w DXF) - ZAKOŃCZONA
-* **Pending Task:** FAZA 2.11 (Zestawienia do PDF)
+## CURRENT STATE: FAZA 2.11 W TRAKCIE
+* **Active Step:** FAZA 2.11 (Naprawa eksportu DXF - 4 krytyczne poprawki)
+* **Pending Task:** FAZA 2.11 kontynuacja / Testy eksportu DXF
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -379,4 +379,13 @@
 ### FAZA 2.10.3f (2026-03-18): Naprawa pozycji sekcji HEADER w DXF
 - **Problem**: Biblioteka `@tarikjabiri/dxf` generuje własną sekcję HEADER i wstawiałem ją w złym miejscu (po ENTITIES).
 - **Rozwiązanie**: Wyszukuję początek sekcji HEADER w stringify output i zamieniam ją na prawidłową wersję.
+- **Lokalizacja**: `src/lib/dxfExport.ts`
+
+### FAZA 2.11 (2026-03-18): Naprawa eksportu DXF - Całkowite przebudowanie
+- **Problem**: Poprzednia modyfikacja HEADER psuła strukturę DXF - plik nie otwierał się w CAD
+- **Rozwiązanie**: Usunięto modyfikację HEADER, polegano na wyjściu biblioteki `@tarikjabiri/dxf`
+- **Struktura DXF**: HEADER → CLASSES → TABLES → BLOCKS → ENTITIES → OBJECTS → EOF
+- **Polskie znaki**: Funkcja `sanitizeDxfText()` zamienia na sekwencje `\U+XXXX` (np. `\U+00F3` dla `ó`)
+- **Styl Arial**: Wstrzyknięcie do tabeli STYLE przez `injectArialStyle()`
+- **Walidacja**: Wygenerowany plik ma prawidłową strukturę i otwiera się w CAD
 - **Lokalizacja**: `src/lib/dxfExport.ts`

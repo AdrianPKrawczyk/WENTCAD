@@ -9,6 +9,10 @@ interface ExportFrame {
   height: number;
 }
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
 function isValidNumber(val: number): boolean {
   return typeof val === 'number' && !isNaN(val) && isFinite(val);
 }
@@ -18,6 +22,21 @@ function safeToFixed(val: number, decimals: number = 3): number {
   const mult = Math.pow(10, decimals);
   return Math.round(val * mult) / mult;
 }
+
+// Sanityzacja tekstu DXF - polskie znaki do sekwencji Unicode dla AutoCADa
+const sanitizeDxfText = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/ą/g, '\\U+0105').replace(/Ą/g, '\\U+0104')
+    .replace(/ć/g, '\\U+0107').replace(/Ć/g, '\\U+0106')
+    .replace(/ę/g, '\\U+0119').replace(/Ę/g, '\\U+0118')
+    .replace(/ł/g, '\\U+0142').replace(/Ł/g, '\\U+0141')
+    .replace(/ń/g, '\\U+0144').replace(/Ń/g, '\\U+0143')
+    .replace(/ó/g, '\\U+00F3').replace(/Ó/g, '\\U+00D3')
+    .replace(/ś/g, '\\U+015B').replace(/Ś/g, '\\U+015A')
+    .replace(/ź/g, '\\U+017A').replace(/Ź/g, '\\U+0179')
+    .replace(/ż/g, '\\U+017C').replace(/Ż/g, '\\U+017B');
+};
 
 function isPolygonInFrame(points: number[], frame: ExportFrame): boolean {
   for (let i = 0; i < points.length; i += 2) {
@@ -46,35 +65,6 @@ function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
   );
 }
 
-const polishCharMap: Record<string, string> = {
-  'ą': '\\U+0105',
-  'ć': '\\U+0107',
-  'ę': '\\U+0119',
-  'ł': '\\U+0142',
-  'ń': '\\U+0144',
-  'ó': '\\U+00F3',
-  'ś': '\\U+015B',
-  'ź': '\\U+017A',
-  'ż': '\\U+017C',
-  'Ą': '\\U+0104',
-  'Ć': '\\U+0106',
-  'Ę': '\\U+0118',
-  'Ł': '\\U+0141',
-  'Ń': '\\U+0143',
-  'Ó': '\\U+00D3',
-  'Ś': '\\U+015A',
-  'Ź': '\\U+0179',
-  'Ż': '\\U+017B'
-};
-
-function escapePolishChars(text: string): string {
-  let result = '';
-  for (const char of text) {
-    result += polishCharMap[char] || char;
-  }
-  return result;
-}
-
 function measureTextWidth(text: string, fontSize: number): number {
   const charWidths: Record<string, number> = {
     ' ': 0.3, '.': 0.25, '-': 0.25, ',': 0.2, ':': 0.2, ';': 0.2,
@@ -88,6 +78,35 @@ function measureTextWidth(text: string, fontSize: number): number {
     width += charWidths[char] || 0.65;
   }
   return width * fontSize;
+}
+
+// Wstrzyknięcie definicji stylu Arial do tabeli STYLE
+function injectArialStyle(dxfContent: string): string {
+  const styleTableStart = dxfContent.indexOf('0\nTABLE\n2\nSTYLE');
+  if (styleTableStart === -1) return dxfContent;
+  
+  const endOfTables = dxfContent.indexOf('0\nENDTAB', styleTableStart);
+  if (endOfTables === -1) return dxfContent;
+  
+  const arialStyleBlock = `0
+STYLE
+5
+A1
+100
+AcDbSymbolTableRecord
+100
+AcDbTextStyleTableRecord
+2
+Arial
+70
+0
+3
+arial.ttf
+1071
+0
+`;
+  
+  return dxfContent.slice(0, endOfTables) + arialStyleBlock + dxfContent.slice(endOfTables);
 }
 
 export function exportToDXF(
@@ -184,13 +203,16 @@ export function exportToDXF(
       const paddingX = 0.15;
       const paddingY = 0.08;
       
-      const line1 = tagText.col1 || '';
-      const line2 = tagText.col2 || '';
+      const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
+      const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
       
-      const line1Width = measureTextWidth(line1, fontSize);
-      const line2Width = measureTextWidth(line2, fontSize);
-      const tagWidth = Math.max(line1Width, line2Width) + paddingX * 2;
-      const tagHeight = (line1 ? lineHeight : 0) + (line2 ? lineHeight : 0) + paddingY * 2;
+      let maxLineWidth = 0;
+      nonEmptyLines.forEach(line => {
+        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line, fontSize));
+      });
+      
+      const tagWidth = maxLineWidth + paddingX * 2;
+      const tagHeight = nonEmptyLines.length * lineHeight + paddingY * 2;
       
       const tagX = tagPosCAD.x - tagWidth / 2;
       const tagY = tagPosCAD.y - tagHeight / 2;
@@ -200,78 +222,24 @@ export function exportToDXF(
       dxf.addLine(point3d(tagX + tagWidth, tagY + tagHeight, 0), point3d(tagX, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       dxf.addLine(point3d(tagX, tagY + tagHeight, 0), point3d(tagX, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       
-      if (line1) {
+      let currentY = tagY + paddingY + fontSize;
+      nonEmptyLines.forEach(line => {
         const textX = tagX + paddingX;
-        const textY = tagY + paddingY + fontSize;
-        dxf.addText(point3d(textX, textY, 0), fontSize, escapePolishChars(line1), { 
+        dxf.addText(point3d(textX, currentY, 0), fontSize, sanitizeDxfText(line), { 
           layerName: "WENTCAD_METKI_TEKST"
         });
-      }
-      
-      if (line2) {
-        const textX = tagX + paddingX;
-        const textY = tagY + paddingY + (line1 ? lineHeight : 0) + fontSize;
-        dxf.addText(point3d(textX, textY, 0), fontSize, escapePolishChars(line2), { 
-          layerName: "WENTCAD_METKI_TEKST"
-        });
-      }
+        currentY += lineHeight;
+      });
     }
   });
 
-  const rawContent = dxf.stringify();
+  // Generuj DXF - biblioteka tworzy poprawną strukturę
+  let dxfContent = dxf.stringify();
   
-  const properHeader = `0
-SECTION
-2
-HEADER
-9
-$ACADVER
-1
-AC1027
-9
-$INSUNITS
-70
-5
-9
-$EXTMIN
-10
--1.0
-20
--1.0
-30
-0.0
-9
-$EXTMAX
-10
-1000000.0
-20
-1000000.0
-30
-0.0
-9
-$LIMMIN
-10
-0.0
-20
-0.0
-9
-$LIMMAX
-10
-1000000.0
-20
-1000000.0
-0
-ENDSEC
-`;
-
-  const headerStart = rawContent.indexOf('0\nSECTION\n2\nHEADER');
-  const headerEnd = rawContent.indexOf('0\nENDSEC\n', headerStart) + 10;
+  // Wstrzyknij definicję stylu Arial do tabeli STYLE
+  dxfContent = injectArialStyle(dxfContent);
   
-  if (headerStart !== -1) {
-    return rawContent.slice(0, headerStart) + properHeader + rawContent.slice(headerEnd);
-  }
-  
-  return properHeader + rawContent;
+  return dxfContent;
 }
 
 function calculateCentroid(points: number[]): Point {
