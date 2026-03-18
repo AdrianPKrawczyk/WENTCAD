@@ -190,6 +190,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
           case 'VOLUME': val = (zone.calculatedVolume || 0).toFixed(2); break;
           case 'FLOW_SUPPLY': val = Math.round(zone.calculatedVolume || 0); break;
           case 'FLOW_EXHAUST': val = Math.round(zone.calculatedExhaust || 0); break;
+          case 'FLOW_SUPPLY_WITH_SYSTEM': {
+            const flow = Math.round(zone.calculatedVolume || 0);
+            const system = systems.find(s => s.id === zone.systemSupplyId)?.id || '--';
+            val = `${system}: ${flow}`;
+            break;
+          }
+          case 'FLOW_EXHAUST_WITH_SYSTEM': {
+            const flow = Math.round(zone.calculatedExhaust || 0);
+            const system = systems.find(s => s.id === zone.systemExhaustId)?.id || '--';
+            val = `${system}: ${flow}`;
+            break;
+          }
           case 'REAL_ACH': val = (zone.realACH || 0).toFixed(1); break;
           case 'ACOUSTICS': val = zone.maxAllowedDbA || '--'; break;
           case 'SUPPLY_SYSTEM_NAME': val = systems.find(s => s.id === zone.systemSupplyId)?.name || '--'; break;

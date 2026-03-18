@@ -15,6 +15,8 @@ const FIELD_LABELS: Record<TagFieldType, string> = {
   VOLUME: 'Kubatura [m³]',
   FLOW_SUPPLY: 'Wydatek Nawiewny [m³/h]',
   FLOW_EXHAUST: 'Wydatek Wywiewny [m³/h]',
+  FLOW_SUPPLY_WITH_SYSTEM: 'Nawiew: System Wartość m³/h',
+  FLOW_EXHAUST_WITH_SYSTEM: 'Wywiew: System Wartość m³/h',
   REAL_ACH: 'Krotność Rzeczywista [1/h]',
   ACOUSTICS: 'Limit Hałasu [dB(A)]',
   SUPPLY_SYSTEM_NAME: 'Nazwa Systemu Nawiewnego',
@@ -30,13 +32,20 @@ const MOCK_ZONE: any = {
   name: "Biuro",
   area: 15.5,
   calculatedVolume: 300,
-  calculatedExhaust: 0,
+  calculatedExhaust: 280,
+  systemSupplyId: 'N1',
+  systemExhaustId: 'W1',
   realACH: 1.5,
   maxAllowedDbA: 35,
   roomTemp: 20,
   occupants: 2,
   totalHeatGain: 450
 };
+
+const MOCK_SYSTEMS = [
+  { id: 'N1', name: 'N1', type: 'SUPPLY' },
+  { id: 'W1', name: 'W1', type: 'EXHAUST' },
+];
 
 export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
@@ -97,6 +106,18 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
         case 'VOLUME': val = MOCK_ZONE.calculatedVolume.toFixed(2); break;
         case 'FLOW_SUPPLY': val = Math.round(MOCK_ZONE.calculatedVolume); break;
         case 'FLOW_EXHAUST': val = Math.round(MOCK_ZONE.calculatedExhaust || 0); break;
+        case 'FLOW_SUPPLY_WITH_SYSTEM': {
+          const flow = Math.round(MOCK_ZONE.calculatedVolume);
+          const system = MOCK_SYSTEMS.find(s => s.id === MOCK_ZONE.systemSupplyId)?.id || '--';
+          val = `${system}: ${flow}`;
+          break;
+        }
+        case 'FLOW_EXHAUST_WITH_SYSTEM': {
+          const flow = Math.round(MOCK_ZONE.calculatedExhaust || 0);
+          const system = MOCK_SYSTEMS.find(s => s.id === MOCK_ZONE.systemExhaustId)?.id || '--';
+          val = `${system}: ${flow}`;
+          break;
+        }
         case 'REAL_ACH': val = MOCK_ZONE.realACH.toFixed(1); break;
         case 'ACOUSTICS': val = MOCK_ZONE.maxAllowedDbA; break;
         case 'SUPPLY_SYSTEM_NAME': val = 'N1'; break;

@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.11.3 GOTOWE
-* **Active Step:** FAZA 2.11.3 (Naprawa eksportu - białe tło)
-* **Pending Task:** Testy eksportu PNG/DXF
+## CURRENT STATE: FAZA 2.11.4 GOTOWE
+* **Active Step:** FAZA 2.11.4 (Połączone pola FLOW + SYSTEM w metkach)
+* **Pending Task:** Testy eksportu z nowymi metkami
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -430,3 +430,22 @@
   - Dodano walidację parametrów i wyniku `dxf.stringify()`
   - Modal zamykany PRZED pobraniem, download opóźniony o 100ms
 - **Pliki**: `src/stores/useZoneStore.ts`, `src/components/ExportModal.tsx`, `src/lib/dxfExport.ts`, `src/components/Workspace2D.tsx`
+
+### FAZA 2.11.4 (2026-03-18): Połączone pola FLOW + SYSTEM w metkach
+- **Cel**: Nawiew i Wywiew wyświetlane jako `System: Wartość m³/h`
+- **Nowe typy pól**: `FLOW_SUPPLY_WITH_SYSTEM`, `FLOW_EXHAUST_WITH_SYSTEM`
+- **Format wartości**:
+  | Pole | Format | Przykład |
+  |------|--------|----------|
+  | Nawiew | `{System}: {Flow}{suffix}` | `N1: 300 m³/h` |
+  | Wywiew | `{System}: {Flow}{suffix}` | `W1: 280 m³/h` |
+- **Poprawka 2.11.4b**: Używano `system.name` zamiast `system.id` - powodowało wyświetlanie "Wywiew 1: 60 m³/h" zamiast "W1: 60 m³/h"
+- **Domyślne ustawienia**:
+  - `FLOW_SUPPLY_WITH_SYSTEM`: enabled=true, suffix=' m³/h', order=3, column=2
+  - `FLOW_EXHAUST_WITH_SYSTEM`: enabled=true, suffix=' m³/h', order=4, column=2
+  - Usunięto stare `FLOW_SUPPLY` i `FLOW_EXHAUST` z domyślnych (nadal dostępne w kreatorze)
+- **Implementacja**:
+  - `src/types.ts`: dodano nowe typy `TagFieldType`
+  - `src/stores/useZoneStore.ts`: zaktualizowano `DEFAULT_TAG_FIELDS`
+  - `src/components/Workspace2D.tsx`: rozszerzono `generateTagText()`, używa `system.id`
+  - `src/components/SmartTagModal.tsx`: rozszerzono preview i etykiety
