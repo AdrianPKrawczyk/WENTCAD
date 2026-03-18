@@ -24,9 +24,35 @@ function safeToFixed(val: number, decimals: number = 3): number {
 }
 
 // Sanityzacja tekstu DXF - polskie znaki do sekwencji Unicode dla AutoCADa
+// oraz usuwanie indeksów górnych/dolnych (DXF nie obsługuje)
 const sanitizeDxfText = (str: string): string => {
   if (!str) return '';
   return str
+    // Zamień indeksy górne na zwykły tekst
+    .replace(/\u00B2/g, '2')   // ² → 2
+    .replace(/\u00B3/g, '3')   // ³ → 3
+    .replace(/\u2070/g, '0')   // ⁰ → 0
+    .replace(/\u00B9/g, '1')   // ¹ → 1
+    .replace(/\u2074/g, '4')   // ⁴ → 4
+    .replace(/\u2075/g, '5')   // ⁵ → 5
+    .replace(/\u2076/g, '6')   // ⁶ → 6
+    .replace(/\u2077/g, '7')   // ⁷ → 7
+    .replace(/\u2078/g, '8')   // ⁸ → 8
+    .replace(/\u2079/g, '9')   // ⁹ → 9
+    .replace(/\u207A/g, '+')   // ⁺ → +
+    .replace(/\u207B/g, '-')   // ⁻ → -
+    // Zamień indeksy dolne
+    .replace(/\u2080/g, '0')   // ₀ → 0
+    .replace(/\u2081/g, '1')   // ₁ → 1
+    .replace(/\u2082/g, '2')   // ₂ → 2
+    .replace(/\u2083/g, '3')   // ₃ → 3
+    .replace(/\u2084/g, '4')   // ₄ → 4
+    .replace(/\u2085/g, '5')   // ₅ → 5
+    .replace(/\u2086/g, '6')   // ₆ → 6
+    .replace(/\u2087/g, '7')   // ₇ → 7
+    .replace(/\u2088/g, '8')   // ₈ → 8
+    .replace(/\u2089/g, '9')   // ₉ → 9
+    // Zamień polskie znaki na sekwencje Unicode
     .replace(/ą/g, '\\U+0105').replace(/Ą/g, '\\U+0104')
     .replace(/ć/g, '\\U+0107').replace(/Ć/g, '\\U+0106')
     .replace(/ę/g, '\\U+0119').replace(/Ę/g, '\\U+0118')
@@ -65,19 +91,24 @@ function isPointInFrame(x: number, y: number, frame: ExportFrame): boolean {
   );
 }
 
-function measureTextWidth(text: string, fontSize: number): number {
+function measureTextWidth(text: string): number {
+  // Usuń sekwencje Unicode \\U+XXXX przed obliczeniem szerokości
+  const normalizedText = text.replace(/\\U\+[0-9A-Fa-f]{4}/g, 'W');
+  
+  // Szerokości znaków dla fontu 0.075m - skalowane dla AutoCAD
+  // "Vw: 46 m3/h" = 0.78m w AutoCAD (11 znaków) → ~0.071m/symbol
   const charWidths: Record<string, number> = {
-    ' ': 0.3, '.': 0.25, '-': 0.25, ',': 0.2, ':': 0.2, ';': 0.2,
-    '1': 0.5, '2': 0.5, '3': 0.5, '4': 0.5, '5': 0.5, '6': 0.5, '7': 0.5, '8': 0.5, '9': 0.5, '0': 0.5,
-    'A': 0.7, 'B': 0.65, 'C': 0.7, 'D': 0.7, 'E': 0.6, 'F': 0.55, 'G': 0.7, 'H': 0.7, 'I': 0.3,
-    'J': 0.5, 'K': 0.7, 'L': 0.55, 'M': 0.85, 'N': 0.7, 'O': 0.75, 'P': 0.65, 'Q': 0.75, 'R': 0.7,
-    'S': 0.65, 'T': 0.6, 'U': 0.7, 'V': 0.65, 'W': 0.95, 'X': 0.65, 'Y': 0.65, 'Z': 0.6,
+    ' ': 0.04, '.': 0.025, '-': 0.03, ',': 0.025, ':': 0.025, ';': 0.025, '/': 0.025,
+    '1': 0.06, '2': 0.06, '3': 0.06, '4': 0.06, '5': 0.06, '6': 0.06, '7': 0.06, '8': 0.06, '9': 0.06, '0': 0.06,
+    'A': 0.1, 'B': 0.095, 'C': 0.1, 'D': 0.1, 'E': 0.088, 'F': 0.082, 'G': 0.1, 'H': 0.1, 'I': 0.035,
+    'J': 0.06, 'K': 0.1, 'L': 0.082, 'M': 0.123, 'N': 0.1, 'O': 0.112, 'P': 0.096, 'Q': 0.112, 'R': 0.1,
+    'S': 0.096, 'T': 0.088, 'U': 0.1, 'V': 0.096, 'W': 0.13, 'X': 0.096, 'Y': 0.096, 'Z': 0.088,
   };
   let width = 0;
-  for (const char of text.toUpperCase()) {
-    width += charWidths[char] || 0.65;
+  for (const char of normalizedText.toUpperCase()) {
+    width += charWidths[char] || 0.094;
   }
-  return width * fontSize;
+  return width;
 }
 
 // Wstrzyknięcie definicji stylu Arial do tabeli STYLE
@@ -114,9 +145,14 @@ export function exportToDXF(
   zones: Record<string, ZoneData>,
   _systems: SystemDef[],
   getTagText: (zoneId: string) => { col1: string; col2: string },
-  exportFrame?: ExportFrame
+  exportFrame?: ExportFrame,
+  _fontSize: number = 10
 ): string {
   const dxf = new DxfWriter();
+  
+  // Stały rozmiar tekstu dla DXF (w jednostkach modelu - metry)
+  // 0.1m = 10cm - czytelny rozmiar na rysunku
+  const CAD_FONT_SIZE = 0.1;
   
   dxf.addLayer("WENTCAD_OBRYSY", 7);
   dxf.addLayer("WENTCAD_KADRY", 3);
@@ -198,17 +234,17 @@ export function exportToDXF(
 
     const tagText = getTagText(zone.id);
     if (tagText.col1 || tagText.col2) {
-      const fontSize = 0.2;
-      const lineHeight = fontSize * 1.8;
-      const paddingX = 0.15;
-      const paddingY = 0.08;
+      const fontSize = CAD_FONT_SIZE;
+      const lineHeight = fontSize * 1.25;
+      const paddingX = 0.015;
+      const paddingY = 0.012;
       
       const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
       const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
       
       let maxLineWidth = 0;
       nonEmptyLines.forEach(line => {
-        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line, fontSize));
+        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line));
       });
       
       const tagWidth = maxLineWidth + paddingX * 2;

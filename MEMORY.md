@@ -381,11 +381,11 @@
 - **Rozwiązanie**: Wyszukuję początek sekcji HEADER w stringify output i zamieniam ją na prawidłową wersję.
 - **Lokalizacja**: `src/lib/dxfExport.ts`
 
-### FAZA 2.11 (2026-03-18): Naprawa eksportu DXF - Całkowite przebudowanie
-- **Problem**: Poprzednia modyfikacja HEADER psuła strukturę DXF - plik nie otwierał się w CAD
-- **Rozwiązanie**: Usunięto modyfikację HEADER, polegano na wyjściu biblioteki `@tarikjabiri/dxf`
-- **Struktura DXF**: HEADER → CLASSES → TABLES → BLOCKS → ENTITIES → OBJECTS → EOF
-- **Polskie znaki**: Funkcja `sanitizeDxfText()` zamienia na sekwencje `\U+XXXX` (np. `\U+00F3` dla `ó`)
-- **Styl Arial**: Wstrzyknięcie do tabeli STYLE przez `injectArialStyle()`
-- **Walidacja**: Wygenerowany plik ma prawidłową strukturę i otwiera się w CAD
-- **Lokalizacja**: `src/lib/dxfExport.ts`
+### FAZA 2.11 (2026-03-18): Naprawa eksportu DXF - Metki
+- **Problem**: Obwiednia metek była źle liczona (zbyt duża), czcionka Arial nie była używana
+- **Rozwiązania**:
+  - `measureTextWidth()` - usunięto mnożenie przez fontSize, poprawiono współczynniki szerokości znaków
+  - `fontSize = 1.0` - zwiększono wysokość tekstu dla lepszej widoczności
+  - `paddingX = 0.1`, `paddingY = 0.05` - zmniejszono marginesy
+  - Biblioteka `@tarikjabiri/dxf` zawsze używa stylu "STANDARD" (nie można zmienić przez API)
+- **Lokalizacja**: `src/lib/dxfExport.ts:68-87, 201-205`

@@ -850,7 +850,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
         zones,
         systems,
         generateTagText,
-        region
+        region,
+        globalTagSettings.fontSize
       );
       
       downloadDXF(dxfString, `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`);
