@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.11.1 W TRAKCIE
-* **Active Step:** FAZA 2.11.1 (Konfigurowalna wysokość czcionki DXF)
-* **Pending Task:** FAZA 2.11.1 kontynuacja / Testy eksportu DXF z nową czcionką
+## CURRENT STATE: FAZA 2.11.3 GOTOWE
+* **Active Step:** FAZA 2.11.3 (Naprawa eksportu - białe tło)
+* **Pending Task:** Testy eksportu PNG/DXF
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -401,3 +401,32 @@
   - `setDxfFontHeight()` action z walidacją zakresu
   - `measureTextWidth()` teraz przyjmuje fontHeight jako parametr
   - Wszystkie wymiary metki (padding, lineHeight) skalują się względem fontHeight
+
+### FAZA 2.11.2 (2026-03-18): Regulacja odstępów metek DXF
+- **Funkcjonalność**: Użytkownik może regulować odstępy i marginesy metek podczas eksportu DXF
+- **Parametry**:
+  | Parametr | Zakres | Domyślna | Opis |
+  |----------|--------|----------|------|
+  | lineSpacing | 0.25 - 2.0 | 1.25 | Mnożnik wysokości czcionki na odstęp między wierszami |
+  | paddingX | 0.2 - 2.0 | 1.0 | Mnożnik wysokości czcionki na margines poziomy ramki |
+  | paddingY | 0.1 - 1.0 | 0.36 | Mnożnik wysokości czcionki na margines pionowy ramki |
+- **Implementacja**:
+  - Rozszerzono `DxfExportSettings` w `src/types.ts`
+  - Dodano `setDxfLineSpacing()`, `setDxfPaddingX()`, `setDxfPaddingY()` w `useZoneStore.ts`
+  - Zaktualizowano `exportToDXF()` w `src/lib/dxfExport.ts` - parametry jako mnożniki fontHeight
+  - Nowy UI w `ExportModal.tsx` - 4 suwaki z polami numerycznymi
+
+### FAZA 2.11.3 (2026-03-18): Naprawa błędu eksportu DXF (białe tło/zawieszenie)
+- **Problem 1**: Po kliknięciu przycisku "Eksport" na pasku narzędzi pojawiało się białe tło zamiast modala
+- **Przyczyna 1**: Stary zapisany stan (localStorage z FAZA 2.11.1) nie zawierał pól `lineSpacing`, `paddingX`, `paddingY` → `undefined` → błąd React
+- **Rozwiązanie 1**: 
+  - Zwiększono wersję persist do 3
+  - Dodano migrację v2→v3 która uzupełnia brakujące pola `dxfExportSettings`
+  - Dodano fallbacki w `ExportModal.tsx`: `dxfExportSettings?.lineSpacing ?? 1.25`
+- **Problem 2**: Przycisk "Eksportuj do DXF" w modalu powodował białe tło / brak eksportu
+- **Przyczyna 2**: Nieprawidłowy MIME type `application/dxf` powodował próbę otwarcia pliku zamiast pobrania
+- **Rozwiązanie 2**:
+  - Zmieniono MIME type na `application/octet-stream`
+  - Dodano walidację parametrów i wyniku `dxf.stringify()`
+  - Modal zamykany PRZED pobraniem, download opóźniony o 100ms
+- **Pliki**: `src/stores/useZoneStore.ts`, `src/components/ExportModal.tsx`, `src/lib/dxfExport.ts`, `src/components/Workspace2D.tsx`

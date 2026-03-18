@@ -278,9 +278,15 @@ export type SyncStatus = 'SAVED' | 'SAVING' | 'ERROR';
 // ============================================
 
 export interface DxfExportSettings {
-  fontHeight: number; // Wysokość czcionki metek w metrach [0.05 - 0.5]
+  fontHeight: number;    // Wysokość czcionki metek w metrach [0.05 - 0.5]
+  lineSpacing: number;   // Mnożnik wysokości czcionki na odstęp między wierszami [0.25 - 2.0]
+  paddingX: number;      // Mnożnik wysokości czcionki na margines poziomy ramki [0.2 - 2.0]
+  paddingY: number;      // Mnożnik wysokości czcionki na margines pionowy ramki [0.1 - 1.0]
 }
 
 export const DEFAULT_DXF_EXPORT_SETTINGS: DxfExportSettings = {
-  fontHeight: 0.1, // 10 cm jako domyślna wysokość czcionki
+  fontHeight: 0.1,    // 10 cm jako domyślna wysokość czcionki
+  lineSpacing: 1.25,  // odstęp między wierszami = 1.25 × fontHeight
+  paddingX: 1.0,     // margines poziomy = 1.0 × fontHeight
+  paddingY: 0.36,     // margines pionowy = 0.36 × fontHeight
 };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2, Type } from 'lucide-react';
+import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2, Type, AlignLeft, AlignCenter, Square } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
 
 interface ExportRegion {
@@ -25,13 +25,19 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
   const floors = useZoneStore((s) => s.floors);
   const dxfExportSettings = useZoneStore((s) => s.dxfExportSettings);
   const setDxfFontHeight = useZoneStore((s) => s.setDxfFontHeight);
+  const setDxfLineSpacing = useZoneStore((s) => s.setDxfLineSpacing);
+  const setDxfPaddingX = useZoneStore((s) => s.setDxfPaddingX);
+  const setDxfPaddingY = useZoneStore((s) => s.setDxfPaddingY);
   
   const activeFloor = activeFloorId ? floors[activeFloorId] : null;
   const regions = (activeFloor?.exportRegions || []) as ExportRegion[];
 
   const [selectedRegionId, setSelectedRegionId] = useState<string>(regions[0]?.id || '');
   const [includeBackground, setIncludeBackground] = useState(true);
-  const [localFontHeight, setLocalFontHeight] = useState(dxfExportSettings.fontHeight);
+  const [localFontHeight, setLocalFontHeight] = useState(dxfExportSettings?.fontHeight ?? 0.1);
+  const [localLineSpacing, setLocalLineSpacing] = useState(dxfExportSettings?.lineSpacing ?? 1.25);
+  const [localPaddingX, setLocalPaddingX] = useState(dxfExportSettings?.paddingX ?? 1.0);
+  const [localPaddingY, setLocalPaddingY] = useState(dxfExportSettings?.paddingY ?? 0.36);
 
   if (!isOpen) return null;
 
@@ -41,6 +47,24 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
     const clamped = Math.max(0.05, Math.min(0.5, value));
     setLocalFontHeight(clamped);
     setDxfFontHeight(clamped);
+  };
+
+  const handleLineSpacingChange = (value: number) => {
+    const clamped = Math.max(0.25, Math.min(2.0, value));
+    setLocalLineSpacing(clamped);
+    setDxfLineSpacing(clamped);
+  };
+
+  const handlePaddingXChange = (value: number) => {
+    const clamped = Math.max(0.2, Math.min(2.0, value));
+    setLocalPaddingX(clamped);
+    setDxfPaddingX(clamped);
+  };
+
+  const handlePaddingYChange = (value: number) => {
+    const clamped = Math.max(0.1, Math.min(1.0, value));
+    setLocalPaddingY(clamped);
+    setDxfPaddingY(clamped);
   };
 
   return (
@@ -63,7 +87,7 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           {/* Region Selection */}
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -136,42 +160,160 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
               </div>
             </label>
 
-            {/* Font Height Control */}
+            {/* Font Settings */}
             <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
                 <Type className="w-4 h-4 text-slate-400" />
-                <span className="text-sm font-bold text-slate-700">Wysokość czcionki metek (DXF)</span>
+                <span className="text-sm font-bold text-slate-700">Ustawienia czcionki metek (DXF)</span>
               </div>
               
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0.05"
-                  max="0.5"
-                  step="0.01"
-                  value={localFontHeight}
-                  onChange={(e) => handleFontHeightChange(parseFloat(e.target.value))}
-                  className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
-                <div className="flex items-center gap-1">
+              {/* Font Height */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600">Wysokość czcionki</span>
+                  <span className="text-[10px] text-slate-400">({(localFontHeight * localLineSpacing * 100).toFixed(1)} cm wys. wiersza)</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <input
-                    type="number"
+                    type="range"
                     min="0.05"
                     max="0.5"
                     step="0.01"
                     value={localFontHeight}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!isNaN(val)) handleFontHeightChange(val);
-                    }}
-                    className="w-16 px-2 py-1.5 text-sm text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    onChange={(e) => handleFontHeightChange(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                   />
-                  <span className="text-sm text-slate-500 font-medium">m</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.05"
+                      max="0.5"
+                      step="0.01"
+                      value={localFontHeight}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) handleFontHeightChange(val);
+                      }}
+                      className="w-14 px-1.5 py-1 text-xs text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-4">m</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Line Spacing */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600 flex items-center gap-1">
+                    <AlignLeft className="w-3 h-3" />
+                    Odstęp między wierszami
+                  </span>
+                  <span className="text-[10px] text-slate-400">×{localLineSpacing.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0.25"
+                    max="2.0"
+                    step="0.05"
+                    value={localLineSpacing}
+                    onChange={(e) => handleLineSpacingChange(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.25"
+                      max="2.0"
+                      step="0.05"
+                      value={localLineSpacing}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) handleLineSpacingChange(val);
+                      }}
+                      className="w-14 px-1.5 py-1 text-xs text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-4">×</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Padding X */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600 flex items-center gap-1">
+                    <AlignCenter className="w-3 h-3" />
+                    Margines poziomy ramki
+                  </span>
+                  <span className="text-[10px] text-slate-400">×{localPaddingX.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="2.0"
+                    step="0.05"
+                    value={localPaddingX}
+                    onChange={(e) => handlePaddingXChange(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.2"
+                      max="2.0"
+                      step="0.05"
+                      value={localPaddingX}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) handlePaddingXChange(val);
+                      }}
+                      className="w-14 px-1.5 py-1 text-xs text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-4">×</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Padding Y */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-600 flex items-center gap-1">
+                    <Square className="w-3 h-3" />
+                    Margines pionowy ramki
+                  </span>
+                  <span className="text-[10px] text-slate-400">×{localPaddingY.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.05"
+                    value={localPaddingY}
+                    onChange={(e) => handlePaddingYChange(parseFloat(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="1.0"
+                      step="0.05"
+                      value={localPaddingY}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) handlePaddingYChange(val);
+                      }}
+                      className="w-14 px-1.5 py-1 text-xs text-center bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                    <span className="text-xs text-slate-500 w-4">×</span>
+                  </div>
                 </div>
               </div>
               
-              <p className="text-[10px] text-slate-400">
-                Wartość zostanie zapamiętana przy następnym eksporcie.
+              <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+                Wszystkie wartości zostaną zapamiętane przy następnym eksporcie.
               </p>
             </div>
           </div>

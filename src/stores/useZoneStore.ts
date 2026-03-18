@@ -156,6 +156,9 @@ interface ZoneStore {
   updateGlobalTagSettings: (settings: Partial<GlobalTagSettings>) => void;
   dxfExportSettings: DxfExportSettings;
   setDxfFontHeight: (height: number) => void;
+  setDxfLineSpacing: (spacing: number) => void;
+  setDxfPaddingX: (padding: number) => void;
+  setDxfPaddingY: (padding: number) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -210,6 +213,18 @@ export const useZoneStore = create<ZoneStore>()(
       setDxfFontHeight: (height: number) => set((s) => {
         const clampedHeight = Math.max(0.05, Math.min(0.5, height));
         return { dxfExportSettings: { ...s.dxfExportSettings, fontHeight: clampedHeight } };
+      }),
+      setDxfLineSpacing: (spacing: number) => set((s) => {
+        const clampedSpacing = Math.max(0.25, Math.min(2.0, spacing));
+        return { dxfExportSettings: { ...s.dxfExportSettings, lineSpacing: clampedSpacing } };
+      }),
+      setDxfPaddingX: (padding: number) => set((s) => {
+        const clampedPadding = Math.max(0.2, Math.min(2.0, padding));
+        return { dxfExportSettings: { ...s.dxfExportSettings, paddingX: clampedPadding } };
+      }),
+      setDxfPaddingY: (padding: number) => set((s) => {
+        const clampedPadding = Math.max(0.1, Math.min(1.0, padding));
+        return { dxfExportSettings: { ...s.dxfExportSettings, paddingY: clampedPadding } };
       }),
 
       addZone: (zone) => {
@@ -448,13 +463,29 @@ export const useZoneStore = create<ZoneStore>()(
     }),
     {
       name: 'wentcad-zone-storage',
-      version: 2,
+      version: 3,
       migrate: (persistedState: any, version: number) => {
         if (version < 2) {
           return {
             ...persistedState,
             floors: persistedState.floors || createDefaultFloors(),
             activeFloorId: persistedState.activeFloorId || DEFAULT_FLOOR_ID
+          };
+        }
+        // Migracja v2 -> v3: uzupełnienie brakujących pól dxfExportSettings
+        if (version < 3) {
+          const defaultDxfSettings = {
+            fontHeight: 0.1,
+            lineSpacing: 1.25,
+            paddingX: 1.0,
+            paddingY: 0.36,
+          };
+          return {
+            ...persistedState,
+            dxfExportSettings: {
+              ...defaultDxfSettings,
+              ...(persistedState.dxfExportSettings || {}),
+            }
           };
         }
         return persistedState;

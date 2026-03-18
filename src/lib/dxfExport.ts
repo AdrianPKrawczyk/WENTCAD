@@ -119,12 +119,24 @@ export function exportToDXF(
   _systems: SystemDef[],
   getTagText: (zoneId: string) => { col1: string; col2: string },
   exportFrame?: ExportFrame,
-  fontHeight: number = 0.1
+  fontHeight: number = 0.1,
+  lineSpacing: number = 1.25,
+  paddingX: number = 1.0,
+  paddingY: number = 0.36
 ): string {
   const dxf = new DxfWriter();
 
-  // Rozmiar tekstu dla DXF (w jednostkach modelu - metry)
-  // fontHeight jest teraz parametrem z zakresu 0.05 - 0.5
+  // Walidacja parametrów
+  if (!isValidNumber(fontHeight) || fontHeight <= 0) fontHeight = 0.1;
+  if (!isValidNumber(lineSpacing) || lineSpacing <= 0) lineSpacing = 1.25;
+  if (!isValidNumber(paddingX) || paddingX <= 0) paddingX = 1.0;
+  if (!isValidNumber(paddingY) || paddingY <= 0) paddingY = 0.36;
+
+  // Ustawienia metek DXF (w jednostkach modelu - metry)
+  // fontHeight - wysokość czcionki
+  // lineSpacing - mnożnik na odstęp między wierszami
+  // paddingX - mnożnik na margines poziomy ramki
+  // paddingY - mnożnik na margines pionowy ramki
   
   dxf.addLayer("WENTCAD_OBRYSY", 7);
   dxf.addLayer("WENTCAD_KADRY", 3);
@@ -206,9 +218,10 @@ export function exportToDXF(
 
     const tagText = getTagText(zone.id);
     if (tagText.col1 || tagText.col2) {
-      const lineHeight = fontHeight * 1.25;
-      const paddingX = fontHeight * 1.0;
-      const paddingY = fontHeight * 0.36;
+      const lineHeight = fontHeight * lineSpacing;
+      const padX = fontHeight * paddingX;
+      const padY = fontHeight * paddingY;
+      const innerPad = fontHeight * 0.5; // wewnętrzny margines dla tekstu
       
       const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
       const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
@@ -218,8 +231,8 @@ export function exportToDXF(
         maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line, fontHeight));
       });
       
-      const tagWidth = maxLineWidth + paddingX * 2;
-      const tagHeight = nonEmptyLines.length * lineHeight + paddingY * 2;
+      const tagWidth = maxLineWidth + padX * 2;
+      const tagHeight = nonEmptyLines.length * lineHeight + padY * 2;
       
       const tagX = tagPosCAD.x - tagWidth / 2;
       const tagY = tagPosCAD.y - tagHeight / 2 - 0.03;
@@ -231,13 +244,12 @@ export function exportToDXF(
       
       const boxMaxY = tagY + tagHeight;
       const boxMinX = tagX;
-      const pad = fontHeight * 0.5;
 
-      let currentY = boxMaxY - pad - fontHeight;
+      let currentY = boxMaxY - innerPad - fontHeight;
 
       nonEmptyLines.forEach(line => {
         dxf.addText(
-          point3d(boxMinX + pad, currentY, 0),
+          point3d(boxMinX + innerPad, currentY, 0),
           fontHeight,
           sanitizeDxfText(line),
           { layerName: "WENTCAD_METKI_TEKST" }
@@ -248,7 +260,15 @@ export function exportToDXF(
   });
 
   // Generuj DXF
-  return dxf.stringify();
+  const result = dxf.stringify();
+  
+  // Walidacja wyniku
+  if (!result || result.length < 100) {
+    console.error('DXF stringify returned invalid result:', result);
+    throw new Error('Nie udało się wygenerować poprawnego pliku DXF');
+  }
+  
+  return result;
 }
 
 function calculateCentroid(points: number[]): Point {
@@ -262,11 +282,17 @@ function calculateCentroid(points: number[]): Point {
 }
 
 export function downloadDXF(content: string, filename: string) {
-  const blob = new Blob([content], { type: "application/dxf" });
+  if (!content || content.length === 0) {
+    console.error('DXF content is empty');
+    return;
+  }
+  
+  const blob = new Blob([content], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename.toLowerCase().endsWith(".dxf") ? filename : `${filename}.dxf`;
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

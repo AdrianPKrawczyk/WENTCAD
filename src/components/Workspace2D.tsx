@@ -852,15 +852,29 @@ export function Workspace2D({ className }: Workspace2DProps) {
         systems,
         generateTagText,
         region,
-        dxfExportSettings.fontHeight
+        dxfExportSettings.fontHeight,
+        dxfExportSettings.lineSpacing,
+        dxfExportSettings.paddingX,
+        dxfExportSettings.paddingY
       );
       
-      downloadDXF(dxfString, `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`);
-      toast.success(`Wyeksportowano DXF: ${region.name}`);
+      if (!dxfString || dxfString.length === 0) {
+        throw new Error('Wygenerowany plik DXF jest pusty');
+      }
+      
+      const filename = `${underlayName || 'WENTCAD'}_${region.name}_export.dxf`;
+      
+      // Zamknij modal PRZED pobraniem
       setIsExportModalOpen(false);
+      
+      // Opóźnij pobieranie żeby React mógł się ustabilizować
+      setTimeout(() => {
+        downloadDXF(dxfString, filename);
+        toast.success(`Wyeksportowano DXF: ${region.name}`);
+      }, 100);
     } catch (err) {
-      console.error(err);
-      toast.error('Błąd podczas generowania DXF.');
+      console.error('DXF Export Error:', err);
+      toast.error(`Błąd eksportu DXF: ${err instanceof Error ? err.message : 'Nieznany błąd'}`);
     }
   }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName, dxfExportSettings]);
 
