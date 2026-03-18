@@ -4,10 +4,11 @@ import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
-import { calculatePolygonArea } from '../lib/geometryUtils';
+import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
+import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
 import { renderDxfToDataUrl, parseDxfFile } from '../lib/dxfUtils';
 import { DxfUnitModal } from './DxfUnitModal';
@@ -104,6 +105,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const globalPatternScale = useZoneStore((s) => s.globalPatternScale) || 1.0;
+  const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
   const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
@@ -142,11 +144,64 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
   const selectedDxfOutlineId = useZoneStore((s) => s.selectedDxfOutlineId);
   const setSelectedDxfOutlineId = useZoneStore((s) => s.setSelectedDxfOutlineId);
+
+  const generateTagText = useCallback((zoneId: string) => {
+    const zone = zones[zoneId];
+    if (!zone) return '';
+
+    return globalTagSettings.fields
+      .filter(f => f.enabled)
+      .sort((a, b) => a.order - b.order)
+      .map(f => {
+        let val: string | number = '--';
+        switch (f.type) {
+          case 'ROOM_NR_NAME': 
+            val = `${zone.nr} ${zone.name}`; 
+            break;
+          case 'AREA': 
+            val = (zone.area || 0).toFixed(2); 
+            break;
+          case 'VOLUME': 
+            val = (zone.calculatedVolume || 0).toFixed(2); 
+            break;
+          case 'FLOW_SUPPLY': 
+            val = Math.round(zone.calculatedVolume || 0); 
+            break;
+          case 'FLOW_EXHAUST': 
+            val = Math.round(zone.calculatedExhaust || 0); 
+            break;
+          case 'REAL_ACH': 
+            val = (zone.realACH || 0).toFixed(1); 
+            break;
+          case 'ACOUSTICS': 
+            val = zone.maxAllowedDbA || '--'; 
+            break;
+          case 'SUPPLY_SYSTEM_NAME': 
+            val = systems.find(s => s.id === zone.systemSupplyId)?.name || '--'; 
+            break;
+          case 'EXHAUST_SYSTEM_NAME': 
+            val = systems.find(s => s.id === zone.systemExhaustId)?.name || '--'; 
+            break;
+          case 'INTERNAL_TEMP': 
+            val = zone.roomTemp || '--'; 
+            break;
+          case 'OCCUPANTS': 
+            val = zone.occupants || 0; 
+            break;
+          case 'HEAT_GAINS': 
+            val = zone.totalHeatGain || 0; 
+            break;
+        }
+        return `${f.prefix}${val}${f.suffix}`;
+      })
+      .join('\n');
+  }, [zones, globalTagSettings, systems]);
 
   // Update floor-specific state helpers
   const setFloorPositionAndScale = useCallback((zoomLevel: number, panPosition: Point) => {
@@ -1040,6 +1095,70 @@ export function Workspace2D({ className }: Workspace2DProps) {
             );
           })}
 
+          {/* Smart Tags Layer */}
+          {showZonesOnCanvas && polygons.map((poly) => {
+            const zone = zones[poly.zoneId];
+            if (!zone) return null;
+
+            const isSupplyHidden = zone.systemSupplyId ? hiddenSystemIdsOnCanvas.includes(zone.systemSupplyId) : false;
+            const isExhaustHidden = zone.systemExhaustId ? hiddenSystemIdsOnCanvas.includes(zone.systemExhaustId) : false;
+            const isNoneHidden = (!zone.systemSupplyId && !zone.systemExhaustId) ? hiddenSystemIdsOnCanvas.includes('none') : false;
+            if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
+
+            // Calculate Tag Position
+            const tagPos = zone.tagPosition || calculatePolygonCentroid(poly.points);
+
+            const tagText = generateTagText(zone.id);
+            if (!tagText) return null;
+
+            const baseFontSize = globalTagSettings.fontSize || 10;
+            const scaledFontSize = baseFontSize / scale;
+            const padding = 4 / scale;
+
+            return (
+              <Label
+                key={`tag-${zone.id}`}
+                x={tagPos.x}
+                y={tagPos.y}
+                draggable
+                onDragStart={() => {
+                  // Optional: visual feedback
+                }}
+                onDragEnd={(e) => {
+                  updateZone(zone.id, {
+                    tagPosition: { x: e.target.x(), y: e.target.y() }
+                  });
+                }}
+                onMouseEnter={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'move';
+                }}
+                onMouseLeave={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+              >
+                <Tag
+                  fill={globalTagSettings.fillColor}
+                  stroke={globalTagSettings.strokeColor}
+                  strokeWidth={1 / scale}
+                  cornerRadius={2 / scale}
+                  shadowColor="black"
+                  shadowBlur={10 / scale}
+                  shadowOpacity={0.1}
+                />
+                <Text
+                  text={tagText}
+                  fontSize={scaledFontSize}
+                  padding={padding}
+                  fill="#1e293b"
+                  align="center"
+                  lineHeight={1.2}
+                />
+              </Label>
+            );
+          })}
+
           {/* Current Drawing Polygon (PEN) */}
           {(isDrawingPolygon && currentTool === 'PEN') && currentPolygonPoints.length > 0 && (
             <>
@@ -1320,6 +1439,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {isDrawingPolygon ? 'Anuluj' : 'Rysuj'}
         </button>
 
+        <button
+          onClick={() => setIsTagModalOpen(true)}
+          title="Konfiguracja metek"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+        >
+          <TagIcon className="w-4 h-4 text-slate-500" />
+          Metki
+        </button>
+
         {isDrawingPolygon && currentPolygonPoints.length > 2 && (
           <button
             onClick={() => {
@@ -1503,6 +1631,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
           outlineId={selectedDxfOutlineId}
         />
       )}
+
+      <SmartTagModal
+        isOpen={isTagModalOpen}
+        onClose={() => setIsTagModalOpen(false)}
+      />
     </div>
   );
 }

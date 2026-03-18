@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
 const DEFAULT_FLOOR_ID = 'floor-parter';
@@ -11,6 +11,28 @@ function createDefaultFloors(): Record<string, Floor> {
     [DEFAULT_FLOOR_ID]: { id: DEFAULT_FLOOR_ID, name: 'Parter', elevation: 0.0, order: 0 }
   };
 }
+
+const DEFAULT_TAG_FIELDS: TagFieldConfig[] = [
+  { id: 'f1', type: 'ROOM_NR_NAME', enabled: true, prefix: '', suffix: '', order: 0 },
+  { id: 'f2', type: 'AREA', enabled: true, prefix: 'Pow.: ', suffix: ' m²', order: 1 },
+  { id: 'f3', type: 'FLOW_SUPPLY', enabled: true, prefix: 'N: ', suffix: ' m³/h', order: 2 },
+  { id: 'f4', type: 'FLOW_EXHAUST', enabled: true, prefix: 'W: ', suffix: ' m³/h', order: 3 },
+  { id: 'f5', type: 'REAL_ACH', enabled: false, prefix: 'ACH: ', suffix: ' 1/h', order: 4 },
+  { id: 'f6', type: 'SUPPLY_SYSTEM_NAME', enabled: false, prefix: 'Sys.N: ', suffix: '', order: 5 },
+  { id: 'f7', type: 'EXHAUST_SYSTEM_NAME', enabled: false, prefix: 'Sys.W: ', suffix: '', order: 6 },
+  { id: 'f8', type: 'INTERNAL_TEMP', enabled: false, prefix: 'Temp.: ', suffix: ' °C', order: 7 },
+  { id: 'f9', type: 'OCCUPANTS', enabled: false, prefix: 'Os.: ', suffix: ' os', order: 8 },
+  { id: 'f10', type: 'VOLUME', enabled: false, prefix: 'V: ', suffix: ' m³', order: 9 },
+  { id: 'f11', type: 'ACOUSTICS', enabled: false, prefix: 'Hałas: ', suffix: ' dB(A)', order: 10 },
+  { id: 'f12', type: 'HEAT_GAINS', enabled: false, prefix: 'Zyski: ', suffix: ' W', order: 11 },
+];
+
+const DEFAULT_TAG_SETTINGS: GlobalTagSettings = {
+  fields: DEFAULT_TAG_FIELDS,
+  fontSize: 10,
+  fillColor: '#ffffff',
+  strokeColor: '#cbd5e1',
+};
 
 function resolveZonesState(zones: Record<string, ZoneData>): Record<string, ZoneData> {
   const newZones = { ...zones };
@@ -128,6 +150,8 @@ interface ZoneStore {
   setLinkingZoneId: (id: string | null) => void;
   selectedDxfOutlineId: string | null;
   setSelectedDxfOutlineId: (id: string | null) => void;
+  globalTagSettings: GlobalTagSettings;
+  updateGlobalTagSettings: (settings: Partial<GlobalTagSettings>) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -157,6 +181,7 @@ export const useZoneStore = create<ZoneStore>()(
       globalPatternScale: 1.0,
       linkingZoneId: null,
       selectedDxfOutlineId: null,
+      globalTagSettings: DEFAULT_TAG_SETTINGS,
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -174,6 +199,9 @@ export const useZoneStore = create<ZoneStore>()(
       setGlobalPatternScale: (scale: number) => set({ globalPatternScale: scale }),
       setLinkingZoneId: (id: string | null) => set({ linkingZoneId: id }),
       setSelectedDxfOutlineId: (id: string | null) => set({ selectedDxfOutlineId: id }),
+      updateGlobalTagSettings: (settings) => set((s) => ({
+        globalTagSettings: { ...s.globalTagSettings, ...settings }
+      })),
 
       addZone: (zone) => {
         set((state) => {
@@ -284,7 +312,8 @@ export const useZoneStore = create<ZoneStore>()(
           globalSystemOpacity: stateData.globalSystemOpacity ?? 20,
           columnState: stateData.columnState ?? null,
           activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter',
-          globalPatternScale: stateData.globalPatternScale ?? 1.0
+          globalPatternScale: stateData.globalPatternScale ?? 1.0,
+          globalTagSettings: stateData.globalTagSettings || DEFAULT_TAG_SETTINGS
         });
       },
 
@@ -434,7 +463,8 @@ export const useZoneStore = create<ZoneStore>()(
         stylePresets, 
         isSystemColoringEnabled, 
         globalSystemOpacity,
-        globalPatternScale
+        globalPatternScale,
+        globalTagSettings
       } = state;
       return { 
         zones, 
@@ -444,7 +474,8 @@ export const useZoneStore = create<ZoneStore>()(
         stylePresets, 
         isSystemColoringEnabled, 
         globalSystemOpacity,
-        globalPatternScale
+        globalPatternScale,
+        globalTagSettings
       };
     },
   }

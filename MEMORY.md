@@ -3,7 +3,7 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.9.4 ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.9.7 ZAKOŃCZONA
 * **Active Step:** FAZA 2.10 (Eksport PDF) - PENDING
 * **Pending Task:** Implementacja eksportu zestawienia do PDF.
 
@@ -248,3 +248,11 @@
     - Kliknięcie wiersza w `AirBalanceTable` centruje widok na rzucie, a kliknięcie strefy na rzucie zaznacza odpowiedni wiersz w ag-Grid (z synchronizacją `ensureNodeVisible`).
     - **Fix**: Rozwiązano problem pętli zwrotnej (selection feedback loop) pomiędzy stanem Zustand a ag-Grid. 
     - **Behavior**: Checkboxy w tabeli służą do stabilnej pracy masowej (nie odznaczają się przy dodawaniu kolejnych), natomiast kliknięcie obiektu na rzucie focusuje tabelę na nowym elemencie, czyszcząc poprzednie zaznaczenia (standardowy UX projektowy).
+251: 
+252: ### Iteracja 2.9.7: Smart Tag Builder (Metki)
+253: - **Interfejsy**: Dodano `TagFieldConfig` i `GlobalTagSettings` do `types.ts`. Obiekt `ZoneData` rozszerzony o `tagPosition`.
+254: - **Zustand**: `useZoneStore` przechowuje globalną konfigurację pól (prefix, suffix, order). Implementacja `updateGlobalTagSettings`.
+255: - **Geometria**: Nowy moduł `calculatePolygonCentroid` w `geometryUtils.ts` (Shoelace algorithm).
+256: - **UI (Modal)**: `SmartTagModal.tsx` z obsługą `react-hook-form` i Live Preview. Pozwala na dynamiczną reorganizację wierszy metki.
+257: - **Canvas**: Renderowanie za pomocą Konva `<Label>` i `<Tag>`. Obsługa natywnego **Drag & Drop** dla każdej metki z zapisem pozycji do store.
+258: - **Zależności**: Dodano `react-hook-form` do projektu.

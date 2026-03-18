@@ -4,6 +4,32 @@
  * Based on docs/01-system-guardrails.md and docs/05-hvac-formulas.md
  */
 
+export type TagFieldType = 
+  | 'ROOM_NR_NAME' | 'AREA' | 'VOLUME' 
+  | 'FLOW_SUPPLY' | 'FLOW_EXHAUST' 
+  | 'REAL_ACH' | 'ACOUSTICS'
+  | 'SUPPLY_SYSTEM_NAME'
+  | 'EXHAUST_SYSTEM_NAME'
+  | 'INTERNAL_TEMP'
+  | 'OCCUPANTS'
+  | 'HEAT_GAINS';
+
+export interface TagFieldConfig {
+  id: string;
+  type: TagFieldType;
+  enabled: boolean;
+  prefix: string;
+  suffix: string;
+  order: number;
+}
+
+export interface GlobalTagSettings {
+  fields: TagFieldConfig[];
+  fontSize: number;
+  fillColor: string; // Tło metki, np. '#ffffff'
+  strokeColor: string; // Ramka metki, np. '#000000'
+}
+
 // ============================================
 // 1. ZONES & AIR BALANCE
 // ============================================
@@ -83,6 +109,7 @@ export interface ZoneData {
   isAreaManual: boolean; // Flaga sterująca (domyślnie: true)
   height: number; // m
   manualVolume?: number | null; // kubatura podana ręcznie
+  tagPosition?: { x: number; y: number } | null;
   
   // Air Volume Inputs
   calculationMode: CalculationMode;
@@ -219,6 +246,7 @@ export interface ProjectStateData {
   globalSystemOpacity: number;
   columnState: any | null;
   globalPatternScale?: number;
+  globalTagSettings: GlobalTagSettings;
 }
 
 // Rekord Projektu
