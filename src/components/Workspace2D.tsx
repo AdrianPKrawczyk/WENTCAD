@@ -1403,7 +1403,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     text={texts.col1}
                     fontSize={fontSize}
                     fill="#1e293b"
-                    fontFamily="Arial, sans-serif"
+                    fontFamily="Segoe UI, Arial, sans-serif"
                   />
                 )}
                 {texts.col2 && (
@@ -1414,7 +1414,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     text={texts.col2}
                     fontSize={fontSize}
                     fill="#64748b"
-                    fontFamily="Arial, sans-serif"
+                    fontFamily="Segoe UI, Arial, sans-serif"
                   />
                 )}
               </Group>
@@ -1493,6 +1493,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 strokeWidth={1 / scale}
                 dash={[10 / scale, 10 / scale]}
                 opacity={0.6}
+                listening={false}
               />
               <Text
                 x={region.x}

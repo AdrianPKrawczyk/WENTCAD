@@ -344,4 +344,19 @@
             6. Przywrócono oryginalne wymiary Stage i pozycję.
         - **Kluczowa lekcja**: Konieczne jest dynamiczne skalowanie Stage do rozmiaru renderowanej treści, ponieważ Stage zawsze obcina grafikę do swoich wymiarów - nie ma żadnego "nieskończonego canvasu".
 
+### FAZA 2.10.3b (2026-03-18): Poprawka interakcji Metek z Kadrem
+- **Objaw**: Po zdefiniowaniu Kadru (obszaru eksportu), użytkownik tracił możliwość chwytania i przesuwania metek (etykiet). Po usunięciu Kadru metki znów działały.
+- **Przyczyna**: Konflikt przechwytywania zdarzeń. `Rect` Kadru (z przezroczystym fill) miał domyślnie `listening={true}`, więc przechwytywał wszystkie zdarzenia myszy w swoim bounding box, blokując dostęp do metek znajdujących się pod spodem.
+- **Rozwiązanie**: Dodano `listening={false}` do głównego `Rect` Kadru w `uiOverlayLayerRef`. Dzięki temu przezroczyste wypełnienie Kadru przepuszcza zdarzenia myszy do elementów pod spodem (metek, stref). Przycisk usuwania Kadru (ikona "×") pozostaje interaktywny, ponieważ jest osobnym elementem `Group`.
+- **Technologia**: Konva.js - atrybut `listening` kontroluje, czy dany kształt reaguje na zdarzenia myszy.
+
+### FAZA 2.10.3c (2026-03-18): Poprawka obsługi polskich znaków
+- **Problem**: Metki i interfejs nie wyświetlały poprawnie polskich znaków (ą, ć, ę, ł, ń, ó, ś, ź, ż).
+- **Rozwiązania**:
+    1. Zmieniono `lang="en"` na `lang="pl"` w `index.html`
+    2. Zmieniono font w Konva Text z `"Arial, sans-serif"` na `"Segoe UI, Arial, sans-serif"` - Segoe UI jest fontem systemowym Windows z pełną obsługą polskich znaków
+- **Lokalizacja**: `index.html:2`, `Workspace2D.tsx:1406,1417`
+
+(End of file - total 380 lines)
+
 (End of file - total 350 lines)
