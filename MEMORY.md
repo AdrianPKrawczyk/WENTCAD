@@ -248,11 +248,13 @@
     - Kliknięcie wiersza w `AirBalanceTable` centruje widok na rzucie, a kliknięcie strefy na rzucie zaznacza odpowiedni wiersz w ag-Grid (z synchronizacją `ensureNodeVisible`).
     - **Fix**: Rozwiązano problem pętli zwrotnej (selection feedback loop) pomiędzy stanem Zustand a ag-Grid. 
     - **Behavior**: Checkboxy w tabeli służą do stabilnej pracy masowej (nie odznaczają się przy dodawaniu kolejnych), natomiast kliknięcie obiektu na rzucie focusuje tabelę na nowym elemencie, czyszcząc poprzednie zaznaczenia (standardowy UX projektowy).
-251: 
-252: ### Iteracja 2.9.7: Smart Tag Builder (Metki)
-253: - **Interfejsy**: Dodano `TagFieldConfig` i `GlobalTagSettings` do `types.ts`. Obiekt `ZoneData` rozszerzony o `tagPosition`.
-254: - **Zustand**: `useZoneStore` przechowuje globalną konfigurację pól (prefix, suffix, order). Implementacja `updateGlobalTagSettings`.
-255: - **Geometria**: Nowy moduł `calculatePolygonCentroid` w `geometryUtils.ts` (Shoelace algorithm).
-256: - **UI (Modal)**: `SmartTagModal.tsx` z obsługą `react-hook-form` i Live Preview. Pozwala na dynamiczną reorganizację wierszy metki.
-257: - **Canvas**: Renderowanie za pomocą Konva `<Label>` i `<Tag>`. Obsługa natywnego **Drag & Drop** dla każdej metki z zapisem pozycji do store.
-258: - **Zależności**: Dodano `react-hook-form` do projektu.
+
+###- [x] Phase 2.9.8: Smart Tag Refinements (Fixed Size, Preview Reactivity)
+- [x] Phase 2.9.9: Two-Column Tag Layout (Configurable columns, dynamic offset)
+### Iteracja 2.9.7: Smart Tag Builder (Metki)
+- **Interfejsy**: Dodano `TagFieldConfig` i `GlobalTagSettings` do `types.ts`. Obiekt `ZoneData` rozszerzony o `tagPosition`.
+- **Zustand**: `useZoneStore` przechowuje globalną konfigurację pól (prefix, suffix, order). Implementacja `updateGlobalTagSettings`.
+- **Geometria**: Nowy moduł `calculatePolygonCentroid` w `geometryUtils.ts` (Shoelace algorithm).
+- **UI (Modal)**: `SmartTagModal.tsx` z obsługą `react-hook-form` i Live Preview. Pozwala na dynamiczną reorganizację wierszy metki.
+- **Canvas**: Renderowanie za pomocą Konva `<Label>` i `<Tag>`. Obsługa natywnego **Drag & Drop** dla każdej metki z zapisem pozycji do store.
+- **Zależności**: Dodano `react-hook-form` do projektu.

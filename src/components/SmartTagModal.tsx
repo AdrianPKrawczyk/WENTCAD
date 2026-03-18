@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useZoneStore } from '../stores/useZoneStore';
-import type { TagFieldConfig, TagFieldType, GlobalTagSettings, ZoneData } from '../types';
+import type { TagFieldConfig, TagFieldType, GlobalTagSettings } from '../types';
 import { X, ChevronUp, ChevronDown, Tag as TagIcon, Eye } from 'lucide-react';
 
 interface SmartTagModalProps {
@@ -25,25 +25,25 @@ const FIELD_LABELS: Record<TagFieldType, string> = {
 };
 
 // Mock data for preview
-const MOCK_ZONE: Partial<ZoneData> = {
-  nr: '1.01',
-  name: 'Biuro Open Space',
-  area: 45.50,
-  calculatedVolume: 4500,
-  calculatedExhaust: 4200,
-  realACH: 3.2,
+const MOCK_ZONE: any = {
+  nr: "1.01",
+  name: "Biuro",
+  area: 15.5,
+  calculatedVolume: 300,
+  calculatedExhaust: 0,
+  realACH: 1.5,
   maxAllowedDbA: 35,
-  roomTemp: 22,
-  occupants: 8,
-  totalHeatGain: 2400,
+  roomTemp: 20,
+  occupants: 2,
+  totalHeatGain: 450
 };
 
 export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
   const updateGlobalTagSettings = useZoneStore((s) => s.updateGlobalTagSettings);
 
-  const { register, control, handleSubmit, watch, setValue } = useForm<GlobalTagSettings>({
-    defaultValues: globalTagSettings,
+  const { register, control, handleSubmit, watch, reset } = useForm<GlobalTagSettings>({
+    defaultValues: globalTagSettings
   });
 
   const { fields, move } = useFieldArray({
@@ -51,7 +51,10 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
     name: 'fields',
   });
 
-  const watchedSettings = watch();
+  const watchedFields = watch('fields');
+  const watchedFillColor = watch('fillColor');
+  const watchedStrokeColor = watch('strokeColor');
+  const watchedFontSize = watch('fontSize');
 
   const handleSave = (data: GlobalTagSettings) => {
     updateGlobalTagSettings(data);
@@ -66,36 +69,49 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
     const currentOrder = fields[index].order;
     const targetOrder = fields[newIndex].order;
     
-    setValue(`fields.${index}.order`, targetOrder);
-    setValue(`fields.${newIndex}.order`, currentOrder);
+    reset((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f, i) => {
+        if (i === index) return { ...f, order: targetOrder };
+        if (i === newIndex) return { ...f, order: currentOrder };
+        return f;
+      }),
+    }), { keepDefaultValues: true });
     
     move(index, newIndex);
   };
 
-  const previewText = useMemo(() => {
-    return watchedSettings.fields
+  const previewColumns = useMemo(() => {
+    if (!watchedFields) return { col1: '', col2: '' };
+    
+    const activeFields = [...watchedFields]
       .filter((f: TagFieldConfig) => f.enabled)
-      .sort((a: TagFieldConfig, b: TagFieldConfig) => a.order - b.order)
-      .map((f: TagFieldConfig) => {
-        let val: string | number = '--';
-        switch (f.type) {
-          case 'ROOM_NR_NAME': val = `${MOCK_ZONE.nr} ${MOCK_ZONE.name}`; break;
-          case 'AREA': val = MOCK_ZONE.area || 0; break;
-          case 'VOLUME': val = (MOCK_ZONE.area || 0) * 3; break; // example height 3m
-          case 'FLOW_SUPPLY': val = MOCK_ZONE.calculatedVolume || 0; break;
-          case 'FLOW_EXHAUST': val = MOCK_ZONE.calculatedExhaust || 0; break;
-          case 'REAL_ACH': val = MOCK_ZONE.realACH || 0; break;
-          case 'ACOUSTICS': val = MOCK_ZONE.maxAllowedDbA || 0; break;
-          case 'SUPPLY_SYSTEM_NAME': val = 'N1 (Nawiew)'; break;
-          case 'EXHAUST_SYSTEM_NAME': val = 'W1 (Wywiew)'; break;
-          case 'INTERNAL_TEMP': val = MOCK_ZONE.roomTemp || 0; break;
-          case 'OCCUPANTS': val = MOCK_ZONE.occupants || 0; break;
-          case 'HEAT_GAINS': val = MOCK_ZONE.totalHeatGain || 0; break;
-        }
-        return `${f.prefix}${val}${f.suffix}`;
-      })
-      .join('\n');
-  }, [watchedSettings.fields]);
+      .sort((a: TagFieldConfig, b: TagFieldConfig) => a.order - b.order);
+
+    const generateColText = (cols: TagFieldConfig[]) => cols.map((f: TagFieldConfig) => {
+      let val: string | number = '--';
+      switch (f.type) {
+        case 'ROOM_NR_NAME': val = `${MOCK_ZONE.nr} ${MOCK_ZONE.name}`; break;
+        case 'AREA': val = MOCK_ZONE.area.toFixed(2); break;
+        case 'VOLUME': val = MOCK_ZONE.calculatedVolume.toFixed(2); break;
+        case 'FLOW_SUPPLY': val = Math.round(MOCK_ZONE.calculatedVolume); break;
+        case 'FLOW_EXHAUST': val = Math.round(MOCK_ZONE.calculatedExhaust || 0); break;
+        case 'REAL_ACH': val = MOCK_ZONE.realACH.toFixed(1); break;
+        case 'ACOUSTICS': val = MOCK_ZONE.maxAllowedDbA; break;
+        case 'SUPPLY_SYSTEM_NAME': val = 'N1'; break;
+        case 'EXHAUST_SYSTEM_NAME': val = 'W1'; break;
+        case 'INTERNAL_TEMP': val = MOCK_ZONE.roomTemp; break;
+        case 'OCCUPANTS': val = MOCK_ZONE.occupants; break;
+        case 'HEAT_GAINS': val = MOCK_ZONE.totalHeatGain; break;
+      }
+      return `${f.prefix}${val}${f.suffix}`;
+    }).join('\n');
+
+    return {
+      col1: generateColText(activeFields.filter(f => f.column === 1)),
+      col2: generateColText(activeFields.filter(f => f.column === 2))
+    };
+  }, [watchedFields]);
 
   if (!isOpen) return null;
 
@@ -156,7 +172,7 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
                           <input 
                             {...register(`fields.${index}.prefix`)}
                             placeholder="Prefix"
-                            className="text-xs p-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none w-24"
+                            className="text-xs p-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none w-20"
                           />
                         </div>
                         <div className="flex flex-col">
@@ -164,8 +180,18 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
                           <input 
                             {...register(`fields.${index}.suffix`)}
                             placeholder="Suffix"
-                            className="text-xs p-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none w-24"
+                            className="text-xs p-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none w-20"
                           />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase mb-0.5 ml-1">Kol.</label>
+                          <select
+                            {...register(`fields.${index}.column`, { valueAsNumber: true })}
+                            className="text-xs p-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none w-14 font-bold"
+                          >
+                            <option value={1}>1</option>
+                            <option value={2}>2</option>
+                          </select>
                         </div>
                       </div>
 
@@ -193,35 +219,53 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
               </div>
 
               {/* Visual settings */}
-              <div className="grid grid-cols-3 gap-6 pt-4 border-t border-slate-100">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Rozmiar Fontu</label>
-                  <input 
-                    type="number"
-                    {...register('fontSize', { valueAsNumber: true })}
-                    className="w-full p-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm font-bold"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Kolor Tła</label>
-                  <div className="flex items-center gap-3 p-1.5 border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-indigo-500/20">
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <input 
-                      type="color"
-                      {...register('fillColor')}
-                      className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer p-0 border-0"
+                      type="checkbox" 
+                      {...register('isFixedSize')}
+                      id="isFixedSize"
+                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                     />
-                    <span className="text-xs font-mono uppercase text-slate-600">{watch('fillColor')}</span>
+                    <label htmlFor="isFixedSize" className="text-sm font-medium text-slate-700 cursor-pointer">
+                      Stały rozmiar metki na ekranie (ignoruj zoom)
+                    </label>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Kolor Ramki</label>
-                  <div className="flex items-center gap-3 p-1.5 border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-indigo-500/20">
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Wielkość Fontu</label>
                     <input 
-                      type="color"
-                      {...register('strokeColor')}
-                      className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer p-0 border-0"
+                      type="number" 
+                      {...register('fontSize', { valueAsNumber: true })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
                     />
-                    <span className="text-xs font-mono uppercase text-slate-600">{watch('strokeColor')}</span>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Odsunięcie kolumny (px)</label>
+                    <input 
+                      type="number" 
+                      {...register('leftColumnWidth', { valueAsNumber: true })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Kolor Tła</label>
+                    <input 
+                      type="color" 
+                      {...register('fillColor')}
+                      className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Kolor Ramki</label>
+                    <input 
+                      type="color" 
+                      {...register('strokeColor')}
+                      className="w-full h-9 p-1 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>
@@ -237,23 +281,27 @@ export function SmartTagModal({ isOpen, onClose }: SmartTagModalProps) {
             
             <div className="flex-1 flex items-center justify-center p-8 bg-white border border-slate-200 rounded-2xl shadow-inner relative overflow-hidden pattern-dots">
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
-              
               <div 
-                className="p-4 rounded shadow-xl border min-w-[140px] transition-all duration-300 transform scale-125 text-center"
+                className="p-6 rounded-xl border-2 shadow-2xl transition-all duration-300 max-w-full overflow-hidden flex"
                 style={{ 
-                  backgroundColor: watchedSettings.fillColor,
-                  borderColor: watchedSettings.strokeColor,
-                  borderRadius: '4px',
+                  backgroundColor: watchedFillColor,
+                  borderColor: watchedStrokeColor
                 }}
               >
                 <div 
-                  className="whitespace-pre-line leading-relaxed font-sans"
+                  className="font-sans text-slate-800 whitespace-pre-wrap leading-relaxed border-r border-slate-200 pr-4 mr-4"
                   style={{ 
-                    fontSize: `${watchedSettings.fontSize}px`,
-                    color: '#1e293b'
+                    fontSize: `${watchedFontSize * 1.5}px`,
+                    minWidth: `${(watch('leftColumnWidth') || 100) * 1.5}px`
                   }}
                 >
-                  {previewText || <span className="text-slate-300 italic">Brak włączonych pól</span>}
+                  {previewColumns.col1 || <span className="text-slate-300 italic">Kolumna 1</span>}
+                </div>
+                <div 
+                  className="font-sans text-slate-800 whitespace-pre-wrap leading-relaxed"
+                  style={{ fontSize: `${watchedFontSize * 1.5}px` }}
+                >
+                  {previewColumns.col2 || <span className="text-slate-300 italic">Kolumna 2</span>}
                 </div>
               </div>
             </div>

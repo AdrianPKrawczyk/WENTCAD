@@ -21,6 +21,7 @@ export interface TagFieldConfig {
   prefix: string;
   suffix: string;
   order: number;
+  column: 1 | 2;
 }
 
 export interface GlobalTagSettings {
@@ -28,6 +29,8 @@ export interface GlobalTagSettings {
   fontSize: number;
   fillColor: string; // Tło metki, np. '#ffffff'
   strokeColor: string; // Ramka metki, np. '#000000'
+  isFixedSize: boolean;
+  leftColumnWidth: number;
 }
 
 // ============================================

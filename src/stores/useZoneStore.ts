@@ -13,25 +13,27 @@ function createDefaultFloors(): Record<string, Floor> {
 }
 
 const DEFAULT_TAG_FIELDS: TagFieldConfig[] = [
-  { id: 'f1', type: 'ROOM_NR_NAME', enabled: true, prefix: '', suffix: '', order: 0 },
-  { id: 'f2', type: 'AREA', enabled: true, prefix: 'Pow.: ', suffix: ' m²', order: 1 },
-  { id: 'f3', type: 'FLOW_SUPPLY', enabled: true, prefix: 'N: ', suffix: ' m³/h', order: 2 },
-  { id: 'f4', type: 'FLOW_EXHAUST', enabled: true, prefix: 'W: ', suffix: ' m³/h', order: 3 },
-  { id: 'f5', type: 'REAL_ACH', enabled: false, prefix: 'ACH: ', suffix: ' 1/h', order: 4 },
-  { id: 'f6', type: 'SUPPLY_SYSTEM_NAME', enabled: false, prefix: 'Sys.N: ', suffix: '', order: 5 },
-  { id: 'f7', type: 'EXHAUST_SYSTEM_NAME', enabled: false, prefix: 'Sys.W: ', suffix: '', order: 6 },
-  { id: 'f8', type: 'INTERNAL_TEMP', enabled: false, prefix: 'Temp.: ', suffix: ' °C', order: 7 },
-  { id: 'f9', type: 'OCCUPANTS', enabled: false, prefix: 'Os.: ', suffix: ' os', order: 8 },
-  { id: 'f10', type: 'VOLUME', enabled: false, prefix: 'V: ', suffix: ' m³', order: 9 },
-  { id: 'f11', type: 'ACOUSTICS', enabled: false, prefix: 'Hałas: ', suffix: ' dB(A)', order: 10 },
-  { id: 'f12', type: 'HEAT_GAINS', enabled: false, prefix: 'Zyski: ', suffix: ' W', order: 11 },
+  { id: '1', type: 'ROOM_NR_NAME', enabled: true, prefix: '', suffix: '', order: 0, column: 1 },
+  { id: '2', type: 'AREA', enabled: true, prefix: 'A: ', suffix: ' m²', order: 1, column: 1 },
+  { id: '3', type: 'VOLUME', enabled: false, prefix: 'V: ', suffix: ' m³', order: 2, column: 1 },
+  { id: '4', type: 'FLOW_SUPPLY', enabled: true, prefix: 'Vn: ', suffix: ' m³/h', order: 3, column: 2 },
+  { id: '5', type: 'FLOW_EXHAUST', enabled: true, prefix: 'Vw: ', suffix: ' m³/h', order: 4, column: 2 },
+  { id: '6', type: 'REAL_ACH', enabled: false, prefix: 'n: ', suffix: ' 1/h', order: 5, column: 2 },
+  { id: '7', type: 'ACOUSTICS', enabled: false, prefix: 'Lp: ', suffix: ' dB(A)', order: 6, column: 2 },
+  { id: '8', type: 'SUPPLY_SYSTEM_NAME', enabled: false, prefix: 'Sys N: ', suffix: '', order: 7, column: 2 },
+  { id: '9', type: 'EXHAUST_SYSTEM_NAME', enabled: false, prefix: 'Sys W: ', suffix: '', order: 8, column: 2 },
+  { id: '10', type: 'INTERNAL_TEMP', enabled: false, prefix: 't: ', suffix: ' °C', order: 9, column: 1 },
+  { id: '11', type: 'OCCUPANTS', enabled: false, prefix: 'Osób: ', suffix: '', order: 10, column: 1 },
+  { id: '12', type: 'HEAT_GAINS', enabled: false, prefix: 'Q: ', suffix: ' W', order: 11, column: 1 },
 ];
 
 const DEFAULT_TAG_SETTINGS: GlobalTagSettings = {
-  fields: DEFAULT_TAG_FIELDS,
   fontSize: 10,
   fillColor: '#ffffff',
   strokeColor: '#cbd5e1',
+  isFixedSize: true,
+  leftColumnWidth: 100,
+  fields: DEFAULT_TAG_FIELDS,
 };
 
 function resolveZonesState(zones: Record<string, ZoneData>): Record<string, ZoneData> {

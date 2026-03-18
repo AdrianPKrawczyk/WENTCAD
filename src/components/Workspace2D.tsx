@@ -153,54 +153,38 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
   const generateTagText = useCallback((zoneId: string) => {
     const zone = zones[zoneId];
-    if (!zone) return '';
+    if (!zone) return { col1: '', col2: '' };
 
-    return globalTagSettings.fields
+    const activeFields = globalTagSettings.fields
       .filter(f => f.enabled)
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => a.order - b.order);
+
+    const getColumnText = (col: 1 | 2) => activeFields
+      .filter(f => f.column === col)
       .map(f => {
         let val: string | number = '--';
         switch (f.type) {
-          case 'ROOM_NR_NAME': 
-            val = `${zone.nr} ${zone.name}`; 
-            break;
-          case 'AREA': 
-            val = (zone.area || 0).toFixed(2); 
-            break;
-          case 'VOLUME': 
-            val = (zone.calculatedVolume || 0).toFixed(2); 
-            break;
-          case 'FLOW_SUPPLY': 
-            val = Math.round(zone.calculatedVolume || 0); 
-            break;
-          case 'FLOW_EXHAUST': 
-            val = Math.round(zone.calculatedExhaust || 0); 
-            break;
-          case 'REAL_ACH': 
-            val = (zone.realACH || 0).toFixed(1); 
-            break;
-          case 'ACOUSTICS': 
-            val = zone.maxAllowedDbA || '--'; 
-            break;
-          case 'SUPPLY_SYSTEM_NAME': 
-            val = systems.find(s => s.id === zone.systemSupplyId)?.name || '--'; 
-            break;
-          case 'EXHAUST_SYSTEM_NAME': 
-            val = systems.find(s => s.id === zone.systemExhaustId)?.name || '--'; 
-            break;
-          case 'INTERNAL_TEMP': 
-            val = zone.roomTemp || '--'; 
-            break;
-          case 'OCCUPANTS': 
-            val = zone.occupants || 0; 
-            break;
-          case 'HEAT_GAINS': 
-            val = zone.totalHeatGain || 0; 
-            break;
+          case 'ROOM_NR_NAME': val = `${zone.nr} ${zone.name}`; break;
+          case 'AREA': val = (zone.area || 0).toFixed(2); break;
+          case 'VOLUME': val = (zone.calculatedVolume || 0).toFixed(2); break;
+          case 'FLOW_SUPPLY': val = Math.round(zone.calculatedVolume || 0); break;
+          case 'FLOW_EXHAUST': val = Math.round(zone.calculatedExhaust || 0); break;
+          case 'REAL_ACH': val = (zone.realACH || 0).toFixed(1); break;
+          case 'ACOUSTICS': val = zone.maxAllowedDbA || '--'; break;
+          case 'SUPPLY_SYSTEM_NAME': val = systems.find(s => s.id === zone.systemSupplyId)?.name || '--'; break;
+          case 'EXHAUST_SYSTEM_NAME': val = systems.find(s => s.id === zone.systemExhaustId)?.name || '--'; break;
+          case 'INTERNAL_TEMP': val = zone.roomTemp || '--'; break;
+          case 'OCCUPANTS': val = zone.occupants || 0; break;
+          case 'HEAT_GAINS': val = zone.totalHeatGain || 0; break;
         }
         return `${f.prefix}${val}${f.suffix}`;
       })
       .join('\n');
+
+    return {
+      col1: getColumnText(1),
+      col2: getColumnText(2)
+    };
   }, [zones, globalTagSettings, systems]);
 
   // Update floor-specific state helpers
@@ -1108,12 +1092,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
             // Calculate Tag Position
             const tagPos = zone.tagPosition || calculatePolygonCentroid(poly.points);
 
-            const tagText = generateTagText(zone.id);
-            if (!tagText) return null;
+            const texts = generateTagText(zone.id);
+            if (!texts.col1 && !texts.col2) return null;
 
-            const baseFontSize = globalTagSettings.fontSize || 10;
-            const scaledFontSize = baseFontSize / scale;
-            const padding = 4 / scale;
+            const tagScale = globalTagSettings.isFixedSize ? (1 / scale) : 1;
 
             return (
               <Label
@@ -1121,40 +1103,49 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 x={tagPos.x}
                 y={tagPos.y}
                 draggable
-                onDragStart={() => {
-                  // Optional: visual feedback
-                }}
+                scaleX={tagScale}
+                scaleY={tagScale}
                 onDragEnd={(e) => {
-                  updateZone(zone.id, {
-                    tagPosition: { x: e.target.x(), y: e.target.y() }
+                  updateZone(zone.id, { 
+                    tagPosition: { x: e.target.x(), y: e.target.y() } 
                   });
-                }}
-                onMouseEnter={(e: any) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'move';
-                }}
-                onMouseLeave={(e: any) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'default';
                 }}
               >
                 <Tag
                   fill={globalTagSettings.fillColor}
+                  cornerRadius={4}
                   stroke={globalTagSettings.strokeColor}
-                  strokeWidth={1 / scale}
-                  cornerRadius={2 / scale}
+                  strokeWidth={1}
                   shadowColor="black"
-                  shadowBlur={10 / scale}
-                  shadowOpacity={0.1}
+                  shadowBlur={4}
+                  shadowOffset={{ x: 2, y: 2 }}
+                  shadowOpacity={0.2}
                 />
-                <Text
-                  text={tagText}
-                  fontSize={scaledFontSize}
-                  padding={padding}
-                  fill="#1e293b"
-                  align="center"
-                  lineHeight={1.2}
-                />
+                
+                {/* Column 1 */}
+                {texts.col1 && (
+                  <Text
+                    text={texts.col1}
+                    fontFamily="sans-serif"
+                    fontSize={globalTagSettings.fontSize}
+                    padding={6}
+                    fill="#1e293b"
+                    lineHeight={1.2}
+                  />
+                )}
+
+                {/* Column 2 */}
+                {texts.col2 && (
+                  <Text
+                    text={texts.col2}
+                    x={texts.col1 ? globalTagSettings.leftColumnWidth : 0}
+                    fontFamily="sans-serif"
+                    fontSize={globalTagSettings.fontSize}
+                    padding={6}
+                    fill="#1e293b"
+                    lineHeight={1.2}
+                  />
+                )}
               </Label>
             );
           })}
