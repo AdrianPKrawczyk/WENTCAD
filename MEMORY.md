@@ -3,8 +3,8 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.10.3 ZAKOŃCZONA
-* **Active Step:** FAZA 2.10.3 (Naprawa eksportu DXF i PNG) - ZAKOŃCZONA
+## CURRENT STATE: FAZA 2.10.3 ZAKOŃCZONA (wraz z 2.10.3a)
+* **Active Step:** FAZA 2.10.3a (Naprawa eksportu PNG - limit viewportu) - ZAKOŃCZONA
 * **Pending Task:** FAZA 2.11 (Zestawienia do PDF)
 
 ## PROGRESS LOG
@@ -332,5 +332,16 @@
     - **Rozwiązanie wielolinijkowości**: Podzielono tekst metki na linie używając `split('\n')`, każda linia renderowana jako osobny obiekt TEXT z przesunięciem Y (`fontSize * 1.5`).
     - **Rozwiązanie polskich znaków**: Dodano funkcję `escapePolishChars()` zamieniającą polskie znaki na sekwencje Unicode (np. `ó` → `\U+00F3`, `ą` → `\U+0105`).
 - **Eksport PNG (`src/components/Workspace2D.tsx`)**:
-    - **Problem**: Podkład architektoniczny (PDF/IMG) znikał podczas eksportu PNG, ponieważ znajdował się w warstwie UI (`uiLayerRef`) która była ukrywana przed eksportem.
-    - **Rozwiązanie**: Przeniesiono `KonvaImage` z `uiLayerRef` do `contentLayerRef`. Teraz podkład jest widoczny na eksporcie, a flaga `forceHideUnderlay` nadal kontroluje opcję "eksport bez podkładu".
+    - **FAZA 2.10.3a (2026-03-18)** - Naprawa limitu viewportu eksportu:
+        - **Objaw**: Eksportowany PNG był ucinany z prawej strony i od dołu w dokładnie tym samym miejscu niezależnie od zoomu. Obraz wyglądał identycznie przy maksymalnym oddaleniu i przybliżeniu.
+        - **Przyczyna**: `stage.toDataURL()` używał wymiarów Stage równej `containerWidth x containerHeight`. Po resecie `scale=1, position=0`, Stage nadal miał wymiary okna przeglądarki, a podkład/treść mogła być znacznie większa. Konva obcina grafikę do wymiarów Stage.
+        - **Rozwiązanie**: 
+            1. Obliczono pełny bounding box sceny (`minX, minY, maxX, maxY`) uwzględniający: podkład (`underlaySize`), wszystkie kadry eksportu, wszystkie poligony, obrysy DXF, punkt zero.
+            2. Tymczasowo zmieniono wymiary Stage na pełny rozmiar sceny + margines 50px.
+            3. Przesunięto Stage tak, aby `minX,minY` znalazło się w punkcie `(padding, padding)` nowego układu współrzędnych.
+            4. Obliczono pozycję kadru w nowym układzie: `regionX = region.x - minX + padding`.
+            5. Wywołano `stage.toDataURL()` z precyzyjnymi współrzędnymi kadru.
+            6. Przywrócono oryginalne wymiary Stage i pozycję.
+        - **Kluczowa lekcja**: Konieczne jest dynamiczne skalowanie Stage do rozmiaru renderowanej treści, ponieważ Stage zawsze obcina grafikę do swoich wymiarów - nie ma żadnego "nieskończonego canvasu".
+
+(End of file - total 350 lines)

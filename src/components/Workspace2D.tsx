@@ -704,88 +704,133 @@ export function Workspace2D({ className }: Workspace2DProps) {
     if (!region || !stageRef.current) return;
 
     const stage = stageRef.current!;
-    const stageWidth = stage.width();
-    const stageHeight = stage.height();
 
     try {
-      // 1. Zapisz obecny widok
       const oldScale = stage.scaleX();
       const oldPos = stage.position();
-      
-      // 2. Ukryj warstwy UI (siatka, ramki, znaczniki)
+      const oldStageWidth = stage.width();
+      const oldStageHeight = stage.height();
+
       if (uiLayerRef.current) uiLayerRef.current.hide();
       if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.hide();
-      
-      // 3. Ukryj podkład jeśli nie chcemy go w eksporcie
+
       const hideUnderlay = !includeBackground;
       if (hideUnderlay) setForceHideUnderlay(true);
-      
-      // 4. Poczekaj na re-render
+
       await new Promise(resolve => setTimeout(resolve, 100));
       stage.draw();
-      
-      // 5. Resetuj widok do scale=1, position=(0,0)
-      // UWAGA: Po resecie scene coords = screen coords, więc region.* można użyć bezpośrednio
+
+      // OBLICZ CAŁKOWITY BOUNDING BOX SCENY
+      // Uwzględnij: podkład + wszystkie kadry + punkt zero + wszystkie poligony
+      let minX = 0, minY = 0, maxX = 0, maxY = 0;
+
+      if (underlaySize) {
+        maxX = underlaySize.width;
+        maxY = underlaySize.height;
+      }
+
+      activeFloorMetadata?.exportRegions?.forEach(r => {
+        if (r.x + r.width > maxX) maxX = r.x + r.width;
+        if (r.y + r.height > maxY) maxY = r.y + r.height;
+        if (r.x < minX) minX = r.x;
+        if (r.y < minY) minY = r.y;
+      });
+
+      polygons.forEach(poly => {
+        for (let i = 0; i < poly.points.length; i += 2) {
+          const px = poly.points[i];
+          const py = poly.points[i + 1];
+          if (px < minX) minX = px;
+          if (py < minY) minY = py;
+          if (px > maxX) maxX = px;
+          if (py > maxY) maxY = py;
+        }
+      });
+
+      floorState.dxfOutlines?.forEach(outline => {
+        for (let i = 0; i < outline.points.length; i += 2) {
+          const px = outline.points[i];
+          const py = outline.points[i + 1];
+          if (px < minX) minX = px;
+          if (py < minY) minY = py;
+          if (px > maxX) maxX = px;
+          if (py > maxY) maxY = py;
+        }
+      });
+
+      if (referenceOrigin) {
+        if (referenceOrigin.x < minX) minX = referenceOrigin.x - 200;
+        if (referenceOrigin.y < minY) minY = referenceOrigin.y - 200;
+        if (referenceOrigin.x > maxX) maxX = referenceOrigin.x + 200;
+        if (referenceOrigin.y > maxY) maxY = referenceOrigin.y + 200;
+      }
+
+      // Dodaj margines 50px
+      const padding = 50;
+      const fullSceneWidth = Math.max(maxX - minX + padding * 2, 100);
+      const fullSceneHeight = Math.max(maxY - minY + padding * 2, 100);
+
+      // Przesuń scenę tak, aby minX,minY było w (0,0) nowego układu
       stage.scale({ x: 1, y: 1 });
-      stage.position({ x: 0, y: 0 });
+      stage.position({ x: -minX + padding, y: -minY + padding });
+      stage.width(fullSceneWidth);
+      stage.height(fullSceneHeight);
       stage.draw();
-      
-      // 6. Waliduj współrzędne kadru
-      // Jeśli kadr wykracza poza canvas, ogranicz go
-      let exportX = region.x;
-      let exportY = region.y;
-      let exportWidth = region.width;
-      let exportHeight = region.height;
-      
-      if (exportX < 0) {
-        exportWidth += exportX;
-        exportX = 0;
+
+      // Oblicz pozycję kadru w nowym układzie współrzędnych
+      const regionX = region.x - minX + padding;
+      const regionY = region.y - minY + padding;
+
+      // Waliduj - jeśli kadr jest całkowicie poza sceną, przerwij
+      if (regionX + region.width < 0 || regionY + region.height < 0 ||
+          regionX > fullSceneWidth || regionY > fullSceneHeight) {
+        toast.error('Kadr znajduje się poza obszarem sceny.');
+        throw new Error('Kadr poza sceną');
       }
-      if (exportY < 0) {
-        exportHeight += exportY;
-        exportY = 0;
-      }
-      exportWidth = Math.min(exportWidth, stageWidth - exportX);
-      exportHeight = Math.min(exportHeight, stageHeight - exportY);
-      
+
+      // Ogranicz eksport do kadru
+      const exportX = Math.max(0, regionX);
+      const exportY = Math.max(0, regionY);
+      const exportWidth = Math.min(region.width - (exportX - regionX), fullSceneWidth - exportX);
+      const exportHeight = Math.min(region.height - (exportY - regionY), fullSceneHeight - exportY);
+
       if (exportWidth <= 0 || exportHeight <= 0) {
-        toast.error('Kadr znajduje się poza widocznym obszarem.');
-        throw new Error('Kadr poza obszarem');
+        toast.error('Kadr ma zerową powierzchnię eksportową.');
+        throw new Error('Kadr pusty');
       }
-      
-      // 7. Pobierz zrzut z dokładnym kadrem (scene coords = screen coords po resecie)
+
       const dataUrl = stage.toDataURL({
         x: exportX,
         y: exportY,
         width: exportWidth,
         height: exportHeight,
-        pixelRatio: 3 // Wysoka jakość dla CAD
+        pixelRatio: 2
       });
-      
-      // 8. Przywróć obecny widok użytkownika
+
+      stage.width(oldStageWidth);
+      stage.height(oldStageHeight);
       stage.scale({ x: oldScale, y: oldScale });
       stage.position(oldPos);
-      
-      // 9. Przywróć widoczność UI
+
       if (uiLayerRef.current) uiLayerRef.current.show();
       if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.show();
       if (hideUnderlay) setForceHideUnderlay(false);
-      
+
       stage.draw();
-      
-      // 10. Pobierz i zapisz plik
+
       const link = document.createElement('a');
       link.download = `${underlayName || 'WENTCAD'}_${region.name}_export.png`;
       link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast.success(`Wyeksportowano kadr: ${region.name}`);
       setIsExportModalOpen(false);
     } catch (err) {
       console.error(err);
       toast.error('Błąd podczas generowania PNG.');
+
       if (stageRef.current) {
         stageRef.current.draw();
       }
@@ -793,7 +838,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
       if (uiOverlayLayerRef.current) uiOverlayLayerRef.current.show();
       setForceHideUnderlay(false);
     }
-  }, [activeFloorMetadata, underlayImage, underlayName]);
+  }, [activeFloorMetadata, underlaySize, underlayName, polygons, floorState, referenceOrigin]);
 
   const handleExportDXF = useCallback((regionId: string) => {
     const region = activeFloorMetadata?.exportRegions?.find(r => r.id === regionId);
