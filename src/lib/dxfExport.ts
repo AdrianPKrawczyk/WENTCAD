@@ -1,4 +1,4 @@
-import { DxfWriter, point3d, point2d, Colors, HatchPredefinedPatterns, HatchBoundaryPaths, HatchPolylineBoundary, vertex } from "@tarikjabiri/dxf";
+import { DxfWriter, point3d } from "@tarikjabiri/dxf";
 import type { ZoneData } from "../types";
 import type { FloorCanvasState, Point } from "../stores/useCanvasStore";
 
@@ -9,11 +9,11 @@ interface ExportFrame {
   height: number;
 }
 
-function isValidNumber(val: number): val is number {
+function isValidNumber(val: number): boolean {
   return typeof val === 'number' && !isNaN(val) && isFinite(val);
 }
 
-function safeToFixed(val: number, decimals: number = 2): number {
+function safeToFixed(val: number, decimals: number = 3): number {
   if (!isValidNumber(val)) return 0;
   const mult = Math.pow(10, decimals);
   return Math.round(val * mult) / mult;
@@ -51,16 +51,11 @@ export function exportToDXF(
   zones: Record<string, ZoneData>,
   getTagText: (zoneId: string) => { col1: string; col2: string },
   exportFrame?: ExportFrame
-) {
+): string {
   const dxf = new DxfWriter();
   
-  // Deklaracja warstw NA POCZĄTKU - przed jakimkolwiek rysowaniem
-  dxf.addLayer("WENTCAD_PUNKT_ZERO", Colors.White);
-  dxf.addLayer("WENTCAD_OBRYSY", Colors.Blue);
-  dxf.addLayer("WENTCAD_WYPELNIENIA", Colors.Cyan);
-  dxf.addLayer("WENTCAD_METKI_RAMKI", Colors.Yellow);
-  dxf.addLayer("WENTCAD_METKI_TEKST", Colors.White);
-  dxf.addLayer("WENTCAD_KADRY", Colors.Green);
+  dxf.addLayer("WENTCAD_OBRYSY", 5);
+  dxf.addLayer("WENTCAD_KADRY", 3);
 
   const origin = floorState.referenceOrigin || { x: 0, y: 0 };
   const scale = floorState.scaleFactor || 1;
@@ -74,35 +69,26 @@ export function exportToDXF(
       return { x: 0, y: 0 };
     }
     return {
-      x: safeToFixed((p.x - origin.x - frameOffset.x) * scale, 4),
-      y: safeToFixed(-(p.y - origin.y - frameOffset.y) * scale, 4)
+      x: safeToFixed((p.x - origin.x - frameOffset.x) * scale, 3),
+      y: safeToFixed(-(p.y - origin.y - frameOffset.y) * scale, 3)
     };
   };
 
-  // Punkt zero (0,0) - tylko gdy nie ma kadrowania
-  if (!exportFrame && origin.x === 0 && origin.y === 0) {
-    dxf.addLine(point3d(-0.5, 0), point3d(0.5, 0), { layerName: "WENTCAD_PUNKT_ZERO" });
-    dxf.addLine(point3d(0, -0.5), point3d(0, 0.5), { layerName: "WENTCAD_PUNKT_ZERO" });
-    dxf.addCircle(point3d(0, 0), 0.2, { layerName: "WENTCAD_PUNKT_ZERO" });
-  }
-
-  // Rysuj ramkę kadrowania jeśli jest aktywna
+  // Rysuj ramkę kadrowania
   if (exportFrame) {
     const p1 = toCAD({ x: exportFrame.x, y: exportFrame.y });
     const p2 = toCAD({ x: exportFrame.x + exportFrame.width, y: exportFrame.y });
     const p3 = toCAD({ x: exportFrame.x + exportFrame.width, y: exportFrame.y + exportFrame.height });
     const p4 = toCAD({ x: exportFrame.x, y: exportFrame.y + exportFrame.height });
     
-    if (isValidNumber(p1.x) && isValidNumber(p1.y)) {
-      dxf.addLWPolyline([
-        { point: point2d(p1.x, p1.y) },
-        { point: point2d(p2.x, p2.y) },
-        { point: point2d(p3.x, p3.y) },
-        { point: point2d(p4.x, p4.y) }
-      ], {
-        layerName: "WENTCAD_KADRY",
-        flags: 1
-      });
+    if (isValidNumber(p1.x) && isValidNumber(p1.y) &&
+        isValidNumber(p2.x) && isValidNumber(p2.y) &&
+        isValidNumber(p3.x) && isValidNumber(p3.y) &&
+        isValidNumber(p4.x) && isValidNumber(p4.y)) {
+      dxf.addLine(point3d(p1.x, p1.y, 0), point3d(p2.x, p2.y, 0), { layerName: "WENTCAD_KADRY" });
+      dxf.addLine(point3d(p2.x, p2.y, 0), point3d(p3.x, p3.y, 0), { layerName: "WENTCAD_KADRY" });
+      dxf.addLine(point3d(p3.x, p3.y, 0), point3d(p4.x, p4.y, 0), { layerName: "WENTCAD_KADRY" });
+      dxf.addLine(point3d(p4.x, p4.y, 0), point3d(p1.x, p1.y, 0), { layerName: "WENTCAD_KADRY" });
     }
   }
 
@@ -116,7 +102,6 @@ export function exportToDXF(
     const zone = zones[poly.zoneId];
     if (!zone) return;
 
-    // Budowanie tablicy punktów CAD z walidacją
     const cadPoints: { x: number, y: number }[] = [];
     for (let i = 0; i < poly.points.length; i += 2) {
       const px = poly.points[i];
@@ -126,37 +111,19 @@ export function exportToDXF(
       }
     }
 
-    // Pomijamy poligony z mniej niż 3 punktami
     if (cadPoints.length < 3) return;
 
-    // Walidacja wszystkich punktów przed dodaniem do DXF
     const validPoints = cadPoints.filter(p => isValidNumber(p.x) && isValidNumber(p.y));
     if (validPoints.length < 3) return;
 
-    // Rysowanie obrysu
-    dxf.addLWPolyline(validPoints.map(p => ({ point: point2d(p.x, p.y) })), {
-      layerName: "WENTCAD_OBRYSY",
-      flags: 1
-    });
-
-    // Wypełnienie (Hatch)
-    const boundary = new HatchPolylineBoundary();
-    validPoints.forEach(p => boundary.add(vertex(p.x, p.y)));
-    
-    const paths = new HatchBoundaryPaths();
-    paths.addPolylineBoundary(boundary);
-
-    try {
-      dxf.addHatch(paths, { name: HatchPredefinedPatterns.SOLID }, {
-        layerName: "WENTCAD_WYPELNIENIA",
-        colorNumber: 7
-      });
-    } catch {
-      // Hatch może się nie udać dla niektórych poligonów - pomijamy cicho
-      console.warn('Hatch failed for zone:', zone.id);
+    // Dodaj obrys jako linie
+    for (let i = 0; i < validPoints.length; i++) {
+      const p1 = validPoints[i];
+      const p2 = validPoints[(i + 1) % validPoints.length];
+      dxf.addLine(point3d(p1.x, p1.y, 0), point3d(p2.x, p2.y, 0), { layerName: "WENTCAD_OBRYSY" });
     }
 
-    // Metki
+    // Dodaj tekst metki
     const tagPosPx = zone.tagPosition || calculateCentroid(poly.points);
     
     if (exportFrame && !isPointInFrame(tagPosPx.x, tagPosPx.y, exportFrame)) {
@@ -167,39 +134,15 @@ export function exportToDXF(
     if (!isValidNumber(tagPosCAD.x) || !isValidNumber(tagPosCAD.y)) return;
 
     const tagText = getTagText(zone.id);
-
     if (tagText.col1 || tagText.col2) {
-      const fullText = `${tagText.col1}${tagText.col1 && tagText.col2 ? "\\n" : ""}${tagText.col2}`;
-      const textHeight = 0.2; 
-      
-      try {
-        dxf.addMText(point3d(tagPosCAD.x, tagPosCAD.y), textHeight, fullText, {
-          layerName: "WENTCAD_METKI_TEKST",
-          attachmentPoint: 5
-        });
-
-        const frameWidth = 1.5;
-        const frameHeight = 0.8;
-        dxf.addRectangle(
-          point2d(tagPosCAD.x - frameWidth / 2, tagPosCAD.y + frameHeight / 2),
-          point2d(tagPosCAD.x + frameWidth / 2, tagPosCAD.y - frameHeight / 2),
-          { layerName: "WENTCAD_METKI_RAMKI" }
-        );
-      } catch {
-        console.warn('Tag failed for zone:', zone.id);
-      }
+      const fullText = `${tagText.col1}${tagText.col1 && tagText.col2 ? " | " : ""}${tagText.col2}`;
+      dxf.addText(point3d(tagPosCAD.x, tagPosCAD.y, 0), 0.15, fullText, { 
+        layerName: "WENTCAD_OBRYSY"
+      });
     }
   });
 
-  // Generuj string z pliku DXF
-  const result = dxf.stringify();
-  
-  // Weryfikacja - plik musi kończyć się "0\nEOF\n"
-  if (!result.trim().endsWith('EOF')) {
-    console.warn('DXF generation may be incomplete');
-  }
-  
-  return result;
+  return dxf.stringify();
 }
 
 function calculateCentroid(points: number[]): Point {
@@ -209,7 +152,7 @@ function calculateCentroid(points: number[]): Point {
     y += points[i + 1];
   }
   const count = points.length / 2;
-  return { x: x / count, y: y / count };
+  return { x: count > 0 ? x / count : 0, y: count > 0 ? y / count : 0 };
 }
 
 export function downloadDXF(content: string, filename: string) {

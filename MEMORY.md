@@ -312,3 +312,16 @@
 - **Handler Edycji (`Workspace2D.tsx`)**:
     - `handleEditRegion()`: Przełącza na narzędzie CROP i rozpoczyna edycję od zapisanego kadru
     - `handleDeleteRegion()`: Usuwa kadr z `exportRegions` po potwierdzeniu
+
+### FAZA 2.10.2 (Kontynuacja): Poprawka addText w DXF
+- **Problem**: Błąd TypeScript `Argument of type 'string' is not assignable to parameter of type 'vec3_t'` na wywołaniu `addText()`
+- **Rozwiązanie**: Poprawiono sygnaturę wywołania zgodnie z API `@tarikjabiri/dxf`:
+  ```typescript
+  // POPRAWNA sygnatura:
+  dxf.addText(point3d(x, y, 0), height, text, { layerName: "..." })
+  ```
+  - Pierwszy argument: pozycja (`vec3_t`)
+  - Drugi argument: wysokość tekstu (`number`)
+  - Trzeci argument: treść tekstu (`string`)
+  - Czwarty argument: opcje (`TextOptions` z `layerName`)
+- **Usunięto nieużywany import**: `point2d`

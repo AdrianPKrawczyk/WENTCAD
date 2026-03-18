@@ -67,6 +67,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const uiLayerRef = useRef<Konva.Layer>(null);
   const contentLayerRef = useRef<Konva.Layer>(null);
+  const uiOverlayLayerRef = useRef<Konva.Layer>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { width: containerWidth, height: containerHeight } = useContainerSize(containerRef);
@@ -160,9 +161,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [pendingDxfLayers, setPendingDxfLayers] = useState<string[]>([]);
   const [pendingDxfFile, setPendingDxfFile] = useState<File | null>(null);
-const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [forceHideUnderlay, setForceHideUnderlay] = useState(false);
+  const [editingRegionId, setEditingRegionId] = useState<string | null>(null);
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
@@ -372,7 +374,6 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
           if (currentPolygonPoints.length === 0) {
             setCurrentPolygonPoints([canvasPos]);
           } else {
-            // Finish crop frame
             const p1 = currentPolygonPoints[0];
             const p2 = canvasPos;
             const x = Math.min(p1.x, p2.x);
@@ -381,24 +382,37 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             const height = Math.abs(p2.y - p1.y);
 
             if (width > 5 && height > 5) {
-              const regionName = window.prompt("Podaj nazwę kadru (np. Kuchnia, Skrzydło A):", "Kadr 1");
-              if (regionName) {
-                const newRegion = {
-                  id: `crop-${Date.now()}`,
-                  name: regionName,
-                  x, y, width, height
-                };
-                const existingRegions = activeFloorMetadata?.exportRegions || [];
-                updateFloor(activeFloorId, {
-                  exportRegions: [...existingRegions, newRegion]
-                });
-                toast.success(`Zapisano kadr: ${regionName}`);
+              const existingRegions = activeFloorMetadata?.exportRegions || [];
+              
+              if (editingRegionId) {
+                const oldRegion = existingRegions.find(r => r.id === editingRegionId);
+                const updatedRegions = existingRegions.map(r => 
+                  r.id === editingRegionId 
+                    ? { ...r, x, y, width, height }
+                    : r
+                );
+                updateFloor(activeFloorId, { exportRegions: updatedRegions });
+                toast.success(`Zaktualizowano kadr: ${oldRegion?.name || 'Edycja'}`);
+              } else {
+                const regionName = window.prompt("Podaj nazwę kadru (np. Kuchnia, Skrzydło A):", "Kadr 1");
+                if (regionName) {
+                  const newRegion = {
+                    id: `crop-${Date.now()}`,
+                    name: regionName,
+                    x, y, width, height
+                  };
+                  updateFloor(activeFloorId, {
+                    exportRegions: [...existingRegions, newRegion]
+                  });
+                  toast.success(`Zapisano kadr: ${regionName}`);
+                }
               }
             }
             
             setIsDrawingPolygon(false);
             setCurrentPolygonPoints([]);
             setCurrentTool(activeFloorId, null);
+            setEditingRegionId(null);
           }
         } else {
           // PEN tool logic
@@ -692,9 +706,12 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     try {
       const stage = stageRef.current!;
       
-      // 1. Ukryj warstwę UI (siatka, ramki, znaczniki)
+      // 1. Ukryj warstwy UI (siatka, ramki, znaczniki, podkład)
       if (uiLayerRef.current) {
         uiLayerRef.current.hide();
+      }
+      if (uiOverlayLayerRef.current) {
+        uiOverlayLayerRef.current.hide();
       }
       
       // 2. Ukryj podkład jeśli nie chcemy go w eksporcie
@@ -737,9 +754,12 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
       stage.scale({ x: oldScale, y: oldScale });
       stage.position(oldPos);
       
-      // 9. Pokaż warstwę UI z powrotem
+      // 9. Pokaż warstwy UI z powrotem
       if (uiLayerRef.current) {
         uiLayerRef.current.show();
+      }
+      if (uiOverlayLayerRef.current) {
+        uiOverlayLayerRef.current.show();
       }
       if (hideUnderlay) {
         setForceHideUnderlay(false);
@@ -760,12 +780,15 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
     } catch (err) {
       console.error(err);
       toast.error('Błąd podczas generowania PNG.');
-      //确保即使出错也恢复UI状态
+      // Przywróć UI nawet w przypadku błędu
       if (stageRef.current) {
         stageRef.current.draw();
       }
       if (uiLayerRef.current) {
         uiLayerRef.current.show();
+      }
+      if (uiOverlayLayerRef.current) {
+        uiOverlayLayerRef.current.show();
       }
       setForceHideUnderlay(false);
     }
@@ -793,15 +816,11 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   }, [activeFloorId, activeFloorMetadata, zones, systems, generateTagText, underlayName]);
 
   const handleEditRegion = useCallback((region: { id: string; name: string; x: number; y: number; width: number; height: number }) => {
-    // Zamknij modal eksportu
     setIsExportModalOpen(false);
     
-    // Przełącz na kondygnację do której należy kadr
     if (activeFloorId) {
-      // Ustaw narzędzie CROP i tryb edycji
+      setEditingRegionId(region.id);
       setCurrentTool(activeFloorId, 'CROP');
-      
-      // Rozpocznij "redraw" - ustaw punkt początkowy na lewy górny róg kadru
       setCurrentPolygonPoints([{ x: region.x, y: region.y }]);
       setIsDrawingPolygon(true);
       
@@ -964,7 +983,10 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
         style={{ background: '#f0f2f5' }}
       >
         <Layer ref={uiLayerRef} name="ui">
+          {/* === SIATKA === */}
           {drawGrid()}
+
+          {/* === PODKŁAD (PDF/IMG) === */}
           {underlayImage && underlaySize && !forceHideUnderlay && (
             <KonvaImage
               image={underlayImage}
@@ -976,10 +998,9 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             />
           )}
 
-          {/* Reference Origin Marker */}
+          {/* === WSPÓŁRZĘDNE POCZĄTKOWE === */}
           {referenceOrigin && (
             <>
-              {/* Origin Axis */}
               <Line 
                 points={[referenceOrigin.x - 200/scale, referenceOrigin.y, referenceOrigin.x + 200/scale, referenceOrigin.y]} 
                 stroke="#6366f1" 
@@ -1006,7 +1027,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             </>
           )}
 
-          {/* Setting Origin Visual */}
+          {/* === USTAWIANIE ORIGINU - WIZUALIZACJA === */}
           {isSettingOrigin && (
             <>
               <Line points={[mousePos.x - 10 / scale, mousePos.y, mousePos.x + 10 / scale, mousePos.y]} stroke="#ef4444" strokeWidth={2 / scale} />
@@ -1014,7 +1035,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             </>
           )}
 
-          {/* Calibration Line Visual */}
+          {/* === KALIBRACJA - LINIA === */}
           {isCalibrating && calibrationPoints.length > 0 && (
             <Line
               points={[
@@ -1032,7 +1053,46 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
           ))}
 
-          {/* RENDEROWANIE OBRYSÓW CAD (Szuflada DXF) */}
+          {/* === POMIAR - LINIA I ETYKIETA === */}
+          {(isMeasuring || measurePoints.length === 2) && measurePoints.length > 0 && (
+            <>
+              <Line
+                points={[
+                  measurePoints[0].x,
+                  measurePoints[0].y,
+                  measurePoints.length === 2 ? measurePoints[1].x : mousePos.x,
+                  measurePoints.length === 2 ? measurePoints[1].y : mousePos.y
+                ]}
+                stroke="#f97316"
+                strokeWidth={2 / scale}
+                dash={[5 / scale, 5 / scale]}
+              />
+              <Circle x={measurePoints[0].x} y={measurePoints[0].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
+              {measurePoints.length === 2 && (
+                <Circle x={measurePoints[1].x} y={measurePoints[1].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
+              )}
+              {(() => {
+                const p1 = measurePoints[0];
+                const p2 = measurePoints.length === 2 ? measurePoints[1] : mousePos;
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const distPx = Math.sqrt(dx * dx + dy * dy);
+                const distM = scaleFactor ? distPx * scaleFactor : 0;
+                
+                return (
+                  <Label x={(p1.x + p2.x) / 2} y={(p1.y + p2.y) / 2} listening={false}>
+                    <Tag fill="rgba(249, 115, 22, 0.9)" pointerDirection="down" pointerWidth={10 / scale} pointerHeight={10 / scale} lineJoin="round" shadowColor="black" shadowBlur={10} shadowOpacity={0.2} cornerRadius={4 / scale} />
+                    <Text text={`${distM.toFixed(2)} m`} fontFamily="monospace" fontSize={14 / scale} padding={5 / scale} fill="white" fontStyle="bold" />
+                  </Label>
+                );
+              })()}
+            </>
+          )}
+        </Layer>
+
+        {/* === WARSTWA ZAWARTOŚCI - EKSportowANA === */}
+        <Layer ref={contentLayerRef} name="content">
+          {/* === OBRYSY CAD (SZUFLADA DXF) === */}
           {floorState.dxfOutlines?.map((outline: any) => {
             const isSelected = selectedDxfOutlineId === outline.id;
             return (
@@ -1055,27 +1115,19 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
                 onClick={(e: any) => {
                   e.cancelBubble = true;
                   if (linkingZoneId) {
-                    // LINKING LOGIC: Assign DXF outline to specific Zone
                     const newPoly = { id: crypto.randomUUID(), zoneId: linkingZoneId, points: outline.points };
-                    
-                    // 1. Remove from DXF drawer
                     const filteredOutlines = (floorState.dxfOutlines || []).filter(o => o.id !== outline.id);
-                    // 2. Add to Polygons
                     const filteredPolys = (polygons || []).filter(p => p.zoneId !== linkingZoneId);
                     updateFloorState(activeFloorId, { 
                        dxfOutlines: filteredOutlines,
                        polygons: [...filteredPolys, newPoly] 
                     });
-
-                    // 3. Update Area
                     const floorScale = scaleFactor || 1;
                     const areaSqM = calculatePolygonArea(outline.points) * (floorScale ** 2);
                     updateZone(linkingZoneId, { 
                       geometryArea: areaSqM,
                       isAreaManual: false
                     });
-
-                    // 4. ZAKAŃCZAMY OPERACJĘ I ODZNACZAMY WIERSZ (UX Fix: No auto-jump)
                     setLinkingZoneId(null);
                     useZoneStore.getState().setSelectedZone(null);
                     toast.success("Pomyślnie przypisano obrys do pomieszczenia.");
@@ -1088,20 +1140,16 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             );
           })}
 
-          {/* Polygons */}
+          {/* === POLIGONY (STREFY) === */}
           {showZonesOnCanvas && polygons.map((poly) => {
             const zone = zones[poly.zoneId];
             if (!zone) return null;
             
-            // System Filtering Logic
             const isSupplyHidden = zone.systemSupplyId ? hiddenSystemIdsOnCanvas.includes(zone.systemSupplyId) : false;
             const isExhaustHidden = zone.systemExhaustId ? hiddenSystemIdsOnCanvas.includes(zone.systemExhaustId) : false;
             const isNoneHidden = (!zone.systemSupplyId && !zone.systemExhaustId) ? hiddenSystemIdsOnCanvas.includes('none') : false;
-
-            // If any associated system is hidden, or if no system and 'none' is hidden
             if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
 
-            // Resolve base color and patterns using dedicated algorithm
             const style = resolveZoneStyle(zone, systems, globalSystemOpacity);
             const shouldUseSystemStyle = isSystemColoringEnabled && style.color;
             const baseColor = shouldUseSystemStyle ? (style.color || '#0ea5e9') : '#0ea5e9';
@@ -1111,11 +1159,8 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             const isSelected = selectedZoneId === zone.id;
 
             let currentFill = isRedefining ? '#ef444460' : baseColor;
-            
-            // Adjust opacity based on state to ensure underlay is visible
             if (!isRedefining && !isChecked && !isSelected) {
                if (shouldUseSystemStyle && style.color) {
-                  // If we have a system color (rgba), it should already have some opacity from resolveZoneStyle
                   currentFill = style.color; 
                } else {
                   currentFill = baseColor + '40';
@@ -1128,12 +1173,12 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
 
             if (!isRedefining) {
               if (isChecked) {
-                currentFill = '#f59e0b80'; // Amber/orange 50% opacity
+                currentFill = '#f59e0b80';
                 currentStroke = '#d97706';
                 currentStrokeWidth = 4 / scale;
                 shadowProps = { shadowColor: '#f59e0b', shadowBlur: 15 / scale, shadowOpacity: 0.8 };
               } else if (isSelected) {
-                currentFill = '#4f46e560'; // Indigo 35% opacity
+                currentFill = '#4f46e560';
                 currentStroke = '#4338ca';
                 currentStrokeWidth = 3 / scale;
               }
@@ -1149,14 +1194,10 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
               currentStrokeWidth = (isSelected ? 4 : 2) / scale;
             }
 
-            // Pobranie oryginalnego systemu, by bezpiecznie wyciągnąć patternId z pominięciem resolveZoneStyle
             const targetSystem = (systems as any[]).find(s => s.id === zone.systemSupplyId) || (systems as any[]).find(s => s.id === zone.systemExhaustId);
             const activePatternId = (style as any).patternId || targetSystem?.patternId;
-
-            // Wyciągnięcie solidnego koloru (usunięcie przezroczystości z rgba) dla ostrego deseniu
             const solidColor = style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9';
 
-            // === GENERATE PATTERN IMAGE FROM CACHE ON THE FLY ===
             let patternImg: HTMLCanvasElement | null = null;
             if (shouldUseSystemStyle && activePatternId) {
               const cacheKey = `${activePatternId}-${solidColor}`;
@@ -1169,7 +1210,6 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             
             return (
               <Group key={poly.id}>
-                {/* Background Layer */}
                 <Line
                   points={poly.points}
                   closed={true}
@@ -1194,38 +1234,24 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
                   onClick={(e: any) => {
                     if (linkingZoneId) {
                       e.cancelBubble = true;
-                      
-                      // 1. Zlokalizuj kliknięty poligon
                       const clickedPoly = polygons.find(p => p.zoneId === poly.zoneId);
                       if (!clickedPoly) return;
-
-                      // 2. Skopiuj jego punkty
                       const newPoints = [...clickedPoly.points];
-
-                      // 3. Usuń stary poligon z kondygnacji
                       const filteredPolygons = polygons.filter(p => p.zoneId !== poly.zoneId);
-
-                      // 4. Dodaj nowy poligon przypisany do docelowego pokoju (usuwając ewentualny stary poligon docelowego pokoju)
                       const finalPolygons = filteredPolygons.filter(p => p.zoneId !== linkingZoneId);
                       const updatedPolygons = [...finalPolygons, { id: crypto.randomUUID(), zoneId: linkingZoneId, points: newPoints }];
-
-                      // 5. Zapisz stan i przelicz powierzchnię
                       updateFloorState(activeFloorId, { polygons: updatedPolygons });
-                      
                       const floorScale = useCanvasStore.getState().getFloorState(activeFloorId).scaleFactor || 1;
                       const areaSqM = calculatePolygonArea(newPoints) * (floorScale ** 2);
                       updateZone(linkingZoneId, { 
                         geometryArea: areaSqM,
                         isAreaManual: false
                       });
-
-                      // 6. ZAKAŃCZAMY OPERACJĘ I ODZNACZAMY WIERSZ (UX Fix: No auto-jump)
                       setLinkingZoneId(null);
                       useZoneStore.getState().setSelectedZone(null);
                       toast.success("Pomyślnie przypisano obrys do pomieszczenia.");
                       return;
                     }
-
                     if (currentTool === 'ERASER') {
                       if (window.confirm("Czy na pewno usunąć obrys tej strefy?")) {
                         const updatedPolygons = polygons.filter(p => p.id !== poly.id);
@@ -1245,8 +1271,6 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
                     }
                   }}
                 />
-                
-                {/* Hatch Pattern Layer (System View Only) */}
                 {!isRedefining && patternImg && (
                   <Line
                     points={poly.points}
@@ -1264,7 +1288,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             );
           })}
 
-          {/* Smart Tags Layer */}
+          {/* === METKI SMART TAG === */}
           {showZonesOnCanvas && polygons.map((poly) => {
             const zone = zones[poly.zoneId];
             if (!zone) return null;
@@ -1274,9 +1298,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             const isNoneHidden = (!zone.systemSupplyId && !zone.systemExhaustId) ? hiddenSystemIdsOnCanvas.includes('none') : false;
             if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
 
-            // Calculate Tag Position
             const tagPos = zone.tagPosition || calculatePolygonCentroid(poly.points);
-
             const texts = generateTagText(zone.id);
             if (!texts.col1 && !texts.col2) return null;
 
@@ -1322,43 +1344,40 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
                   stroke={globalTagSettings.strokeColor}
                   strokeWidth={1}
                   cornerRadius={4}
-                  shadowColor="rgba(0,0,0,0.15)"
+                  shadowColor="black"
                   shadowBlur={5}
-                  shadowOffset={{ x: 2, y: 2 }}
                   shadowOpacity={0.2}
+                  shadowOffsetY={2}
                 />
-                
-                {/* Column 1 */}
                 {texts.col1 && (
                   <Text
-                    text={texts.col1}
                     x={padding}
                     y={padding}
-                    fontFamily="sans-serif"
+                    width={col1Width}
+                    text={texts.col1}
                     fontSize={fontSize}
                     fill="#1e293b"
-                    lineHeight={lineHeight}
-                    align="left"
+                    fontFamily="Arial, sans-serif"
                   />
                 )}
-
-                {/* Column 2 */}
                 {texts.col2 && (
                   <Text
-                    text={texts.col2}
                     x={texts.col1 ? padding + col1Width + gap : padding}
                     y={padding}
-                    fontFamily="sans-serif"
+                    width={col2Width}
+                    text={texts.col2}
                     fontSize={fontSize}
-                    fill="#1e293b"
-                    lineHeight={lineHeight}
-                    align="left"
+                    fill="#64748b"
+                    fontFamily="Arial, sans-serif"
                   />
                 )}
               </Group>
             );
           })}
+        </Layer>
 
+        {/* === WARSTWA UI NAD ZAWARTOŚCIĄ (ramki kadru - UKRYWANA PRZED EKSPORTEM) === */}
+        <Layer ref={uiOverlayLayerRef} name="ui-overlay">
           {/* Current Drawing Polygon (PEN) */}
           {(isDrawingPolygon && currentTool === 'PEN') && currentPolygonPoints.length > 0 && (
             <>
@@ -1416,7 +1435,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
             />
           )}
 
-          {/* Render Saved Export Regions */}
+          {/* Render Saved Export Regions (UKRYWANE PRZED EKSPORTEM) */}
           {activeFloorMetadata?.exportRegions?.map((region) => (
             <Group key={region.id}>
               <Rect
@@ -1461,44 +1480,7 @@ const [isTagModalOpen, setIsTagModalOpen] = useState(false);
               </Group>
             </Group>
           ))}
-
-          {/* Measuring Line Visual */}
-          {(isMeasuring || measurePoints.length === 2) && measurePoints.length > 0 && (
-            <>
-              <Line
-                points={[
-                  measurePoints[0].x,
-                  measurePoints[0].y,
-                  measurePoints.length === 2 ? measurePoints[1].x : mousePos.x,
-                  measurePoints.length === 2 ? measurePoints[1].y : mousePos.y
-                ]}
-                stroke="#f97316"
-                strokeWidth={2 / scale}
-                dash={[5 / scale, 5 / scale]}
-              />
-              <Circle x={measurePoints[0].x} y={measurePoints[0].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
-              {measurePoints.length === 2 && (
-                <Circle x={measurePoints[1].x} y={measurePoints[1].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
-              )}
-              {(() => {
-                const p1 = measurePoints[0];
-                const p2 = measurePoints.length === 2 ? measurePoints[1] : mousePos;
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const distPx = Math.sqrt(dx * dx + dy * dy);
-                const distM = scaleFactor ? distPx * scaleFactor : 0;
-                
-                return (
-                  <Label x={(p1.x + p2.x) / 2} y={(p1.y + p2.y) / 2} listening={false}>
-                    <Tag fill="rgba(249, 115, 22, 0.9)" pointerDirection="down" pointerWidth={10 / scale} pointerHeight={10 / scale} lineJoin="round" shadowColor="black" shadowBlur={10} shadowOpacity={0.2} cornerRadius={4 / scale} />
-                    <Text text={`${distM.toFixed(2)} m`} fontFamily="monospace" fontSize={14 / scale} padding={5 / scale} fill="white" fontStyle="bold" />
-                  </Label>
-                );
-              })()}
-            </>
-          )}
         </Layer>
-        <Layer ref={contentLayerRef} name="content" />
       </Stage>
 
       {/* DXF OUTLINE PANEL */}
