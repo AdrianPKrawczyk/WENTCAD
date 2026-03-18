@@ -112,33 +112,6 @@ function measureTextWidth(text: string): number {
 }
 
 // Wstrzyknięcie definicji stylu Arial do tabeli STYLE
-function injectArialStyle(dxfContent: string): string {
-  const styleTableStart = dxfContent.indexOf('0\nTABLE\n2\nSTYLE');
-  if (styleTableStart === -1) return dxfContent;
-  
-  const endOfTables = dxfContent.indexOf('0\nENDTAB', styleTableStart);
-  if (endOfTables === -1) return dxfContent;
-  
-  const arialStyleBlock = `0
-STYLE
-5
-A1
-100
-AcDbSymbolTableRecord
-100
-AcDbTextStyleTableRecord
-2
-Arial
-70
-0
-3
-arial.ttf
-1071
-0
-`;
-  
-  return dxfContent.slice(0, endOfTables) + arialStyleBlock + dxfContent.slice(endOfTables);
-}
 
 export function exportToDXF(
   floorState: FloorCanvasState,
@@ -149,9 +122,20 @@ export function exportToDXF(
   _fontSize: number = 10
 ): string {
   const dxf = new DxfWriter();
-  
+
+  // ============================================
+  // REJESTRACJA CZCIONKI ARIAL (WŁASNY STYL)
+  // ============================================
+  try {
+    (dxf as any).addStyle?.({
+      name: 'ARIAL_WENTCAD',
+      primaryFontFileName: 'arial.ttf'
+    });
+  } catch (e) {
+    console.warn("Styl ARIAL_WENTCAD już istnieje lub nie mógł zostać dodany:", e);
+  }
+
   // Stały rozmiar tekstu dla DXF (w jednostkach modelu - metry)
-  // 0.1m = 10cm - czytelny rozmiar na rysunku
   const CAD_FONT_SIZE = 0.1;
   
   dxf.addLayer("WENTCAD_OBRYSY", 7);
@@ -258,24 +242,29 @@ export function exportToDXF(
       dxf.addLine(point3d(tagX + tagWidth, tagY + tagHeight, 0), point3d(tagX, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       dxf.addLine(point3d(tagX, tagY + tagHeight, 0), point3d(tagX, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       
-      let currentY = tagY + paddingY + fontSize;
+      const boxMaxY = tagY + tagHeight;
+      const boxMinX = tagX;
+      const pad = 0.05;
+
+      let currentY = boxMaxY - pad - fontSize;
+
       nonEmptyLines.forEach(line => {
-        const textX = tagX + paddingX;
-        dxf.addText(point3d(textX, currentY, 0), fontSize, sanitizeDxfText(line), { 
-          layerName: "WENTCAD_METKI_TEKST"
-        });
-        currentY += lineHeight;
+        dxf.addText(
+          point3d(boxMinX + pad, currentY, 0),
+          fontSize,
+          sanitizeDxfText(line),
+          {
+            layerName: "WENTCAD_METKI_TEKST",
+            styleName: 'ARIAL_WENTCAD'
+          } as any
+        );
+        currentY -= lineHeight;
       });
     }
   });
 
-  // Generuj DXF - biblioteka tworzy poprawną strukturę
-  let dxfContent = dxf.stringify();
-  
-  // Wstrzyknij definicję stylu Arial do tabeli STYLE
-  dxfContent = injectArialStyle(dxfContent);
-  
-  return dxfContent;
+  // Generuj DXF
+  return dxf.stringify();
 }
 
 function calculateCentroid(points: number[]): Point {

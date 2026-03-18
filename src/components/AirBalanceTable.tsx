@@ -878,7 +878,7 @@ export function AirBalanceTable() {
           const floorPolygons = currentCanvasFloor.polygons || [];
           
           let updatedPolygons = [...floorPolygons];
-          let newDxfOutlines: { id: string, points: number[], area: number }[] = [];
+          const newDxfOutlines: { id: string, points: number[], area: number }[] = [];
           
           let updatedCount = 0;
           let addedCount = 0;

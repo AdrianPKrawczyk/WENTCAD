@@ -75,7 +75,7 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
 
   const handleSave = () => {
     let calculationMode: CalculationMode = 'AUTO_MAX';
-    let normativeVolume = 0;
+    const normativeVolume = 0;
     let normativeExhaust = 0;
 
     // Jeżeli wybrany typ sugeruje pomieszczenie czysto wyciągowe (kuchnia, łazienka)
