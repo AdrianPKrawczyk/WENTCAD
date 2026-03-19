@@ -24,6 +24,8 @@ import { DxfOutlinesModal } from './DxfOutlinesModal';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { calculatePolygonArea } from '../lib/geometryUtils';
 import { toast } from 'sonner';
+import { SavedFiltersToolPanel } from './SavedFiltersToolPanel';
+import { useSettingsStore } from '../stores/useSettingsStore';
 
 // Register ALL enterprise modules to avoid version mismatches
 ModuleRegistry.registerModules([ClientSideRowModelModule, ValidationModule, RowSelectionModule, AllEnterpriseModule]);
@@ -480,9 +482,18 @@ export function AirBalanceTable() {
     if (columnState) {
       console.log('Applying initial column state from store...');
       params.api.applyColumnState({ state: columnState, applyOrder: true });
+    } else {
+      // Pobieramy domyślny podgląd stanów (np. dla nowego projektu, który ma null)
+      const { savedColumnProfiles, defaultProfileId } = useSettingsStore.getState();
+      const defaultProfile = savedColumnProfiles.find(p => p.id === defaultProfileId);
+      if (defaultProfile && defaultProfile.state) {
+        console.log('Applying default column state from global settings...');
+        params.api.applyColumnState({ state: defaultProfile.state, applyOrder: true });
+        setColumnState(defaultProfile.state);
+      }
     }
     lastProjectRef.current = activeProjectId || null;
-  }, [columnState, activeProjectId]);
+  }, [columnState, activeProjectId, setColumnState]);
 
   // NIE używamy useEffect do wymuszania stanu columnState podczas sesji,
   // aby AG Grid mógł zarządzać swoim stanem wewnętrznym zgodnie z zaleceniami użytkownika.
@@ -615,6 +626,30 @@ export function AirBalanceTable() {
       fileInputRef.current.value = '';
     }
   };
+
+  const gridComponents = useMemo(() => ({
+    savedFiltersToolPanel: SavedFiltersToolPanel,
+  }), []);
+
+  const sideBarConfig = useMemo(() => ({
+     toolPanels: [
+       {
+         id: 'columns',
+         labelDefault: 'Columns',
+         labelKey: 'columns',
+         iconKey: 'columns',
+         toolPanel: 'agColumnsToolPanel',
+       },
+       {
+         id: 'savedFilters',
+         labelDefault: 'Szablony',
+         labelKey: 'savedFilters',
+         iconKey: 'filter',
+         toolPanel: 'savedFiltersToolPanel',
+       }
+     ],
+     defaultToolPanel: ''
+  }), []);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -803,7 +838,8 @@ export function AirBalanceTable() {
           onDisplayedColumnsChanged={onColumnMoved}
           onGridReady={onGridReady}
           animateRows={true}
-          sideBar={'columns'}
+          components={gridComponents}
+          sideBar={sideBarConfig}
           rowSelection={{
             mode: 'multiRow',
             headerCheckbox: true,
