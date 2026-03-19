@@ -460,3 +460,10 @@
   - **Rozwiązanie**: Zrezygnowano ze stałego ID `floor-parter`. Funkcja `createProject` i inicjalny stan `useZoneStore` generują teraz unikalne identyfikatory `floor-uuid`.
   - **Zasięg**: Wszystkie nowe projekty od teraz są w pełni odizolowane na poziomie rzutu 2D. Naprawiono również niepoprawne fallbacki do `floor-parter` w `AirBalanceTable.tsx` i `RoomWizardModal.tsx`.
   - **Pliki**: `src/stores/useProjectStore.ts`, `src/stores/useZoneStore.ts`, `src/components/AirBalanceTable.tsx`, `src/components/RoomWizardModal.tsx`, `NEW_PROJECT_DATA_LEAK_FIX.md`
+
+- **Poprawka 2.11.4f (2026-03-19): Naprawa UX narzędzia Kadrowanie (Eksport PNG/DXF)**
+  - **Problem 1**: Po narysowaniu pierwszego kadru przycisk "Eksportuj do PNG/DXF" był nadal zablokowany w modalu, ponieważ React nie odświeżał początkowej wartości `selectedRegionId`.
+  - **Rozwiązanie 1**: Dodano `useEffect` w `ExportModal.tsx`, wymuszający wybór pierwszego dostępnego kadru w przypadku, gdy stan zaznaczenia jest pusty. Zastąpiono też okno `window.prompt` automatycznym nazewnictwem "Kadr 1", "Kadr 2", ulepszając płynność eksportu.
+  - **Problem 2**: Przycisk 'X' usuwający kadr z kanwy 2D ignorował kliknięcia z uwagi na blokujące zdarzenia `drag` w bibliotece Konva przy zdarzeniu `onClick` dla zbyt małych elementów (szerokość `12px`).
+  - **Rozwiązanie 2**: Powiększono obiekt nasłuchujący przycisku do rozmiarów `32px` oraz zmodyfikowano event na standardowe `onClick` / `onTap` gwarantując łatwiejsze "trafienie" w przycisk i brak przerywania po mikroruchach myszki.
+  - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/ExportModal.tsx`

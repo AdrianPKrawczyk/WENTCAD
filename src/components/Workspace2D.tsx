@@ -407,18 +407,17 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 updateFloor(activeFloorId, { exportRegions: updatedRegions });
                 toast.success(`Zaktualizowano kadr: ${oldRegion?.name || 'Edycja'}`);
               } else {
-                const regionName = window.prompt("Podaj nazwę kadru (np. Kuchnia, Skrzydło A):", "Kadr 1");
-                if (regionName) {
-                  const newRegion = {
-                    id: `crop-${Date.now()}`,
-                    name: regionName,
-                    x, y, width, height
-                  };
-                  updateFloor(activeFloorId, {
-                    exportRegions: [...existingRegions, newRegion]
-                  });
-                  toast.success(`Zapisano kadr: ${regionName}`);
-                }
+                // Zrezygnowano z window.prompt na rzecz automatycznego nazywania (lepsze UX i brak blokowania wątku)
+                const regionName = `Kadr ${(existingRegions.length + 1)}`;
+                const newRegion = {
+                  id: `crop-${Date.now()}`,
+                  name: regionName,
+                  x, y, width, height
+                };
+                updateFloor(activeFloorId, {
+                  exportRegions: [...existingRegions, newRegion]
+                });
+                toast.success(`Zapisano kadr: ${regionName}`);
               }
             }
             
@@ -1533,11 +1532,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 fontStyle="bold"
               />
               <Group
-                x={region.x + region.width - 12 / scale}
+                x={region.x + region.width - 32 / scale}
                 y={region.y}
                 onClick={(e) => {
                   e.cancelBubble = true;
-                  if (confirm(`Czy usunąć kadr "${region.name}"?`)) {
+                  if (window.confirm(`Czy usunąć kadr "${region.name}"?`)) {
+                    const filtered = (activeFloorMetadata.exportRegions || []).filter(r => r.id !== region.id);
+                    updateFloor(activeFloorId, { exportRegions: filtered });
+                  }
+                }}
+                onTap={(e) => {
+                  e.cancelBubble = true;
+                  if (window.confirm(`Czy usunąć kadr "${region.name}"?`)) {
                     const filtered = (activeFloorMetadata.exportRegions || []).filter(r => r.id !== region.id);
                     updateFloor(activeFloorId, { exportRegions: filtered });
                   }
@@ -1551,8 +1557,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   if (container) container.style.cursor = 'default';
                 }}
               >
-                 <Rect width={12 / scale} height={12 / scale} fill="#fee2e2" cornerRadius={2 / scale} />
-                 <Text text="×" x={3 / scale} y={-1 / scale} fontSize={12 / scale} fill="#ef4444" fontStyle="bold" />
+                 {/* Hit area slightly expanded by the rect size */}
+                 <Rect width={32 / scale} height={32 / scale} fill="#fee2e2" cornerRadius={4 / scale} />
+                 <Text text="×" x={10 / scale} y={4 / scale} fontSize={24 / scale} fill="#ef4444" fontStyle="bold" />
               </Group>
             </Group>
           ))}

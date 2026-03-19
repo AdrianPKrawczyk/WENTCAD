@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Download, Image as ImageIcon, FileCode, Layers, Pencil, Trash2, Type, AlignLeft, AlignCenter, Square } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
 
@@ -38,6 +38,14 @@ export function ExportModal({ isOpen, onClose, onExportPNG, onExportDXF, onEditR
   const [localLineSpacing, setLocalLineSpacing] = useState(dxfExportSettings?.lineSpacing ?? 1.25);
   const [localPaddingX, setLocalPaddingX] = useState(dxfExportSettings?.paddingX ?? 1.0);
   const [localPaddingY, setLocalPaddingY] = useState(dxfExportSettings?.paddingY ?? 0.36);
+
+  useEffect(() => {
+    if (isOpen && regions.length > 0) {
+      if (!selectedRegionId || !regions.find(r => r.id === selectedRegionId)) {
+        setSelectedRegionId(regions[0].id);
+      }
+    }
+  }, [isOpen, regions, selectedRegionId]);
 
   if (!isOpen) return null;
 
