@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.11.4 GOTOWE
-* **Active Step:** FAZA 2.11.4 (Połączone pola FLOW + SYSTEM w metkach)
-* **Pending Task:** Testy eksportu z nowymi metkami
+## CURRENT STATE: FAZA 2.11.4 ZWERYFIKOWANA
+* **Active Step:** FAZA 2.11.4 (Optymalizacja Eksportu & Smart Tag)
+* **Pending Task:** Akceptacja końcowa użytkownika
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -449,3 +449,8 @@
   - `src/stores/useZoneStore.ts`: zaktualizowano `DEFAULT_TAG_FIELDS`
   - `src/components/Workspace2D.tsx`: rozszerzono `generateTagText()`, używa `system.id`
   - `src/components/SmartTagModal.tsx`: rozszerzono preview i etykiety
+- **Poprawka 2.11.4c (2026-03-19): Naprawy layoutu i geometrii DXF**
+  - **Poprawka Layoutu (2-kolumny)**: Eksport DXF wspiera teraz side-by-side layout (kolumna 1 i 2), co zapewnia zgodność z widokiem Canvas 2D.
+  - **Precyzja Geometrii (measureTextWidth)**: Zaktualizowano współczynniki szerokości znaków w `dxfExport.ts` (np. `:` -> 0.30, `0-9` -> 0.65), usuwając problem ucinania tekstu w AutoCAD.
+  - **Testy i Dokumentacja**: Wykonano pełną weryfikację logiki `FLOW + SYSTEM`. Stworzono plik `TEST_SUMMARY.md`.
+  - **Pliki**: `src/lib/dxfExport.ts`, `TEST_SUMMARY.md`
