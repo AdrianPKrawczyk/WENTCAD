@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
+
+const MIN_WIDTH = 320;
+const MAX_WIDTH = 800;
 
 export function ZonePropertiesPanel() {
   const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
@@ -18,10 +21,76 @@ export function ZonePropertiesPanel() {
   const [newTransferTarget, setNewTransferTarget] = useState('');
   const [newTransferVol, setNewTransferVol] = useState('');
 
+  const [width, setWidth] = useState(320);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isDragging = useRef(false);
+
+  const startResize = useCallback((e: React.PointerEvent) => {
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDragging.current) return;
+      const newWidth = document.body.clientWidth - e.clientX;
+      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
+        setWidth(newWidth);
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+  const isWide = width >= 450 && !isCollapsed;
+
   if (!activeZone) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-400 p-6 text-center text-sm">
-        <p>Wybierz strefę w tabeli, aby wyświetlić szczegóły.</p>
+      <div 
+        style={{ width: isCollapsed ? 48 : width, minWidth: isCollapsed ? 48 : MIN_WIDTH }}
+        className="h-full flex flex-col items-center bg-white border-l border-gray-200 shadow-sm relative transition-all duration-300"
+      >
+        {!isCollapsed && (
+          <div
+            onPointerDown={startResize}
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-300 bg-transparent z-10 transition-colors"
+          />
+        )}
+        <div className="absolute top-4 left-0 -ml-3 z-20">
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="bg-white border border-gray-200 rounded-full p-1 shadow-sm hover:bg-gray-50 text-gray-500"
+          >
+            {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+        </div>
+        {!isCollapsed ? (
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center text-sm text-gray-400">
+            <p>Wybierz strefę w tabeli, aby wyświetlić szczegóły.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center h-full w-full bg-white relative pt-16">
+            <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-gray-400 font-bold tracking-widest text-xs whitespace-nowrap">
+              PANEL WŁAŚCIWOŚCI
+            </span>
+          </div>
+        )}
       </div>
     );
   }
@@ -35,16 +104,43 @@ export function ZonePropertiesPanel() {
   const calculatedVolRaw = activeZone.area * activeZone.height;
 
   return (
-    <div className="flex flex-col h-full bg-white border-l border-gray-200 shadow-sm w-80 overflow-y-auto">
-      <div className="p-4 border-b border-gray-100 bg-gray-50">
-        <h2 className="text-lg font-bold text-gray-800">Właściwości Strefy</h2>
-        <p className="text-xs text-gray-500 flex justify-between mt-1">
-          <span className="font-mono">ID: {activeZone.id}</span>
-          <span className="bg-gray-200 px-1.5 py-0.5 rounded text-gray-700 font-bold">{activeZone.nr}</span>
-        </p>
+    <div 
+      style={{ width: isCollapsed ? 48 : width }}
+      className="flex flex-col h-full bg-white border-l border-gray-200 shadow-sm relative transition-all duration-300"
+    >
+      {!isCollapsed && (
+        <div
+          onPointerDown={startResize}
+          className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-indigo-400 bg-transparent z-10 transition-colors"
+        />
+      )}
+      
+      <div className="absolute top-4 left-0 -ml-3 z-20">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="bg-white border border-gray-200 rounded-full p-1 shadow-md hover:bg-gray-50 text-gray-600 hover:text-indigo-600 transition-colors"
+        >
+          {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
       </div>
 
-      <div className="p-4 space-y-6 pb-20">
+      {isCollapsed ? (
+        <div className="flex flex-col items-center h-full w-full bg-white border-l border-gray-100 relative pt-16">
+          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-gray-400 font-bold tracking-widest text-xs whitespace-nowrap overflow-hidden">
+            {activeZone.nr} • {activeZone.name || 'Właściwości Strefy'}
+          </span>
+        </div>
+      ) : (
+        <div className="w-full h-full overflow-y-auto overflow-x-hidden relative flex flex-col">
+          <div className="p-4 border-b border-gray-100 bg-gray-50 shrink-0">
+            <h2 className="text-lg font-bold text-gray-800">Właściwości Strefy</h2>
+            <p className="text-xs text-gray-500 flex justify-between mt-1">
+              <span className="font-mono">ID: {activeZone.id}</span>
+              <span className="bg-gray-200 px-1.5 py-0.5 rounded text-gray-700 font-bold">{activeZone.nr}</span>
+            </p>
+          </div>
+
+          <div className={`p-4 pb-20 ${isWide ? 'grid grid-cols-2 gap-x-4 gap-y-4 items-start' : 'space-y-6'}`}>
         
         {/* SEKCJA: GEOMETRIA */}
         <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
@@ -520,7 +616,7 @@ export function ZonePropertiesPanel() {
         </section>
 
         {/* SEKCJA: SYSTEMY I TRANSFERY */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+        <section className={`bg-white rounded border border-gray-100 p-3 shadow-sm ${isWide ? 'col-span-2' : ''}`}>
           <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Systemy i Transfery</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -640,7 +736,7 @@ export function ZonePropertiesPanel() {
         </section>
         
         {/* WYNIKI OBLICZEŃ SILNIKA FIZYCZNEGO */}
-        <section className="bg-gray-800 rounded border border-gray-700 p-3 shadow-md text-white mt-4">
+        <section className={`bg-gray-800 rounded border border-gray-700 p-3 shadow-md text-white mt-4 ${isWide ? 'col-span-2' : ''}`}>
           <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider border-b border-gray-700 pb-2 mb-3">Wyniki (Silnik Obliczeniowy)</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -667,11 +763,13 @@ export function ZonePropertiesPanel() {
         </section>
 
         {activeZone.thermodynamicError && (
-          <div className="mt-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-100 text-xs">
+          <div className={`mt-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-100 text-xs ${isWide ? 'col-span-2' : ''}`}>
             ⚠️ <b>Błąd termodynamiki:</b> Powietrze nawiewane wprowadza więcej ciepła utajonego niż może usunąć ciepła jawnego. Entalpia układu rośnie. Chłodzenie niemożliwe.
           </div>
         )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
