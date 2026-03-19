@@ -9,13 +9,29 @@ export interface ColumnFilterProfile {
   state: ColumnState[];
 }
 
+export interface ExportProfile {
+  id: string;
+  name: string;
+  format: 'PDF' | 'XLSX';
+  scope: 'ALL_FLOORS' | 'ACTIVE_FLOOR';
+  includeBalanceTable: boolean;
+  includeRoomCards: boolean;
+  fontFamily: 'helvetica' | 'times' | 'courier';
+  fontSize: number;
+  columnProfileId: string | null;
+}
+
 interface SettingsState {
   savedColumnProfiles: ColumnFilterProfile[];
   defaultProfileId: string | null;
+  savedExportProfiles: ExportProfile[];
   
   saveColumnProfile: (name: string, state: ColumnState[]) => void;
   deleteColumnProfile: (id: string) => void;
   setDefaultProfile: (id: string | null) => void;
+
+  saveExportProfile: (profile: Omit<ExportProfile, 'id'>) => void;
+  deleteExportProfile: (id: string) => void;
 }
 
 const storage = {
@@ -36,6 +52,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       savedColumnProfiles: [],
       defaultProfileId: null,
+      savedExportProfiles: [],
 
       saveColumnProfile: (name, state) => {
         const id = crypto.randomUUID();
@@ -53,6 +70,19 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDefaultProfile: (id) => {
         set({ defaultProfileId: id });
+      },
+
+      saveExportProfile: (profile) => {
+        const id = crypto.randomUUID();
+        set((prev) => ({
+          savedExportProfiles: [...prev.savedExportProfiles, { ...profile, id }],
+        }));
+      },
+
+      deleteExportProfile: (id) => {
+        set((prev) => ({
+          savedExportProfiles: prev.savedExportProfiles.filter((p) => p.id !== id),
+        }));
       },
     }),
     {

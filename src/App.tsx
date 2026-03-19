@@ -8,6 +8,7 @@ import { StatusBar } from './components/StatusBar';
 import { ProjectDashboard } from './components/ProjectDashboard';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
+import { ExportDashboard } from './components/ExportDashboard';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
@@ -310,7 +311,13 @@ function App() {
             </>
           )}
 
-          {currentStage > 2 && (
+          {currentStage === 7 && (
+            <div className="flex-1 overflow-hidden">
+              <ExportDashboard />
+            </div>
+          )}
+
+          {currentStage > 2 && currentStage !== 7 && (
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
               <Box className="w-16 h-16 mb-4 opacity-20" />
               <h2 className="text-xl font-bold">Moduł w przygotowaniu...</h2>

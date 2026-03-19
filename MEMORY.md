@@ -468,4 +468,12 @@
   - **Rozwiązanie 2**: Powiększono obiekt nasłuchujący przycisku do rozmiarów `32px` oraz zmodyfikowano event na standardowe `onClick` / `onTap` gwarantując łatwiejsze "trafienie" w przycisk i brak przerywania po mikroruchach myszki.
   - **Filtry Kolumn (Nowa Funkcjonalność)**: Wdrożono globalny mechanizm zapisywania układów kolumn (`useSettingsStore.ts` poprzez IDB). Dodano boczny panel AG-Grid `SavedFiltersToolPanel.tsx` obok klasycznych kolumn. Naprawiono bug z notorycznie samo-zamykającym się paskiem poprzez objęcie konfiguracji `sideBar` oraz `components` w hooki `useMemo` (aby zapobiec zmianom referencji na przerysowanie).
   - **Właściwości Strefy (UI/RWD)**: Przebudowano boczny panel szczegółów strefy (`ZonePropertiesPanel.tsx`). Dodano funkcję swobodnego skalowania szerokości (resizing) metodą przeciągania lewej krawędzi okna oraz możliwość całkowitego zwinięcia panelu (collapsing) pod dedykowany przycisk powrotu. Kiedy panel przekracza 450px szerokości, jego wewnętrzne parametry przepinają się na widok siatki (`grid-cols-2`), oszczędzając wysokość i miejsce na małych monitorach po wejściu w tryb "szeroki".
-  - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/ExportModal.tsx`, `src/stores/useSettingsStore.ts`, `src/components/SavedFiltersToolPanel.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/ZonePropertiesPanel.tsx`
+
+- **Nowy Moduł 2.11.x (2026-03-19): Eksport Danych Tabelarycznych do PDF/XLSX**
+  - Zainstalowano pakiety do generowania raportów: `jspdf`, `jspdf-autotable`, `xlsx`.
+  - Stworzono obszar `ExportDashboard.tsx` dla Kroku 7 z Menu `TopBar`.
+  - Konfigurator wspiera eksport całego bilansu oraz szczegółowych kart dla samych pokojów. Posiada możliwość ucięcia zakresu tylko dla Obecnej Kondygnacji lub całego projektu.
+  - Generowane dokumenty korzystają z zadeklarowanego szablonu wyświetlania kolumn z modułu "Szablony" po to, aby PDF był czysty i kompaktowy w zależności od wymogów (Arkusz A3).
+  - Dodano możliwość ustalania formatowania PDF (typ czcionki i jej wymiar). Umożliwiono zapis profilu eksportu do pamięci trwałej `useSettingsStore` w celu ponownego i szybkiego generowania zaawansowanych raportów dla kolejnych projektów.
+  - Skrypt generowania PDF/XLS znajduje się w nowym pliku usług: `src/lib/exportUtils.ts`. Wykorzystuje płaskie mapowanie tabel na format kompatybilny z `AutoTable` oraz arkuszami binarnymi Excela. Puste parametry są czyszczone do domyślnych by łagodzić błędy TypeScript w obydwu formatach.  
+  - **Pliki**: `src/components/ExportDashboard.tsx`, `src/lib/exportUtils.ts`, `src/stores/useSettingsStore.ts`, `src/App.tsx`
