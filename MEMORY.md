@@ -454,3 +454,9 @@
   - **Precyzja Geometrii (measureTextWidth)**: Zaktualizowano współczynniki szerokości znaków w `dxfExport.ts` (np. `:` -> 0.30, `0-9` -> 0.65), usuwając problem ucinania tekstu w AutoCAD.
   - **Testy i Dokumentacja**: Wykonano pełną weryfikację logiki `FLOW + SYSTEM`. Stworzono plik `TEST_SUMMARY.md`.
   - **Pliki**: `src/lib/dxfExport.ts`, `TEST_SUMMARY.md`
+
+- **Poprawka 2.11.4d (2026-03-19): Naprawa wycieku danych (Data Leak) między projektami**
+  - **Problem**: Nowe projekty wczytywały podkłady i rysunki z poprzednio otwartego projektu z powodu współdzielonego ID kondygnacji `floor-parter` w lokalnym IndexDB (`useCanvasStore`).
+  - **Rozwiązanie**: Zrezygnowano ze stałego ID `floor-parter`. Funkcja `createProject` i inicjalny stan `useZoneStore` generują teraz unikalne identyfikatory `floor-uuid`.
+  - **Zasięg**: Wszystkie nowe projekty od teraz są w pełni odizolowane na poziomie rzutu 2D. Naprawiono również niepoprawne fallbacki do `floor-parter` w `AirBalanceTable.tsx` i `RoomWizardModal.tsx`.
+  - **Pliki**: `src/stores/useProjectStore.ts`, `src/stores/useZoneStore.ts`, `src/components/AirBalanceTable.tsx`, `src/components/RoomWizardModal.tsx`, `NEW_PROJECT_DATA_LEAK_FIX.md`

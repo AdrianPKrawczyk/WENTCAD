@@ -119,7 +119,7 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
       maxAllowedDbA: dbAInput,
       isMaxDbAManual,
       manualMaxAllowedDbA: isMaxDbAManual ? dbAInput : null,
-      floorId: floorId || Object.keys(floors)[0] || 'floor-parter',
+      floorId: floorId || Object.keys(floors)[0] || '',
       transferIn: [],
       transferOut: [],
       calculatedVolume: 0,

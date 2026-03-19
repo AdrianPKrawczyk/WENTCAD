@@ -81,6 +81,7 @@ export const useProjectStore = create<ProjectStore>()(
       
       if (!user) throw new Error('Nie udało się uzyskać tożsamości użytkownika.');
 
+      const initialFloorId = `floor-${crypto.randomUUID()}`;
       const { data, error } = await supabase
         .from('projects')
         .insert([{ 
@@ -89,7 +90,7 @@ export const useProjectStore = create<ProjectStore>()(
           state_data: { 
             zones: {}, 
             floors: {
-              'floor-parter': { id: 'floor-parter', name: 'Parter', elevation: 0.0, order: 0 }
+              [initialFloorId]: { id: initialFloorId, name: 'Parter', elevation: 0.0, order: 0 }
             }, 
             systems: [
               { id: 'N1', name: 'Nawiew 1', type: 'SUPPLY' },

@@ -541,7 +541,7 @@ export function AirBalanceTable() {
       transferOutSum: 0,
       netBalance: 0,
       realACH: 0,
-      floorId: activeFloorId === '__all__' ? 'floor-parter' : activeFloorId,
+      floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
     });
   };
 
@@ -606,7 +606,7 @@ export function AirBalanceTable() {
         transferOutSum: 0,
         netBalance: 0,
         realACH: 0,
-        floorId: activeFloorId === '__all__' ? 'floor-parter' : activeFloorId,
+        floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
       });
     });
     

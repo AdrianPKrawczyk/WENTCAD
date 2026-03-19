@@ -5,11 +5,10 @@ import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, Styl
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
-const DEFAULT_FLOOR_ID = 'floor-parter';
-
 function createDefaultFloors(): Record<string, Floor> {
+  const id = `floor-${crypto.randomUUID()}`;
   return {
-    [DEFAULT_FLOOR_ID]: { id: DEFAULT_FLOOR_ID, name: 'Parter', elevation: 0.0, order: 0 }
+    [id]: { id, name: 'Parter', elevation: 0.0, order: 0 }
   };
 }
 
@@ -167,7 +166,7 @@ export const useZoneStore = create<ZoneStore>()(
     (set, get) => ({
       activeProjectId: null,
       selectedZoneId: null,
-      activeFloorId: DEFAULT_FLOOR_ID,
+      activeFloorId: Object.keys(createDefaultFloors())[0],
       zones: {},
       floors: createDefaultFloors(),
       systems: [
@@ -335,7 +334,7 @@ export const useZoneStore = create<ZoneStore>()(
           isSystemColoringEnabled: stateData.isSystemColoringEnabled ?? false,
           globalSystemOpacity: stateData.globalSystemOpacity ?? 20,
           columnState: stateData.columnState ?? null,
-          activeFloorId: Object.keys(stateData.floors || {})[0] || 'floor-parter',
+          activeFloorId: Object.keys(stateData.floors || {})[0] || `floor-${crypto.randomUUID()}`,
           globalPatternScale: stateData.globalPatternScale ?? 1.0,
           globalTagSettings: stateData.globalTagSettings || DEFAULT_TAG_SETTINGS
         });
@@ -469,7 +468,7 @@ export const useZoneStore = create<ZoneStore>()(
           return {
             ...persistedState,
             floors: persistedState.floors || createDefaultFloors(),
-            activeFloorId: persistedState.activeFloorId || DEFAULT_FLOOR_ID
+            activeFloorId: persistedState.activeFloorId || Object.keys(persistedState.floors || {})[0] || `floor-${crypto.randomUUID()}`
           };
         }
         // Migracja v2 -> v3: uzupełnienie brakujących pól dxfExportSettings

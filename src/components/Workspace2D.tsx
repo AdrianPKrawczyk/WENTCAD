@@ -73,7 +73,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const { width: containerWidth, height: containerHeight } = useContainerSize(containerRef);
 
   // Floor context from Project/Zone store
-  const activeFloorId = useZoneStore((s) => s.activeFloorId || 'floor-parter');
+  const activeFloorId = useZoneStore((s) => s.activeFloorId || Object.keys(s.floors)[0]);
 
   // Canvas store - Global/Ephemeral state
   const isCalibrating = useCanvasStore((s) => s.isCalibrating);
