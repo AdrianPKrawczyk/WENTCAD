@@ -102,9 +102,11 @@ function measureTextWidth(text: string, fontHeight: number = 0.1): number {
     let charWidth = 0.66;
 
     if ('VMW'.includes(char)) charWidth = 1.00;
-    else if (':Il|i'.includes(char)) charWidth = 0.00;
-    else if ('1jfł'.includes(char)) charWidth = 0.30;
-    else if (char === 'A') charWidth = 0.67;
+    else if (':Il|i'.includes(char)) charWidth = 0.30;
+    else if ('1jfł'.includes(char)) charWidth = 0.40;
+    else if ('ABCDEFGHJKLNOPQRSTUXYZ'.includes(char)) charWidth = 0.70;
+    else if ('abcdefghkmnoprstuvxyz'.includes(char)) charWidth = 0.60;
+    else if ('023456789'.includes(char)) charWidth = 0.65;
 
     sum += charWidth + tracking;
   }
@@ -221,22 +223,31 @@ export function exportToDXF(
       const lineHeight = fontHeight * lineSpacing;
       const padX = fontHeight * paddingX;
       const padY = fontHeight * paddingY;
-      const innerPad = fontHeight * 0.5; // wewnętrzny margines dla tekstu
+      const gap = fontHeight * 1.5; // Odstęp między kolumnami
       
-      const allLines = [tagText.col1, tagText.col2].filter(l => l).join('\n').split('\n');
-      const nonEmptyLines = allLines.filter(l => l.trim().length > 0);
+      const col1Lines = tagText.col1 ? tagText.col1.split('\n') : [];
+      const col2Lines = tagText.col2 ? tagText.col2.split('\n') : [];
       
-      let maxLineWidth = 0;
-      nonEmptyLines.forEach(line => {
-        maxLineWidth = Math.max(maxLineWidth, measureTextWidth(line, fontHeight));
+      let maxCol1Width = 0;
+      col1Lines.forEach(line => {
+        maxCol1Width = Math.max(maxCol1Width, measureTextWidth(line, fontHeight));
+      });
+
+      let maxCol2Width = 0;
+      col2Lines.forEach(line => {
+        maxCol2Width = Math.max(maxCol2Width, measureTextWidth(line, fontHeight));
       });
       
-      const tagWidth = maxLineWidth + padX * 2;
-      const tagHeight = nonEmptyLines.length * lineHeight + padY * 2;
+      const totalTextWidth = maxCol1Width + (maxCol2Width > 0 ? maxCol2Width + gap : 0);
+      const tagWidth = totalTextWidth + padX * 2;
+      
+      const maxLines = Math.max(col1Lines.length, col2Lines.length);
+      const tagHeight = maxLines * lineHeight + padY * 2;
       
       const tagX = tagPosCAD.x - tagWidth / 2;
-      const tagY = tagPosCAD.y - tagHeight / 2 - 0.03;
+      const tagY = tagPosCAD.y - tagHeight / 2 - 0.03; // drobna korekta wizualna
 
+      // Rysuj ramkę metki
       dxf.addLine(point3d(tagX, tagY, 0), point3d(tagX + tagWidth, tagY, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       dxf.addLine(point3d(tagX + tagWidth, tagY, 0), point3d(tagX + tagWidth, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
       dxf.addLine(point3d(tagX + tagWidth, tagY + tagHeight, 0), point3d(tagX, tagY + tagHeight, 0), { layerName: "WENTCAD_METKI_RAMKI" });
@@ -245,17 +256,36 @@ export function exportToDXF(
       const boxMaxY = tagY + tagHeight;
       const boxMinX = tagX;
 
-      let currentY = boxMaxY - innerPad - fontHeight;
-
-      nonEmptyLines.forEach(line => {
-        dxf.addText(
-          point3d(boxMinX + innerPad, currentY, 0),
-          fontHeight,
-          sanitizeDxfText(line),
-          { layerName: "WENTCAD_METKI_TEKST" }
-        );
+      // Renderuj Kolumnę 1
+      let currentY = boxMaxY - padY - fontHeight;
+      col1Lines.forEach(line => {
+        if (line.trim().length > 0) {
+          dxf.addText(
+            point3d(boxMinX + padX, currentY, 0),
+            fontHeight,
+            sanitizeDxfText(line),
+            { layerName: "WENTCAD_METKI_TEKST" }
+          );
+        }
         currentY -= lineHeight;
       });
+
+      // Renderuj Kolumnę 2
+      if (col2Lines.length > 0) {
+        currentY = boxMaxY - padY - fontHeight;
+        const col2X = boxMinX + padX + (maxCol1Width > 0 ? maxCol1Width + gap : 0);
+        col2Lines.forEach(line => {
+          if (line.trim().length > 0) {
+            dxf.addText(
+              point3d(col2X, currentY, 0),
+              fontHeight,
+              sanitizeDxfText(line),
+              { layerName: "WENTCAD_METKI_TEKST" }
+            );
+          }
+          currentY -= lineHeight;
+        });
+      }
     }
   });
 
