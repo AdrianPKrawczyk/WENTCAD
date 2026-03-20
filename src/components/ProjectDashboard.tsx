@@ -7,7 +7,7 @@ import { importProjectService } from '../lib/importProjectService';
 import type { Project } from '../types';
 
 export function ProjectDashboard() {
-  const { projects, isLoading, fetchProjects, createProject, setActiveProject, deleteProject } = useProjectStore();
+  const { projects, isLoading, fetchProjects, createProject, setActiveProject, deleteProject, error } = useProjectStore();
   const loadWorkspaceState = useZoneStore((s) => s.loadState);
   
   const [newProjectName, setNewProjectName] = useState('');
@@ -83,14 +83,14 @@ export function ProjectDashboard() {
               Zaimportuj...
             </button>
           </div>
-          {useProjectStore.getState().error && (
+          {error && (
             <div className="mt-3 bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-start gap-3">
                <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                </svg>
                <div className="text-xs text-red-400">
-                 <p className="font-bold text-red-500 mb-1">Błąd: {useProjectStore.getState().error}</p>
-                 {useProjectStore.getState().error?.includes('Anonymous sign-ins are disabled') && (
+                 <p className="font-bold text-red-500 mb-1">Błąd: {String(error)}</p>
+                 {typeof error === 'string' && error.includes('Anonymous sign-ins are disabled') && (
                    <div className="space-y-1">
                      <p>Wymagana jest konfiguracja Supabase:</p>
                      <ul className="list-disc list-inside ml-2">

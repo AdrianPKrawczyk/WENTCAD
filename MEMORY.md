@@ -25,10 +25,12 @@
 * [x] **FAZA 3.1 & 3.2: Topologia i Trasowanie Jednokreskowe (Narzędzie DRAW_DUCT)** - Done
     - [x] Utworzenie `useDuctStore` z obsługą `zundo` dla logiki tras (graf DAG).
     - [x] Dodanie wsparcia dla Snappingu (przyciągania do węzłów) oraz Ortho (łamane 90 stopni pod `Shift`).
-    - [x] **Iteracja 3.2: Naprawa Logiki & UI Context**:
+    - [x] **Iteracja 3.2: Naprawa Logiki, UI & Izolacji**:
         - [x] Dedykowany toolbar dla Etapu 3 (Instalacje) z wyborem systemu.
-        - [x] Naprawa "Chaining Bug" (brak aktualizacji `activeNodeId` przez stale closures w React).
-        - [x] Pełna separacja narzędzi rysowania stref (Etap 2) od trasowania (Etap 3).
+        - [x] Naprawa "Chaining Bug" (stale closures w React).
+        - [x] **Layout Fix**: Przywrócenie pełnego widoku Split-View (Tabela + Canvas) dla Etapu 3 i usunięcie placeholderów.
+        - [x] **Izolacja Interakcji**: Blokada kliknięć w strefy i metki (`listening={false}`) podczas rysowania instalacji.
+        - [x] **Fix Disappearing Rooms**: Rozwiązanie konfliktu Shift+Click (Orto vs Usuwanie strefy).
         - [x] Wizualny podgląd linii draftu w kolorze aktywnego systemu.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
@@ -498,3 +500,36 @@
     - **Scalanie (Merge)**: Wybiórczy import poszczególnych kondygnacji z pliku do obecnie otwartego projektu.
   - **Bezpieczeństwo ID**: Implementacja `importProjectService.ts` zawiera algorytm `remapAllIds`, który przy każdym imporcie generuje nowe UUID dla wszystkich kondygnacji, stref i poligonów. Zapobiega to konfliktom danych i "wyciekom" rysunków między różnymi projektami w IndexDB.
   - **Pliki**: `src/lib/projectTransfer.ts`, `src/lib/importProjectService.ts`, `src/components/ProjectImportModal.tsx`, `src/components/TopBar.tsx`, `src/components/ProjectDashboard.tsx`.
+
+### Iteracja 3.1: Fundamenty Topologii HVAC (Graph-based Routing)
+- **Architektura Grafu (DAG)**: Wprowadzono `useDuctStore.ts` jako centralny magazyn dla sieci przewodów. Sieć oparta jest na węzłach (`DuctNode`) i krawędziach (`DuctSegment`), co pozwala na późniejsze obliczenia spadków ciśnień i przepływów.
+- **Persystencja i Historia**: Store został objęty mechanizmem `zundo` (Undo/Redo) oraz `persist` (zapis w IndexDB), zapewniając bezpieczeństwo pracy inżyniera.
+- **Typy Danych**: Rozszerzono `src/types.ts` o parametry geometryczne (x, y, floorId) dla węzłów, umożliwiając ich precyzyjne pozycjonowanie na rzucie.
+
+### Iteracja 3.2: Zaawansowane Trasowanie i Snapping
+- **Narzędzie DRAW_DUCT**: Implementacja interaktywnego rysowania tras w `Workspace2D.tsx`.
+- **Mechanizm Snappingu**: System automatycznie przyciąga kursor do istniejących węzłów w promieniu 15px (skalowanych), gwarantując logiczną spójność grafu (brak "wiszących" końcówek).
+- **Tryb Orto (Shift)**: Przytrzymanie klawisza `Shift` wymusza rysowanie linii wyłącznie w pionie lub poziomie, ułatwiając tworzenie technicznych schematów CAD.
+- **Wizualizacja**: Dodano dynamiczną linię pomocniczą (Draft line) renderowaną stylem przerywanym w kolorze aktywnego systemu.
+
+### Iteracja 3.2.1: Naprawa Kontekstu UI i Izolacja CAD
+- **Naprawa Chaining Bug**: Rozwiązano problem "cofającego się" punktu startowego poprzez poprawną obsługę domknięć (closures) w hookach React. Pozwala to na nieprzerwane rysowanie długich ciągów (A->B->C->D).
+- **Dedykowany Toolbar**: Etap 3 (Instalacje) otrzymał własny, pomarańczowy pasek narzędzi, odseparowany od narzędzi architektonicznych.
+- **Izolacja Interakcji (Safety)**: Wprowadzono blokadę `listening={false}` dla poligonów stref i metek podczas aktywnego narzędzia trasowania. Eliminuje to błąd przypadkowego usuwania lub przesuwania architektury przy rysowaniu instalacji (rozwiązanie konfliktu Shift+Click).
+- **Przywrócenie Layoutu**: Skorygowano `App.tsx`, przywracając pełną funkcjonalność Split-View (Tabela + Canvas) dla etapu instalacji, usuwając zbędne placeholdery.
+- **Rozbudowa Edycji i UI (HVAC Inspector)**:
+    - **Narzędzie SELECT**: Wprowadzono tryb wyboru pozwalający na zaznaczanie węzłów i krawędzi.
+    - **Interaktywne Przesuwanie**: Węzły sieci są od teraz przeciągalne (`draggable`). Przesunięcie węzła automatycznie aktualizuje geometrię i długość wszystkich podłączonych do niego przewodów w czasie rzeczywistym.
+    - **DuctPropertiesPanel**: Wdrożono lewy panel właściwości (Inspektor HVAC), wyświetlający szczegółowe dane techniczne (ID, typ, współrzędne, system, długość) zaznaczonego elementu.
+    - **Wizualizacja**: Podniesiono czytelność sieci poprzez wymuszenie pełnego krycia (`opacity: 1`) oraz zwiększenie grubości linii rur (`strokeWidth: 5px`).
+- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`, `src/App.tsx`, `src/components/DuctPropertiesPanel.tsx`.
+
+### Iteracja 3.2.2: Stabilizacja i Naprawa 'White Screen' (Silent Crash) - 2026-03-20
+- **Przyczyna 1: Błąd Importu Typów (Vite 8/Rollup 4)**: Zidentyfikowano krytyczny błąd podczas inicjalizacji modułów JS. Importowanie typów TypeScriptowych (np. `NodeType`) jako zwykłych wartości (`import { NodeType }`) zamiast `import type` powodowało błąd `[MISSING_EXPORT]` w nowej wersji silnika budowania. Skutkowało to „pustym DOM-em”, ponieważ skrypt `main.tsx` rzucał błąd przed wykonaniem pierwszej instrukcji.
+    - **Naprawa**: Wymuszono używanie `import type` dla wszystkich importów, które służą wyłącznie do typowania.
+- **Przyczyna 2: Pętla Nieskończona Synchronizacji**: Efekt `useEffect` w `App.tsx` odpowiedzialny za `debouncedSync` posiadał w tablicy zależności obiekt `activeProject`. Ponieważ funkcja synchronizacji aktualizowała ten obiekt w `ProjectStore`, powodowało to cykliczne ponawianie żądań sieciowych i obciążenie procesora.
+    - **Naprawa**: Zmieniono tablicę zależności na `activeProject?.id`, co stabilizuje proces zapisu.
+- **Przyczyna 3: Bezpieczeństwo Renderowania (TypeError)**: Komponent `ProjectDashboard.tsx` rzucał błąd podczas próby wywołania metody `.includes()` na obiekcie błędu (Supabase Error), który nie zawsze jest stringiem.
+    - **Naprawa**: Wprowadzono bezpieczne rzutowanie `String(error)` oraz sprawdzanie `typeof error === 'string'` przed operacjami na tekście.
+- **Weryfikacja**: Aplikacja przeszła testy manualne i automatyczne przy użyciu `browser_subagent`. Potwierdzono poprawne ładowanie dashboardu, tworzenie projektów oraz stabilność etapu instalacji.
+- **Pliki**: `src/main.tsx`, `src/App.tsx`, `src/components/ProjectDashboard.tsx`, `src/components/DuctPropertiesPanel.tsx`.

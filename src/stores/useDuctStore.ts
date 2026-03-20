@@ -7,11 +7,17 @@ interface DuctStore {
   nodes: Record<string, DuctNode>;
   edges: Record<string, DuctSegment>;
   
+  // Selection state (ephemeral)
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+
   // Drawing state (ephemeral, not persisted)
   drawingSystemId: string | null;
   activeNodeId: string | null; // Ostatnio kliknięty węzeł, od którego rysujemy
 
   // Actions
+  setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
   setDrawingSystemId: (id: string | null) => void;
   setActiveNodeId: (id: string | null) => void;
   
@@ -31,9 +37,13 @@ export const useDuctStore = create<DuctStore>()(
         nodes: {},
         edges: {},
         
+        selectedNodeId: null,
+        selectedEdgeId: null,
         drawingSystemId: null,
         activeNodeId: null,
 
+        setSelectedNodeId: (id) => set({ selectedNodeId: id, selectedEdgeId: id ? null : null }),
+        setSelectedEdgeId: (id) => set({ selectedEdgeId: id, selectedNodeId: id ? null : null }),
         setDrawingSystemId: (id) => set({ drawingSystemId: id }),
         setActiveNodeId: (id) => set({ activeNodeId: id }),
 
@@ -55,7 +65,12 @@ export const useDuctStore = create<DuctStore>()(
             }
           });
           
-          return { nodes: newNodes, edges: newEdges, activeNodeId: state.activeNodeId === id ? null : state.activeNodeId };
+          return { 
+            nodes: newNodes, 
+            edges: newEdges, 
+            activeNodeId: state.activeNodeId === id ? null : state.activeNodeId,
+            selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId
+          };
         }),
 
         addEdge: (edge) => set((state) => ({ edges: { ...state.edges, [edge.id]: edge } })),
@@ -67,7 +82,10 @@ export const useDuctStore = create<DuctStore>()(
         removeEdge: (id) => set((state) => {
           const newEdges = { ...state.edges };
           delete newEdges[id];
-          return { edges: newEdges };
+          return { 
+            edges: newEdges,
+            selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId
+          };
         })
       }),
       {

@@ -8,7 +8,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2 } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
@@ -134,10 +134,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const ductEdges = useDuctStore((s) => s.edges);
   const drawingSystemId = useDuctStore((s) => s.drawingSystemId);
   const activeNodeId = useDuctStore((s) => s.activeNodeId);
+  const selectedNodeId = useDuctStore((s) => s.selectedNodeId);
+  const selectedEdgeId = useDuctStore((s) => s.selectedEdgeId);
   const setDrawingSystemId = useDuctStore((s) => s.setDrawingSystemId);
   const setActiveNodeId = useDuctStore((s) => s.setActiveNodeId);
+  const setSelectedNodeId = useDuctStore((s) => s.setSelectedNodeId);
+  const setSelectedEdgeId = useDuctStore((s) => s.setSelectedEdgeId);
   const addDuctNode = useDuctStore((s) => s.addNode);
+  const updateDuctNode = useDuctStore((s) => s.updateNode);
   const addDuctEdge = useDuctStore((s) => s.addEdge);
+  const updateDuctEdge = useDuctStore((s) => s.updateEdge);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -442,6 +448,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
         setActiveNodeId(null);
       }
       return;
+    }
+
+    if (currentTool === null) {
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
     }
 
     if (isCalibrating) {
@@ -1424,7 +1435,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             }
             
             return (
-              <Group key={poly.id}>
+              <Group key={poly.id} listening={currentTool !== 'DRAW_DUCT'}>
                 <Line
                   points={poly.points}
                   closed={true}
@@ -1511,31 +1522,46 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
             const system = systems.find(s => s.id === edge.systemId);
             const edgeColor = system?.color || '#94a3b8';
+            const isSelected = selectedEdgeId === edge.id;
 
             return (
-              <Line
-                key={edge.id}
-                points={[source.x, source.y, target.x, target.y]}
-                stroke={isSystemColoringEnabled ? edgeColor : '#94a3b8'}
-                strokeWidth={4 / scale}
-                lineCap="round"
-                lineJoin="round"
-                opacity={0.9}
-                onMouseEnter={(e: any) => {
-                  const container = e.target.getStage()?.container();
-                  if (container && currentTool === 'ERASER') container.style.cursor = 'crosshair';
-                }}
-                onMouseLeave={(e: any) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'default';
-                }}
-                onClick={(e: any) => {
-                  if (currentTool === 'ERASER') {
+              <Group key={edge.id}>
+                {/* Hit area (wider invisible line for easier selection) */}
+                <Line
+                  points={[source.x, source.y, target.x, target.y]}
+                  stroke="transparent"
+                  strokeWidth={15 / scale}
+                  onMouseEnter={(e: any) => {
+                    const container = e.target.getStage()?.container();
+                    if (container && (currentTool === 'ERASER' || currentTool === null)) container.style.cursor = 'pointer';
+                  }}
+                  onMouseLeave={(e: any) => {
+                    const container = e.target.getStage()?.container();
+                    if (container) container.style.cursor = 'default';
+                  }}
+                  onClick={(e: any) => {
                     e.cancelBubble = true;
-                    useDuctStore.getState().removeEdge(edge.id);
-                  }
-                }}
-              />
+                    if (currentTool === 'ERASER') {
+                      useDuctStore.getState().removeEdge(edge.id);
+                    } else if (currentTool === null) {
+                      setSelectedEdgeId(edge.id);
+                    }
+                  }}
+                />
+                {/* Visible line */}
+                <Line
+                  points={[source.x, source.y, target.x, target.y]}
+                  stroke={isSystemColoringEnabled ? edgeColor : '#94a3b8'}
+                  strokeWidth={(isSelected ? 7 : 5) / scale}
+                  lineCap="round"
+                  lineJoin="round"
+                  opacity={1}
+                  shadowColor={isSelected ? '#4f46e5' : 'transparent'}
+                  shadowBlur={isSelected ? 10 / scale : 0}
+                  shadowOpacity={0.8}
+                  listening={false}
+                />
+              </Group>
             );
           })}
 
@@ -1545,34 +1571,58 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const system = systems.find(s => s.id === node.systemId);
             const nodeColor = system?.color || '#94a3b8';
             const isActive = activeNodeId === node.id;
+            const isSelected = selectedNodeId === node.id;
 
             return (
               <Circle
                 key={node.id}
                 x={node.x}
                 y={node.y}
-                radius={(isActive ? 6 : 4) / scale}
-                fill={isActive ? '#ffffff' : (isSystemColoringEnabled ? nodeColor : '#cbd5e1')}
+                radius={(isActive || isSelected ? 7 : 5) / scale}
+                fill={isActive || isSelected ? '#ffffff' : (isSystemColoringEnabled ? nodeColor : '#cbd5e1')}
                 stroke={isSystemColoringEnabled ? nodeColor : '#94a3b8'}
-                strokeWidth={2 / scale}
+                strokeWidth={(isActive || isSelected ? 3 : 2) / scale}
+                draggable={currentTool === null}
                 onMouseEnter={(e: any) => {
                   const container = e.target.getStage()?.container();
                   if (container) {
                     if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
                     else if (currentTool === 'DRAW_DUCT') container.style.cursor = 'crosshair';
+                    else if (currentTool === null) container.style.cursor = 'move';
                   }
                 }}
                 onMouseLeave={(e: any) => {
                   const container = e.target.getStage()?.container();
                   if (container) container.style.cursor = 'default';
                 }}
+                onDragMove={(e) => {
+                  if (currentTool === null) {
+                    const newX = e.target.x();
+                    const newY = e.target.y();
+                    updateDuctNode(node.id, { x: newX, y: newY });
+                    
+                    // Recalculate lengths of connected edges
+                    Object.values(ductEdges).forEach(edge => {
+                      if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) {
+                        const s = edge.sourceNodeId === node.id ? { x: newX, y: newY } : ductNodes[edge.sourceNodeId];
+                        const t = edge.targetNodeId === node.id ? { x: newX, y: newY } : ductNodes[edge.targetNodeId];
+                        if (s && t) {
+                          const lengthPx = Math.sqrt(Math.pow(t.x - s.x, 2) + Math.pow(t.y - s.y, 2));
+                          const lengthM = scaleFactor ? lengthPx * scaleFactor : 0;
+                          updateDuctEdge(edge.id, { length: lengthM });
+                        }
+                      }
+                    });
+                  }
+                }}
                 onClick={(e: any) => {
+                  e.cancelBubble = true;
                   if (currentTool === 'ERASER') {
-                    e.cancelBubble = true;
                     useDuctStore.getState().removeNode(node.id);
                   } else if (currentTool === 'DRAW_DUCT') {
-                    // Snapping z kliknięcia
-                    e.cancelBubble = true;
+                    // Snapping logic handled in handleMouseDown
+                  } else if (currentTool === null) {
+                    setSelectedNodeId(node.id);
                   }
                 }}
               />
@@ -1618,7 +1668,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 key={`tag-${zone.id}`}
                 x={tagPos.x}
                 y={tagPos.y}
-                draggable
+                draggable={currentTool !== 'DRAW_DUCT'}
+                listening={currentTool !== 'DRAW_DUCT'}
                 scaleX={tagScale}
                 scaleY={tagScale}
                 onDragEnd={(e) => {
@@ -2139,14 +2190,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
           <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
             <button
-              onClick={() => setCurrentTool(activeFloorId, null)}
+              onClick={() => {
+                setCurrentTool(activeFloorId, null);
+                setActiveNodeId(null);
+              }}
               className={`p-1.5 rounded-md transition-all ${!currentTool ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Wybierz / Modyfikuj"
+              title="Wybierz / Modyfikuj (SELECT)"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+              <MousePointer2 className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setCurrentTool(activeFloorId, 'ERASER')}
+              onClick={() => {
+                setCurrentTool(activeFloorId, 'ERASER');
+                setActiveNodeId(null);
+              }}
               className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
               title="Usuń element (Gumka)"
             >
@@ -2182,7 +2239,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
               className="text-xs bg-transparent border-none focus:ring-0 text-orange-900 font-bold py-1 w-32 truncate cursor-pointer"
               value={drawingSystemId || ''}
               onChange={(e) => setDrawingSystemId(e.target.value)}
-              disabled={currentTool !== 'DRAW_DUCT'}
             >
               <option value="" disabled>Wybierz system...</option>
               {systems.map(s => (

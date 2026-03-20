@@ -9,6 +9,7 @@ import { ProjectDashboard } from './components/ProjectDashboard';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { ExportDashboard } from './components/ExportDashboard';
+import { DuctPropertiesPanel } from './components/DuctPropertiesPanel';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
@@ -120,7 +121,7 @@ function App() {
       };
       debouncedSync(activeProject.id, stateToSync);
     }
-  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, columnState, activeProject, debouncedSync]);
+  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, columnState, activeProject?.id, debouncedSync]);
 
   // KEYBOARD SHORTCUTS LOGIC
   useEffect(() => {
@@ -193,7 +194,7 @@ function App() {
         </aside>
 
         {/* SECONDARY SIDEBAR: Stage Tools */}
-        {currentStage === 2 && (
+        {(currentStage === 2 || currentStage === 3) && (
           <aside className="w-12 bg-white/50 backdrop-blur-sm border-r border-gray-100 flex flex-col items-center py-4 space-y-3 z-10 shrink-0 animate-in slide-in-from-left-4 duration-300">
             <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">Widok</div>
             <button
@@ -253,9 +254,12 @@ function App() {
           </aside>
         )}
 
+        {/* DUCT PROPERTIES (LEFT) */}
+        {currentStage === 3 && <DuctPropertiesPanel />}
+
         {/* CENTRUM: Dynamiczny Router Etapów */}
         <main ref={workspaceRef} className={`flex-1 flex min-w-0 overflow-hidden relative ${
-          currentStage === 2 
+          (currentStage === 2 || currentStage === 3)
             ? (viewMode === 'split-vertical' ? 'flex-row' : viewMode === 'split-vertical-reversed' ? 'flex-row-reverse' : 'flex-col') 
             : 'flex-col'
         }`}>
@@ -265,7 +269,7 @@ function App() {
             </div>
           )}
 
-          {currentStage === 2 && (
+          {(currentStage === 2 || currentStage === 3) && (
             <>
               {/* TABELA */}
               {(viewMode === 'table' || viewMode.startsWith('split')) && (
@@ -311,19 +315,13 @@ function App() {
             </>
           )}
 
-          {currentStage === 3 && (
-            <div className="flex-1 overflow-hidden relative">
-              <Workspace2D />
-            </div>
-          )}
-
           {currentStage === 7 && (
             <div className="flex-1 overflow-hidden">
               <ExportDashboard />
             </div>
           )}
 
-          {currentStage > 2 && currentStage !== 7 && (
+          {currentStage > 3 && currentStage !== 7 && (
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
               <Box className="w-16 h-16 mb-4 opacity-20" />
               <h2 className="text-xl font-bold">Moduł w przygotowaniu...</h2>
