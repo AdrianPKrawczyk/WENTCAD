@@ -8,7 +8,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid, getClosestPointOnSegment } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2 } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2, Box as BoxIcon, Circle as CircleIcon, Minus, Wind, ArrowUp, ArrowDown, Triangle, ChevronDown, Circle as CircleDot } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
@@ -21,6 +21,50 @@ import { exportToDXF, downloadDXF } from '../lib/dxfExport';
 // PDF.js configuration
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+// HVAC Component Tool utilities
+import type { DuctComponentTool } from '../stores/useCanvasStore';
+
+function getCategoryForDuctTool(tool: DuctComponentTool): 'EQUIPMENT' | 'TERMINAL' | 'INLINE' | 'JUNCTION' | 'SHAFT' | 'VIRTUAL_ROOT' {
+  const EQUIPMENT_TOOLS: DuctComponentTool[] = ['AHU', 'FAN', 'HEAT_RECOVERY'];
+  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE'];
+  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER'];
+  const JUNCTION_TOOLS: DuctComponentTool[] = ['TEE', 'CROSS', 'WYE'];
+  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN'];
+  const VIRTUAL_TOOLS: DuctComponentTool[] = ['VIRTUAL_ROOT'];
+
+  if (EQUIPMENT_TOOLS.includes(tool)) return 'EQUIPMENT';
+  if (TERMINAL_TOOLS.includes(tool)) return 'TERMINAL';
+  if (INLINE_TOOLS.includes(tool)) return 'INLINE';
+  if (JUNCTION_TOOLS.includes(tool)) return 'JUNCTION';
+  if (SHAFT_TOOLS.includes(tool)) return 'SHAFT';
+  if (VIRTUAL_TOOLS.includes(tool)) return 'VIRTUAL_ROOT';
+  return 'JUNCTION';
+}
+
+function getDuctToolLabel(tool: DuctComponentTool): string {
+  const labels: Record<DuctComponentTool, string> = {
+    AHU: 'Centrala (AHU)',
+    FAN: 'Wentylator',
+    HEAT_RECOVERY: 'Rekuperator',
+    ANEMOSTAT: 'Anemostat',
+    GRILLE: 'Kratka',
+    DIFFUSER: 'Dysza',
+    LOUVRE: 'Wentylacja ścienna',
+    DAMPER: 'Przepustnica',
+    FIRE_DAMPER: 'Klapa PPOŻ',
+    SILENCER: 'Tłumik',
+    HEATER: 'Nagrzewnica',
+    COOLER: 'Chłodnica',
+    TEE: 'Trójnik',
+    CROSS: 'Czwórnik',
+    WYE: 'Rozgałęzienie Y',
+    SHAFT_UP: 'Pion ↑',
+    SHAFT_DOWN: 'Pion ↓',
+    VIRTUAL_ROOT: 'Wirtualny korzeń',
+  };
+  return labels[tool] || tool;
+}
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
@@ -105,6 +149,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setRedefiningZoneId = useCanvasStore((state) => state.setRedefiningZoneId);
   const updateFloorState = useCanvasStore((s) => s.updateFloorState);
   const clearUnderlay = useCanvasStore((s) => s.clearUnderlay);
+  const activeDuctTool = useCanvasStore((s) => s.activeDuctTool);
+  const setActiveDuctTool = useCanvasStore((s) => s.setActiveDuctTool);
 
   // Zone store - Floor definitions
   const projectFloors = useZoneStore((s) => s.floors);
@@ -429,6 +475,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
           addDuctNode({
             id: targetNodeId,
             type: 'BRANCH',
+            componentCategory: 'JUNCTION',
+            componentType: 'TEE',
             systemId: drawingSystemId,
             ahuId: '',
             x: finalPos.x,
@@ -1237,7 +1285,47 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onClick={() => setSelectedDxfOutlineId(null)}
+        onClick={() => {
+          setSelectedDxfOutlineId(null);
+          
+          // Wstawianie komponentów HVAC
+          if (activeDuctTool && currentTool === null) {
+            const stage = stageRef.current;
+            if (!stage) return;
+            
+            const pointerPos = stage.getPointerPosition();
+            if (!pointerPos) return;
+            
+            const canvasPos = {
+              x: (pointerPos.x - position.x) / scale,
+              y: (pointerPos.y - position.y) / scale,
+            };
+            
+            const nodeId = `node-${crypto.randomUUID()}`;
+            
+            // Pobierz system z kontekstu lub użyj pierwszego dostępnego
+            const systemId = drawingSystemId || (systems.length > 0 ? systems[0].id : '');
+            
+            addDuctNode({
+              id: nodeId,
+              type: 'BRANCH',
+              componentCategory: getCategoryForDuctTool(activeDuctTool),
+              componentType: activeDuctTool,
+              systemId,
+              ahuId: '',
+              x: canvasPos.x,
+              y: canvasPos.y,
+              floorId: activeFloorId,
+              flow: 0,
+              pressureDropLocal: 0,
+              soundPowerLevel: [0, 0, 0, 0, 0, 0, 0, 0],
+            });
+            
+            toast.success(`Wstawiono: ${getDuctToolLabel(activeDuctTool)}`);
+            setActiveDuctTool(null);
+            setSelectedNodeId(nodeId);
+          }
+        }}
         style={{ background: '#f0f2f5' }}
       >
         <Layer ref={uiLayerRef} name="ui">
@@ -1669,16 +1757,173 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const nodeColor = system?.color || '#94a3b8';
             const isActive = activeNodeId === node.id;
             const isSelected = selectedNodeId === node.id;
+            
+            const nodeSize = (isActive || isSelected ? 8 : 6) / scale;
+            const strokeWidth = (isActive || isSelected ? 2.5 : 1.5) / scale;
+
+            // Renderuj węzeł na podstawie kategorii
+            const renderNodeShape = () => {
+              // Domyślnie Circle dla JUNCTION i nieznanych typów
+              if (!node.componentCategory || node.componentCategory === 'JUNCTION') {
+                return (
+                  <Circle
+                    x={node.x}
+                    y={node.y}
+                    radius={nodeSize}
+                    fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                    stroke={nodeColor}
+                    strokeWidth={strokeWidth}
+                  />
+                );
+              }
+              
+              // EQUIPMENT - RoundedRect (AHU, FAN)
+              if (node.componentCategory === 'EQUIPMENT') {
+                return (
+                  <Group x={node.x} y={node.y}>
+                    <Rect
+                      x={-nodeSize * 2}
+                      y={-nodeSize}
+                      width={nodeSize * 4}
+                      height={nodeSize * 2}
+                      cornerRadius={nodeSize * 0.3}
+                      fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                      stroke={nodeColor}
+                      strokeWidth={strokeWidth}
+                    />
+                    <Text
+                      text={node.componentType === 'AHU' ? 'AHU' : 'FAN'}
+                      fontSize={nodeSize * 1.2}
+                      fill={isActive || isSelected ? nodeColor : '#ffffff'}
+                      fontStyle="bold"
+                      align="center"
+                      verticalAlign="middle"
+                      offsetX={nodeSize * 1.5}
+                      offsetY={nodeSize * 0.5}
+                    />
+                  </Group>
+                );
+              }
+              
+              // TERMINAL - Circle z X (Anemostat, Kratka, Dysza)
+              if (node.componentCategory === 'TERMINAL') {
+                return (
+                  <Group x={node.x} y={node.y}>
+                    <Circle
+                      radius={nodeSize}
+                      fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                      stroke={nodeColor}
+                      strokeWidth={strokeWidth}
+                    />
+                    <Line
+                      points={[-nodeSize * 0.6, -nodeSize * 0.6, nodeSize * 0.6, nodeSize * 0.6]}
+                      stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                      strokeWidth={strokeWidth}
+                    />
+                    <Line
+                      points={[nodeSize * 0.6, -nodeSize * 0.6, -nodeSize * 0.6, nodeSize * 0.6]}
+                      stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                      strokeWidth={strokeWidth}
+                    />
+                  </Group>
+                );
+              }
+              
+              // INLINE - Prostokąt poprzeczny na kanale
+              if (node.componentCategory === 'INLINE') {
+                return (
+                  <Group x={node.x} y={node.y} rotation={node.rotation || 0}>
+                    <Rect
+                      x={-nodeSize * 1.5}
+                      y={-nodeSize * 0.5}
+                      width={nodeSize * 3}
+                      height={nodeSize}
+                      fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                      stroke={nodeColor}
+                      strokeWidth={strokeWidth}
+                    />
+                    {/* Ikona dla klapy PPOŻ */}
+                    {node.componentType === 'FIRE_DAMPER' && (
+                      <Text
+                        text="🔥"
+                        fontSize={nodeSize * 1.2}
+                        align="center"
+                        verticalAlign="middle"
+                      />
+                    )}
+                    {/* Fale dla tłumika */}
+                    {node.componentType === 'SILENCER' && (
+                      <>
+                        <Line points={[-nodeSize * 0.8, -nodeSize * 0.3, -nodeSize * 0.4, nodeSize * 0.3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={strokeWidth * 0.7} />
+                        <Line points={[nodeSize * 0.4, -nodeSize * 0.3, nodeSize * 0.8, nodeSize * 0.3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={strokeWidth * 0.7} />
+                      </>
+                    )}
+                  </Group>
+                );
+              }
+              
+              // SHAFT - Kwadrat z symbolem kierunku
+              if (node.componentCategory === 'SHAFT') {
+                return (
+                  <Group x={node.x} y={node.y}>
+                    <Rect
+                      x={-nodeSize}
+                      y={-nodeSize}
+                      width={nodeSize * 2}
+                      height={nodeSize * 2}
+                      fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                      stroke={nodeColor}
+                      strokeWidth={strokeWidth}
+                    />
+                    {node.componentType === 'SHAFT_UP' && (
+                      <Line
+                        points={[0, nodeSize * 0.6, 0, -nodeSize * 0.6]}
+                        stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                        strokeWidth={strokeWidth}
+                      />
+                    )}
+                    {node.componentType === 'SHAFT_DOWN' && (
+                      <Line
+                        points={[0, -nodeSize * 0.6, 0, nodeSize * 0.6]}
+                        stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                        strokeWidth={strokeWidth}
+                      />
+                    )}
+                  </Group>
+                );
+              }
+              
+              // VIRTUAL_ROOT - Trójkąt otwarty
+              if (node.componentCategory === 'VIRTUAL_ROOT') {
+                return (
+                  <Group x={node.x} y={node.y}>
+                    <Line
+                      points={[-nodeSize, nodeSize, 0, -nodeSize, nodeSize, nodeSize]}
+                      closed={true}
+                      fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                      stroke={nodeColor}
+                      strokeWidth={strokeWidth}
+                    />
+                  </Group>
+                );
+              }
+              
+              // Fallback
+              return (
+                <Circle
+                  x={node.x}
+                  y={node.y}
+                  radius={nodeSize}
+                  fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                  stroke={nodeColor}
+                  strokeWidth={strokeWidth}
+                />
+              );
+            };
 
             return (
-              <Circle
+              <Group
                 key={node.id}
-                x={node.x}
-                y={node.y}
-                radius={(isActive || isSelected ? 7 : 5) / scale}
-                fill={isActive || isSelected ? '#ffffff' : nodeColor}
-                stroke={nodeColor}
-                strokeWidth={(isActive || isSelected ? 3 : 2) / scale}
                 draggable={currentTool === null}
                 onDragStart={(_) => {
                   dragStartNodePos.current = { x: node.x, y: node.y };
@@ -1700,7 +1945,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     let newX = e.target.x();
                     let newY = e.target.y();
 
-                    // ORTHO snapping
                     if (e.evt.shiftKey && dragStartNodePos.current) {
                       const dx = Math.abs(newX - dragStartNodePos.current.x);
                       const dy = Math.abs(newY - dragStartNodePos.current.y);
@@ -1715,7 +1959,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
                     updateDuctNode(node.id, { x: newX, y: newY });
                     
-                    // Recalculate lengths of connected edges
                     Object.values(ductEdges).forEach(edge => {
                       if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) {
                         const s = edge.sourceNodeId === node.id ? { x: newX, y: newY } : ductNodes[edge.sourceNodeId];
@@ -1738,8 +1981,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     const nodes = state.nodes;
                     
                     const snapThreshold = 15 / scale;
-                    // Check for SNAP TO OTHER NODES
-                     let snappedToNode = false;
+                    let snappedToNode = false;
                      for (const targetId in nodes) {
                         if (targetId === node.id) continue;
                         const target = nodes[targetId];
@@ -1754,7 +1996,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
                      }
 
                      if (!snappedToNode) {
-                        // Check if dropped on an edge
                         for (const edgeId in edges) {
                           const edge = edges[edgeId];
                           if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) continue;
@@ -1779,12 +2020,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   if (currentTool === 'ERASER') {
                     useDuctStore.getState().removeNode(node.id);
                   } else if (currentTool === 'DRAW_DUCT') {
-                    // Snapping logic handled in handleMouseDown
+                    // Snapping handled in handleMouseDown
                   } else if (currentTool === null) {
                     setSelectedNodeId(node.id);
                   }
                 }}
-              />
+              >
+                {renderNodeShape()}
+              </Group>
             );
           })}
 
@@ -2352,8 +2595,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
               onClick={() => {
                 setCurrentTool(activeFloorId, null);
                 setActiveNodeId(null);
+                setActiveDuctTool(null);
               }}
-              className={`p-1.5 rounded-md transition-all ${!currentTool ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`p-1.5 rounded-md transition-all ${!currentTool && !activeDuctTool ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
               title="Wybierz / Modyfikuj (SELECT)"
             >
               <MousePointer2 className="w-3.5 h-3.5" />
@@ -2362,6 +2606,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
               onClick={() => {
                 setCurrentTool(activeFloorId, 'ERASER');
                 setActiveNodeId(null);
+                setActiveDuctTool(null);
               }}
               className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
               title="Usuń element (Gumka)"
@@ -2380,6 +2625,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   setActiveNodeId(null);
                 } else {
                   setCurrentTool(activeFloorId, 'DRAW_DUCT');
+                  setActiveDuctTool(null);
                   setIsDrawingPolygon(false);
                   if (!drawingSystemId && systems.length > 0) {
                     setDrawingSystemId(systems[0].id);
@@ -2404,6 +2650,119 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 <option key={s.id} value={s.id}>{s.id}: {s.name}</option>
               ))}
             </select>
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          {/* WSTAWIANIE ELEMENTÓW HVAC */}
+          <div className="relative group">
+            <button
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeDuctTool ? 'bg-indigo-600 text-white shadow-sm' : 'text-indigo-700 hover:bg-indigo-50'
+              }`}
+            >
+              <BoxIcon className="w-4 h-4" />
+              <span>Elementy</span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            
+            {/* Dropdown menu */}
+            <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-48">
+              {/* Urządzenia */}
+              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Urządzenia</div>
+              <button
+                onClick={() => setActiveDuctTool('AHU')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'AHU' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <BoxIcon className="w-4 h-4" />
+                <span>Centrala (AHU)</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('FAN')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'FAN' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <Wind className="w-4 h-4" />
+                <span>Wentylator</span>
+              </button>
+              
+              <div className="h-px bg-gray-200 my-1" />
+              
+              {/* Terminale */}
+              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Terminale</div>
+              <button
+                onClick={() => setActiveDuctTool('ANEMOSTAT')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'ANEMOSTAT' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <CircleDot className="w-4 h-4" />
+                <span>Anemostat</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('GRILLE')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'GRILLE' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <Minus className="w-4 h-4" />
+                <span>Kratka</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('DIFFUSER')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'DIFFUSER' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <CircleIcon className="w-4 h-4" />
+                <span>Dysza</span>
+              </button>
+              
+              <div className="h-px bg-gray-200 my-1" />
+              
+              {/* Armatura */}
+              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Armatura</div>
+              <button
+                onClick={() => setActiveDuctTool('DAMPER')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'DAMPER' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <Minus className="w-4 h-4" />
+                <span>Przepustnica</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('FIRE_DAMPER')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'FIRE_DAMPER' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <BoxIcon className="w-4 h-4" />
+                <span>Klapa PPOŻ</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('SILENCER')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'SILENCER' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <Wind className="w-4 h-4" />
+                <span>Tłumik</span>
+              </button>
+              
+              <div className="h-px bg-gray-200 my-1" />
+              
+              {/* Piony i specjalne */}
+              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Piony</div>
+              <button
+                onClick={() => setActiveDuctTool('SHAFT_UP')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'SHAFT_UP' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <ArrowUp className="w-4 h-4" />
+                <span>Pion ↑</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('SHAFT_DOWN')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'SHAFT_DOWN' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <ArrowDown className="w-4 h-4" />
+                <span>Pion ↓</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('VIRTUAL_ROOT')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'VIRTUAL_ROOT' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <Triangle className="w-4 h-4" />
+                <span>Wirtualny korzeń</span>
+              </button>
+            </div>
           </div>
 
           <div className="h-4 w-px bg-gray-200" />

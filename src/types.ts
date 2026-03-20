@@ -156,12 +156,61 @@ export interface ZoneData {
 // 2. DUCT NETWORK (DAG GRAPH)
 // ============================================
 
+// Legacy - kept for backward compatibility
 export type NodeType = 'TERMINAL' | 'BRANCH' | 'SILENCER' | 'DAMPER' | 'FAN' | 'ROOM_CONNECTION'
+
+// New hierarchy: ComponentCategory → ComponentType
+export type ComponentCategory = 
+  | 'EQUIPMENT'   // AHU, Fan, Heat Recovery
+  | 'TERMINAL'    // Anemostats, Grilles, Diffusers
+  | 'INLINE'      // Dampers, Fire Dampers, Silencers, Heaters, Coolers
+  | 'JUNCTION'    // Tees, Crosses, Wyes
+  | 'SHAFT'       // Vertical shafts through floors
+  | 'VIRTUAL_ROOT'; // Virtual root for flow summation
+
+export type ComponentType = 
+  // EQUIPMENT
+  | 'AHU' | 'FAN' | 'HEAT_RECOVERY'
+  // TERMINAL
+  | 'ANEMOSTAT' | 'GRILLE' | 'DIFFUSER' | 'LOUVRE' | 'AIR_VALVE'
+  // INLINE
+  | 'DAMPER' | 'FIRE_DAMPER' | 'SILENCER' | 'HEATER' | 'COOLER' | 'FILTER_BOX'
+  // JUNCTION
+  | 'TEE' | 'CROSS' | 'WYE'
+  // SHAFT
+  | 'SHAFT_UP' | 'SHAFT_DOWN'
+  // VIRTUAL_ROOT
+  | 'VIRTUAL_ROOT';
+
+// Default component type for each category
+export const CATEGORY_DEFAULT_TYPE: Record<ComponentCategory, ComponentType> = {
+  EQUIPMENT: 'AHU',
+  TERMINAL: 'ANEMOSTAT',
+  INLINE: 'DAMPER',
+  JUNCTION: 'TEE',
+  SHAFT: 'SHAFT_UP',
+  VIRTUAL_ROOT: 'VIRTUAL_ROOT',
+};
+
+// Map old NodeType to new ComponentCategory (for migration)
+export const NODE_TYPE_TO_CATEGORY: Record<NodeType, ComponentCategory> = {
+  TERMINAL: 'TERMINAL',
+  BRANCH: 'JUNCTION',
+  SILENCER: 'INLINE',
+  DAMPER: 'INLINE',
+  FAN: 'EQUIPMENT',
+  ROOM_CONNECTION: 'TERMINAL',
+};
+
 export type DuctShape = 'CIRCULAR' | 'RECTANGULAR'
 
 export interface DuctNode {
   id: string;
+  // Legacy field - kept for compatibility, use componentCategory instead
   type: NodeType;
+  // New typed fields
+  componentCategory: ComponentCategory;
+  componentType: ComponentType;
   zoneId?: string; // If node connects to a Zone
   systemId: string; // np. 'NW1', 'WW1'
   ahuId: string;    // Powiązanie z konkretną centralą wentylacyjną
@@ -172,11 +221,33 @@ export interface DuctNode {
   floorId: string;
   
   // Aerodynamics
-  flow: number; // m^3/h (calculated or input)
+  flow: number; // m^3/h (calculated or input from zone)
   pressureDropLocal: number; // Pa (miejscowy spadek ciśnienia - zeta factor equivalent)
   
+  // Flow distribution (for TERMINALs in same zone)
+  flowFraction?: number; // 0.0-1.0, default 1.0 for single terminal
+  
+  // Visual rotation for INLINE components (degrees)
+  rotation?: number;
+  
+  // Dimension lock for pricing (Krok 7)
+  isLocked?: boolean;
+  
+  // AHU/FAN parameters (for Krok 4 physics)
+  ratedFlow?: number;    // m³/h nominal
+  ratedPressure?: number; // Pa nominal
+  
+  // Heat exchanger parameters
+  heatRecoveryType?: 'ROTARY' | 'PLATE' | 'HEAT_PIPE' | 'RUN_AROUND';
+  efficiency?: number;    // 0-1
+  
+  // INLINE component dimensions (for rendering)
+  width?: number;  // mm
+  height?: number; // mm
+  
   // Acoustics (8 octave bands: 63, 125, 250, 500, 1000, 2000, 4000, 8000 Hz)
-  soundPowerLevel: number[]; // dB (Moc akustyczna)
+  // Placeholder for Krok 6 - initialized to zeros
+  soundPowerLevel: number[];
 }
 
 export interface DuctSegment {

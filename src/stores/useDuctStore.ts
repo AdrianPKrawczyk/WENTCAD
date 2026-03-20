@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { persist } from 'zustand/middleware';
-import type { DuctNode, DuctSegment } from '../types';
+import type { DuctNode, DuctSegment, ComponentType } from '../types';
 
 interface DuctStore {
   nodes: Record<string, DuctNode>;
@@ -30,9 +30,21 @@ interface DuctStore {
   removeEdge: (id: string) => void;
 
   // Advanced topology actions
-  splitEdge: (edgeId: string, x: number, y: number, scaleFactor: number) => string; // returns new nodeId
+  splitEdge: (edgeId: string, x: number, y: number, scaleFactor: number) => string;
+  insertInlineComponent: (
+    edgeId: string, 
+    x: number, 
+    y: number, 
+    scaleFactor: number,
+    componentType: ComponentType
+  ) => string;
   mergeNodeToEdge: (nodeId: string, edgeId: string, x: number, y: number, scaleFactor: number) => void;
   mergeNodes: (sourceId: string, targetId: string) => void;
+
+  // Utility helpers
+  calculateEdgeAngle: (edge: DuctSegment) => number;
+  getTerminalsInZone: (zoneId: string, systemId?: string) => DuctNode[];
+  getNodesOnFloor: (floorId: string) => DuctNode[];
 }
 
 /**
@@ -64,6 +76,46 @@ function getConnectedNetwork(
   }
 
   return { nodeIds: Array.from(visitedNodes), edgeIds: Array.from(visitedEdges) };
+}
+
+/**
+ * Creates a new DuctNode with all required fields including new typed fields
+ */
+function createDuctNode(
+  data: {
+    id: string;
+    x: number;
+    y: number;
+    floorId: string;
+    systemId: string;
+    ahuId: string;
+    type?: DuctNode['type'];
+    componentCategory?: DuctNode['componentCategory'];
+    componentType?: DuctNode['componentType'];
+    flow?: number;
+    zoneId?: string;
+    rotation?: number;
+  }
+): DuctNode {
+  const node: DuctNode = {
+    id: data.id,
+    type: data.type || 'BRANCH',
+    componentCategory: data.componentCategory || 'JUNCTION',
+    componentType: data.componentType || 'TEE',
+    systemId: data.systemId,
+    ahuId: data.ahuId,
+    x: data.x,
+    y: data.y,
+    floorId: data.floorId,
+    flow: data.flow ?? 0,
+    zoneId: data.zoneId,
+    pressureDropLocal: 0,
+    soundPowerLevel: [0, 0, 0, 0, 0, 0, 0, 0],
+  };
+  if (data.rotation !== undefined) {
+    node.rotation = data.rotation;
+  }
+  return node;
 }
 
 export const useDuctStore = create<DuctStore>()(
@@ -195,18 +247,17 @@ export const useDuctStore = create<DuctStore>()(
           if (!source || !target) return '';
 
           const newNodeId = `node-${crypto.randomUUID()}`;
-          const newNode: DuctNode = {
+          const newNode = createDuctNode({
             id: newNodeId,
             type: 'BRANCH',
+            componentCategory: 'JUNCTION',
+            componentType: 'TEE',
             systemId: edge.systemId,
             ahuId: edge.ahuId,
             x,
             y,
             floorId: source.floorId,
-            flow: 0,
-            pressureDropLocal: 0,
-            soundPowerLevel: [0,0,0,0,0,0,0,0]
-          };
+          });
 
           const edge1Id = `edge-${crypto.randomUUID()}`;
           const edge2Id = `edge-${crypto.randomUUID()}`;
@@ -253,18 +304,17 @@ export const useDuctStore = create<DuctStore>()(
 
           // 1. Create the new node on the edge
           const newNodeId = `node-${crypto.randomUUID()}`;
-          const newNode: DuctNode = {
+          const newNode = createDuctNode({
             id: newNodeId,
             type: 'BRANCH',
+            componentCategory: 'JUNCTION',
+            componentType: 'TEE',
             systemId: edge.systemId,
             ahuId: edge.ahuId,
             x,
             y,
             floorId: source.floorId,
-            flow: 0,
-            pressureDropLocal: 0,
-            soundPowerLevel: [0,0,0,0,0,0,0,0]
-          };
+          });
 
           // 2. Split the edge into two
           const edge1Id = `edge-${crypto.randomUUID()}`;
@@ -382,15 +432,147 @@ export const useDuctStore = create<DuctStore>()(
               activeNodeId: s.activeNodeId === sourceId ? null : s.activeNodeId
             };
           });
-        }
+        },
+
+        // Insert an inline component (DAMPER, FIRE_DAMPER, SILENCER, etc.) on an existing edge
+        insertInlineComponent: (edgeId, x, y, scaleFactor, componentType) => {
+          const state = get();
+          const edge = state.edges[edgeId];
+          if (!edge) return '';
+
+          const source = state.nodes[edge.sourceNodeId];
+          const target = state.nodes[edge.targetNodeId];
+          if (!source || !target) return '';
+
+          // Determine category based on componentType
+          let componentCategory: DuctNode['componentCategory'] = 'INLINE';
+          
+          const newNodeId = `node-${crypto.randomUUID()}`;
+          
+          // Calculate rotation based on edge angle
+          const angle = Math.atan2(target.y - source.y, target.x - source.x) * (180 / Math.PI);
+          
+          const newNode = createDuctNode({
+            id: newNodeId,
+            type: componentType as DuctNode['type'],
+            componentCategory,
+            componentType,
+            systemId: edge.systemId,
+            ahuId: edge.ahuId,
+            x,
+            y,
+            floorId: source.floorId,
+            rotation: angle,
+          });
+
+          const edge1Id = `edge-${crypto.randomUUID()}`;
+          const edge2Id = `edge-${crypto.randomUUID()}`;
+
+          const dist1Px = Math.sqrt(Math.pow(x - source.x, 2) + Math.pow(y - source.y, 2));
+          const dist2Px = Math.sqrt(Math.pow(target.x - x, 2) + Math.pow(target.y - y, 2));
+
+          const edge1: DuctSegment = {
+            ...edge,
+            id: edge1Id,
+            targetNodeId: newNodeId,
+            length: dist1Px * scaleFactor
+          };
+
+          const edge2: DuctSegment = {
+            ...edge,
+            id: edge2Id,
+            sourceNodeId: newNodeId,
+            length: dist2Px * scaleFactor
+          };
+
+          set((s) => {
+            const newEdges = { ...s.edges };
+            delete newEdges[edgeId];
+            return {
+              nodes: { ...s.nodes, [newNodeId]: newNode },
+              edges: { ...newEdges, [edge1Id]: edge1, [edge2Id]: edge2 },
+              selectedNodeId: newNodeId,
+              selectedEdgeId: null,
+            };
+          });
+
+          return newNodeId;
+        },
+
+        // Calculate the angle of an edge in degrees (0 = right, 90 = down)
+        calculateEdgeAngle: (edge) => {
+          const state = get();
+          const source = state.nodes[edge.sourceNodeId];
+          const target = state.nodes[edge.targetNodeId];
+          if (!source || !target) return 0;
+          return Math.atan2(target.y - source.y, target.x - source.x) * (180 / Math.PI);
+        },
+
+        // Get all terminal nodes in a specific zone, optionally filtered by system
+        getTerminalsInZone: (zoneId, systemId) => {
+          const state = get();
+          return Object.values(state.nodes).filter(node => {
+            if (node.zoneId !== zoneId) return false;
+            if (node.componentCategory !== 'TERMINAL') return false;
+            if (systemId && node.systemId !== systemId) return false;
+            return true;
+          });
+        },
+
+        // Get all nodes on a specific floor
+        getNodesOnFloor: (floorId) => {
+          const state = get();
+          return Object.values(state.nodes).filter(node => node.floorId === floorId);
+        },
       }),
       {
         name: 'wentcad-duct-storage',
-        version: 1,
+        version: 2,
         partialize: (state) => ({
           nodes: state.nodes || {},
           edges: state.edges || {}
-        })
+        }),
+        migrate: (persistedState: any, version: number) => {
+          if (version < 2) {
+            // Migrate nodes from old format (without componentCategory/componentType)
+            const oldNodes = persistedState.nodes || {};
+            const migratedNodes: Record<string, DuctNode> = {};
+            
+            for (const [id, node] of Object.entries(oldNodes)) {
+              const oldNode = node as any;
+              // Add new fields with defaults if missing
+              migratedNodes[id] = {
+                ...oldNode,
+                componentCategory: oldNode.componentCategory || 
+                  (oldNode.type === 'FAN' ? 'EQUIPMENT' :
+                   oldNode.type === 'TERMINAL' ? 'TERMINAL' :
+                   oldNode.type === 'DAMPER' || oldNode.type === 'SILENCER' ? 'INLINE' :
+                   'JUNCTION'),
+                componentType: oldNode.componentType || 
+                  (oldNode.type === 'FAN' ? 'FAN' :
+                   oldNode.type === 'TERMINAL' ? 'ANEMOSTAT' :
+                   oldNode.type === 'DAMPER' ? 'DAMPER' :
+                   oldNode.type === 'SILENCER' ? 'SILENCER' :
+                   'TEE'),
+                flowFraction: oldNode.flowFraction,
+                rotation: oldNode.rotation,
+                isLocked: oldNode.isLocked || false,
+                ratedFlow: oldNode.ratedFlow,
+                ratedPressure: oldNode.ratedPressure,
+                heatRecoveryType: oldNode.heatRecoveryType,
+                efficiency: oldNode.efficiency,
+                width: oldNode.width,
+                height: oldNode.height,
+              };
+            }
+            
+            return {
+              ...persistedState,
+              nodes: migratedNodes,
+            };
+          }
+          return persistedState;
+        },
       }
     ),
     {

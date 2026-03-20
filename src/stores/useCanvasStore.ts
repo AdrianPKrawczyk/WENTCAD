@@ -23,6 +23,33 @@ export interface Point {
   y: number;
 }
 
+// HVAC Component insertion tool types
+export type DuctComponentTool = 
+  | 'AHU' | 'FAN' | 'HEAT_RECOVERY'
+  | 'ANEMOSTAT' | 'GRILLE' | 'DIFFUSER' | 'LOUVRE'
+  | 'DAMPER' | 'FIRE_DAMPER' | 'SILENCER' | 'HEATER' | 'COOLER'
+  | 'TEE' | 'CROSS' | 'WYE'
+  | 'SHAFT_UP' | 'SHAFT_DOWN'
+  | 'VIRTUAL_ROOT';
+
+// Map tool types to their categories
+export function getCategoryForTool(tool: DuctComponentTool): CanvasState['activeDuctCategory'] {
+  const EQUIPMENT_TOOLS: DuctComponentTool[] = ['AHU', 'FAN', 'HEAT_RECOVERY'];
+  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE'];
+  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER'];
+  const JUNCTION_TOOLS: DuctComponentTool[] = ['TEE', 'CROSS', 'WYE'];
+  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN'];
+  const VIRTUAL_TOOLS: DuctComponentTool[] = ['VIRTUAL_ROOT'];
+
+  if (EQUIPMENT_TOOLS.includes(tool)) return 'EQUIPMENT';
+  if (TERMINAL_TOOLS.includes(tool)) return 'TERMINAL';
+  if (INLINE_TOOLS.includes(tool)) return 'INLINE';
+  if (JUNCTION_TOOLS.includes(tool)) return 'JUNCTION';
+  if (SHAFT_TOOLS.includes(tool)) return 'SHAFT';
+  if (VIRTUAL_TOOLS.includes(tool)) return 'VIRTUAL_ROOT';
+  return null;
+}
+
 export interface FloorCanvasState {
   underlayUrl: string | null;
   underlaySize: { width: number; height: number } | null;
@@ -48,6 +75,10 @@ interface CanvasState {
   isDrawingPolygon: boolean;
   currentPolygonPoints: Point[];
 
+  // HVAC Component Tools (ephemeral, not persisted)
+  activeDuctTool: DuctComponentTool | null;
+  activeDuctCategory: 'EQUIPMENT' | 'TERMINAL' | 'INLINE' | 'JUNCTION' | 'SHAFT' | 'VIRTUAL_ROOT' | null;
+
   // Actions
   getFloorState: (floorId: string) => FloorCanvasState;
   updateFloorState: (floorId: string, updates: Partial<FloorCanvasState>) => void;
@@ -66,6 +97,10 @@ interface CanvasState {
   setCurrentTool: (floorId: string, tool: 'PEN' | 'RECT' | 'ERASER' | 'CROP' | 'DRAW_DUCT' | null) => void;
   setRedefiningZoneId: (floorId: string, zoneId: string | null) => void;
   removePolygonByZoneId: (floorId: string, zoneId: string) => void;
+  
+  // HVAC Tool Actions
+  setActiveDuctTool: (tool: DuctComponentTool | null) => void;
+  setActiveDuctCategory: (category: CanvasState['activeDuctCategory']) => void;
 }
 
 const DEFAULT_FLOOR_STATE: FloorCanvasState = {
@@ -176,6 +211,18 @@ export const useCanvasStore = create<CanvasState>()(
           polygons: floor.polygons.filter(p => p.zoneId !== zoneId)
         });
       },
+
+      // HVAC Component Tool State
+      activeDuctTool: null,
+      activeDuctCategory: null,
+
+      setActiveDuctTool: (tool) => set({ 
+        activeDuctTool: tool,
+        // When selecting a tool, also set the category based on tool type
+        activeDuctCategory: tool ? getCategoryForTool(tool) : null 
+      }),
+      
+      setActiveDuctCategory: (category) => set({ activeDuctCategory: category }),
 
       clearUnderlay: (floorId) => {
         get().updateFloorState(floorId, {

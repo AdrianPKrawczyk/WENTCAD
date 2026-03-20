@@ -1,7 +1,39 @@
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Hash, Move, Layers, Ruler } from 'lucide-react';
-import type { NodeType } from '../types';
+import { X, Hash, Layers, Ruler, Volume2, Activity } from 'lucide-react';
+import type { ComponentCategory, ComponentType } from '../types';
+
+const COMPONENT_LABELS: Record<ComponentType, string> = {
+  AHU: 'Centrala wentylacyjna (AHU)',
+  FAN: 'Wentylator',
+  HEAT_RECOVERY: 'Rekuperator',
+  ANEMOSTAT: 'Anemostat',
+  GRILLE: 'Kratka wentylacyjna',
+  DIFFUSER: 'Dyfuzor',
+  LOUVRE: 'Wentylacja ścienna',
+  AIR_VALVE: 'Zawór powietrzny',
+  DAMPER: 'Przepustnica',
+  FIRE_DAMPER: 'Klapa przeciwpożarowa',
+  SILENCER: 'Tłumik',
+  HEATER: 'Nagrzewnica',
+  COOLER: 'Chłodnica',
+  FILTER_BOX: 'Skrzynka filtracyjna',
+  TEE: 'Trójnik',
+  CROSS: 'Czwórnik',
+  WYE: 'Rozgałęzienie Y',
+  SHAFT_UP: 'Pion wentylacyjny ↑',
+  SHAFT_DOWN: 'Pion wentylacyjny ↓',
+  VIRTUAL_ROOT: 'Węzeł wirtualny (sumowanie)',
+};
+
+const CATEGORY_COLORS: Record<ComponentCategory, string> = {
+  EQUIPMENT: 'bg-blue-100 text-blue-700 border-blue-200',
+  TERMINAL: 'bg-green-100 text-green-700 border-green-200',
+  INLINE: 'bg-orange-100 text-orange-700 border-orange-200',
+  JUNCTION: 'bg-gray-100 text-gray-700 border-gray-200',
+  SHAFT: 'bg-purple-100 text-purple-700 border-purple-200',
+  VIRTUAL_ROOT: 'bg-amber-100 text-amber-700 border-amber-200',
+};
 
 export function DuctPropertiesPanel() {
   const selectedNodeId = useDuctStore((s) => s.selectedNodeId);
@@ -12,9 +44,11 @@ export function DuctPropertiesPanel() {
   const updateEdge = useDuctStore((s) => s.updateEdge);
   const setSelectedNodeId = useDuctStore((s) => s.setSelectedNodeId);
   const setSelectedEdgeId = useDuctStore((s) => s.setSelectedEdgeId);
+  const getTerminalsInZone = useDuctStore((s) => s.getTerminalsInZone);
   
   const systems = useZoneStore((s) => s.systems);
   const floors = useZoneStore((s) => s.floors);
+  const zones = useZoneStore((s) => s.zones);
 
   const activeNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const activeEdge = selectedEdgeId ? edges[selectedEdgeId] : null;
@@ -22,11 +56,13 @@ export function DuctPropertiesPanel() {
   if (!activeNode && !activeEdge) return null;
 
   const floor = activeNode ? floors[activeNode.floorId] : (activeEdge ? floors[nodes[activeEdge.targetNodeId]?.floorId] : null);
-
+  
   const handleClose = () => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
   };
+  
+  const activeZone = activeNode?.zoneId ? zones[activeNode.zoneId] : null;
 
   return (
     <div className="absolute left-4 top-20 bottom-20 w-80 bg-white/95 backdrop-blur-md border border-gray-200 shadow-2xl rounded-2xl flex flex-col z-20 animate-in slide-in-from-left-4 duration-300">
@@ -68,66 +104,226 @@ export function DuctPropertiesPanel() {
         {/* Node Specific */}
         {activeNode && (
           <>
+            {/* Component Type Badge */}
             <section className="space-y-3">
               <div className="flex items-center gap-2 text-indigo-600">
-                <Move className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-bold uppercase tracking-wider">Pozycja i Typ</span>
+                <Layers className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-bold uppercase tracking-wider">Typ Komponentu</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 text-[10px] font-bold rounded-lg border ${CATEGORY_COLORS[activeNode.componentCategory] || ''}`}>
+                  {activeNode.componentCategory}
+                </span>
+                <span className="text-xs text-gray-600 font-medium">
+                  {COMPONENT_LABELS[activeNode.componentType] || activeNode.componentType}
+                </span>
+              </div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Typ węzła</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">System</label>
                   <select
                     className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
-                    value={activeNode.type}
-                    onChange={(e) => updateNode(activeNode.id, { type: e.target.value as NodeType })}
+                    value={activeNode.systemId}
+                    onChange={(e) => updateNode(activeNode.id, { systemId: e.target.value })}
                   >
-                    <option value="TERMINAL">Zakończenie (Terminal)</option>
-                    <option value="BRANCH">Rozgałęzienie (Branch)</option>
-                    <option value="SILENCER">Tłumik</option>
-                    <option value="DAMPER">Przepustnica</option>
-                    <option value="FAN">Wentylator</option>
-                    <option value="ROOM_CONNECTION">Podłączenie Pomieszczenia</option>
+                    <option value="">-- brak --</option>
+                    {systems.map(sys => (
+                      <option key={sys.id} value={sys.id}>{sys.id}: {sys.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Rzędna Z [m]</label>
-                  <div className="w-full text-xs font-bold bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-500 shadow-sm italic">
-                    {floor?.elevation || 0} m
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Kondygnacja</label>
+                  <div className="w-full text-xs font-bold bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-600 shadow-sm">
+                    {floor?.name || 'Nieznana'}
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-1 mt-3">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">System HVAC</label>
-                <select
-                  className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
-                  value={activeNode.systemId}
-                  onChange={(e) => updateNode(activeNode.id, { systemId: e.target.value })}
-                >
-                  {systems.map(sys => (
-                    <option key={sys.id} value={sys.id}>{sys.id}: {sys.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">X [px]</label>
-                  <input
-                    type="number"
-                    readOnly
-                    className="w-full text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-400"
-                    value={Math.round(activeNode.x)}
-                  />
+                  <div className="w-full text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-500">
+                    {Math.round(activeNode.x)}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Y [px]</label>
-                  <input
-                    type="number"
-                    readOnly
-                    className="w-full text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-400"
-                    value={Math.round(activeNode.y)}
-                  />
+                  <div className="w-full text-xs font-mono bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-gray-500">
+                    {Math.round(activeNode.y)}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* EQUIPMENT Section - AHU/FAN parameters */}
+            {activeNode.componentCategory === 'EQUIPMENT' && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Activity className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Parametry Urządzenia</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Wydajność [m³/h]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={activeNode.ratedFlow || ''}
+                      onChange={(e) => updateNode(activeNode.id, { ratedFlow: Number(e.target.value) || 0 })}
+                      placeholder="np. 5000"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Ciśnienie [Pa]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={activeNode.ratedPressure || ''}
+                      onChange={(e) => updateNode(activeNode.id, { ratedPressure: Number(e.target.value) || 0 })}
+                      placeholder="np. 500"
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* TERMINAL Section - Zone and Flow */}
+            {activeNode.componentCategory === 'TERMINAL' && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-green-600">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Podłączenie do Strefy</span>
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Strefa</label>
+                  <select
+                    className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-green-500 outline-none transition-all shadow-sm"
+                    value={activeNode.zoneId || ''}
+                    onChange={(e) => updateNode(activeNode.id, { zoneId: e.target.value || undefined })}
+                  >
+                    <option value="">-- brak --</option>
+                    {Object.values(zones).filter(z => z.floorId === activeNode.floorId).map(zone => (
+                      <option key={zone.id} value={zone.id}>{zone.nr} - {zone.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {activeZone && (
+                  <>
+                    <div className="bg-green-50 border border-green-100 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-green-600 font-medium">Wyliczony wydatek:</span>
+                        <span className="text-green-700 font-bold">{Math.round(activeZone.calculatedVolume)} m³/h</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-green-600 font-medium">Terminali w strefi:</span>
+                        <span className="text-green-700 font-bold">
+                          {getTerminalsInZone(activeZone.id, activeNode.systemId).length + 1}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Ułamek przepływu [%]</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-green-500 outline-none"
+                        value={Math.round((activeNode.flowFraction || 1) * 100)}
+                        onChange={(e) => updateNode(activeNode.id, { flowFraction: (Number(e.target.value) || 0) / 100 })}
+                      />
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
+            {/* INLINE Section - Dimensions */}
+            {activeNode.componentCategory === 'INLINE' && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-orange-600">
+                  <Ruler className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Wymiary Armatury</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Szerokość [mm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                      value={activeNode.width || ''}
+                      onChange={(e) => updateNode(activeNode.id, { width: Number(e.target.value) || undefined })}
+                      placeholder="np. 400"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Wysokość [mm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-orange-500 outline-none"
+                      value={activeNode.height || ''}
+                      onChange={(e) => updateNode(activeNode.id, { height: Number(e.target.value) || undefined })}
+                      placeholder="np. 200"
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* SHAFT Section */}
+            {activeNode.componentCategory === 'SHAFT' && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Pion Wentylacyjny</span>
+                </div>
+                <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                  <div className="text-xs text-purple-700">
+                    {activeNode.componentType === 'SHAFT_UP' 
+                      ? '↑ Kierunek przepływu: DO GÓRY' 
+                      : '↓ Kierunek przepływu: W DÓŁ'}
+                  </div>
+                  <div className="text-[10px] text-purple-500 mt-1">
+                    Piony łączą instalację między kondygnacjami
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* VIRTUAL_ROOT Section */}
+            {activeNode.componentCategory === 'VIRTUAL_ROOT' && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Węzeł Wirtualny</span>
+                </div>
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                  <div className="text-xs text-amber-700">
+                    Ten węzeł służy do sumowania wydatków z fragmentów sieci wentylacyjnej.
+                  </div>
+                  <div className="text-[10px] text-amber-500 mt-1">
+                    Użyj go do podsumowania przepływów bez fizycznego urządzenia.
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Acoustic Section (placeholder for Krok 6) */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Volume2 className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-bold uppercase tracking-wider">Akustyka</span>
+              </div>
+              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                <div className="text-xs text-gray-500 italic">
+                  Brak danych Lw - zostanie uzupełnione w Kroku 6
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1">
+                  {(activeNode.soundPowerLevel || []).join(', ') || '0, 0, 0, 0, 0, 0, 0, 0'} dB
                 </div>
               </div>
             </section>

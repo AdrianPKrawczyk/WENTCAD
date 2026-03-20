@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 3.1 & 3.2 (Trasowanie Instalacji)
-* **Active Step:** FAZA 3.1 & 3.2 (Topologia i Trasowanie Jednokreskowe)
-* **Pending Task:** Dalsza rozbudowa parametrów kanałów (edycja węzłów)
+## CURRENT STATE: FAZA 3.3 (Klasy Urządzeń i Elementów)
+* **Active Step:** FAZA 3.3 (Wprowadzenie Klas Urządzeń i Elementów Pośrednich) - DONE
+* **Pending Task:** FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -609,3 +609,54 @@
     - Pozycja grupy jest resetowana do `(0,0)` po każdym kroku ruchu, aby uniknąć podwójnego przesunięcia (tzw. "double-transform bug").
 - **Weryfikacja**: Potwierdzono w przeglądarce — segmenty przesuwają się płynnie wraz z węzłami.
 - **Pliki**: `src/components/Workspace2D.tsx`.
+
+### FAZA 3.3: Wprowadzenie Klas Urządzeń i Elementów Pośrednich - 2026-03-20
+- **Rozbudowa Modelu Danych (`types.ts`)**:
+    - Dodano `ComponentCategory`: EQUIPMENT, TERMINAL, INLINE, JUNCTION, SHAFT, VIRTUAL_ROOT
+    - Dodano `ComponentType`: AHU, FAN, HEAT_RECOVERY, ANEMOSTAT, GRILLE, DIFFUSER, LOUVRE, DAMPER, FIRE_DAMPER, SILENCER, HEATER, COOLER, TEE, CROSS, WYE, SHAFT_UP, SHAFT_DOWN, VIRTUAL_ROOT
+    - Rozszerzono `DuctNode` o: componentCategory, componentType, flowFraction, rotation, isLocked, ratedFlow, ratedPressure, heatRecoveryType, efficiency, width, height
+    - Zachowano backward compatibility z istniejącymi danymi (migracja v1→v2)
+
+- **Rozbudowa Store (`useDuctStore.ts`)**:
+    - Nowe akcje: `insertInlineComponent`, `calculateEdgeAngle`, `getTerminalsInZone`, `getNodesOnFloor`
+    - Funkcja `createDuctNode` do bezpiecznego tworzenia węzłów z wszystkimi wymaganymi polami
+    - Migracja starych węzłów przy ładowaniu (version 2)
+    - Helper `getConnectedNetwork` (BFS) do propagacji systemId
+
+- **Rozbudowa Canvas Store (`useCanvasStore.ts`)**:
+    - Dodano `DuctComponentTool` type i `activeDuctTool`, `activeDuctCategory` state
+    - Funkcja `getCategoryForTool` mapująca narzędzia na kategorie
+
+- **Toolbar HVAC (`Workspace2D.tsx`)**:
+    - Rozszerzono toolbar Etapu 3 o dropdown "Elementy" z kategoriami:
+        - Urządzenia: AHU, Wentylator
+        - Terminale: Anemostat, Kratka, Dysza
+        - Armatura: Przepustnica, Klapa PPOŻ, Tłumik
+        - Piony: Pion ↑, Pion ↓, Wirtualny korzeń
+    - Przyciski z ikonami lucide-react
+
+- **Wizualizacja Canvas (`Workspace2D.tsx`)**:
+    - Rozszerzono renderer węzłów o różne kształty:
+        - EQUIPMENT (AHU/FAN): RoundedRect z etykietą
+        - TERMINAL: Circle z X (anemostat)
+        - INLINE: Rect poprzeczny z rotacją
+        - SHAFT: Square z strzałką ↑/↓
+        - VIRTUAL_ROOT: Triangle otwarty
+        - JUNCTION: Circle (domyślny)
+
+- **Panel Właściwości (`DuctPropertiesPanel.tsx`)**:
+    - Dynamiczne sekcje według ComponentCategory:
+        - EQUIPMENT: ratedFlow, ratedPressure
+        - TERMINAL: zoneId, flowFraction, auto-calculation z bilansu
+        - INLINE: width, height
+        - SHAFT: kierunek (↑/↓)
+        - VIRTUAL_ROOT: info o sumowaniu
+    - Placeholder akustyczny (Lw = 0)
+    - Kolorowe badge kategorii
+
+- **Logika Wstawiania (`Workspace2D.tsx`)**:
+    - Obsługa onClick na Stage dla aktywnych narzędzi HVAC
+    - Tworzenie węzła z odpowiednim componentCategory/componentType
+    - Auto-przypisanie systemu z kontekstu
+
+- **Pliki**: `src/types.ts`, `src/stores/useDuctStore.ts`, `src/stores/useCanvasStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
