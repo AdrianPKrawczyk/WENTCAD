@@ -307,6 +307,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const isSpaceDown = useRef(false);
   const lastPointerPos = useRef({ x: 0, y: 0 });
   const dragStartNodePos = useRef<{ x: number, y: number } | null>(null);
+  const dragStartEdgeNodes = useRef<{ 
+    source: { x: number, y: number }, 
+    target: { x: number, y: number } 
+  } | null>(null);
 
   // Zoom to pointer
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -1552,7 +1556,59 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const isSelected = selectedEdgeId === edge.id;
 
             return (
-              <Group key={edge.id}>
+              <Group 
+                key={edge.id}
+                draggable={currentTool === null}
+                onDragStart={() => {
+                  const s = ductNodes[edge.sourceNodeId];
+                  const t = ductNodes[edge.targetNodeId];
+                  if (s && t) {
+                    dragStartEdgeNodes.current = {
+                      source: { x: s.x, y: s.y },
+                      target: { x: t.x, y: t.y }
+                    };
+                  }
+                }}
+                onDragMove={(e) => {
+                  const start = dragStartEdgeNodes.current;
+                  if (start && currentTool === null) {
+                    const dx = e.target.x();
+                    const dy = e.target.y();
+                    
+                    const newSource = { x: start.source.x + dx, y: start.source.y + dy };
+                    const newTarget = { x: start.target.x + dx, y: start.target.y + dy };
+                    
+                    // Update nodes in store
+                    updateDuctNode(edge.sourceNodeId, newSource);
+                    updateDuctNode(edge.targetNodeId, newTarget);
+                    
+                    // Recalculate all affected edges (connected to source or target)
+                    Object.values(ductEdges).forEach(e2 => {
+                      if (e2.sourceNodeId === edge.sourceNodeId || e2.targetNodeId === edge.sourceNodeId || 
+                          e2.sourceNodeId === edge.targetNodeId || e2.targetNodeId === edge.targetNodeId) {
+                        const s2 = ductNodes[e2.sourceNodeId];
+                        const t2 = ductNodes[e2.targetNodeId];
+                        // Use updated coords if they were the nodes we just moved
+                        const sX = e2.sourceNodeId === edge.sourceNodeId ? newSource.x : (e2.sourceNodeId === edge.targetNodeId ? newTarget.x : s2?.x);
+                        const sY = e2.sourceNodeId === edge.sourceNodeId ? newSource.y : (e2.sourceNodeId === edge.targetNodeId ? newTarget.y : s2?.y);
+                        const tX = e2.targetNodeId === edge.sourceNodeId ? newSource.x : (e2.targetNodeId === edge.targetNodeId ? newTarget.x : t2?.x);
+                        const tY = e2.targetNodeId === edge.sourceNodeId ? newSource.y : (e2.targetNodeId === edge.targetNodeId ? newTarget.y : t2?.y);
+                        
+                        if (sX !== undefined && sY !== undefined && tX !== undefined && tY !== undefined) {
+                          const lenPx = Math.sqrt(Math.pow(tX - sX, 2) + Math.pow(tY - sY, 2));
+                          updateDuctEdge(e2.id, { length: scaleFactor ? lenPx * scaleFactor : 0 });
+                        }
+                      }
+                    });
+
+                    // Reset group position so the lines (bound to node coords) don't jump
+                    e.target.position({ x: 0, y: 0 });
+                  }
+                }}
+                onDragEnd={() => {
+                  dragStartEdgeNodes.current = null;
+                }}
+              >
                 {/* Hit area (wider invisible line for easier selection) */}
                 <Line
                   points={[source.x, source.y, target.x, target.y]}
@@ -1560,7 +1616,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   strokeWidth={15 / scale}
                   onMouseEnter={(e: any) => {
                     const container = e.target.getStage()?.container();
-                    if (container && (currentTool === 'ERASER' || currentTool === null)) container.style.cursor = 'pointer';
+                    if (container && (currentTool === 'ERASER' || currentTool === null)) container.style.cursor = 'move';
                   }}
                   onMouseLeave={(e: any) => {
                     const container = e.target.getStage()?.container();

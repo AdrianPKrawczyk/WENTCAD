@@ -1,6 +1,5 @@
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
-import { useCanvasStore } from '../stores/useCanvasStore';
 import { X, Hash, Move, Layers, Ruler } from 'lucide-react';
 import type { NodeType } from '../types';
 

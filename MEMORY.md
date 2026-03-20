@@ -594,3 +594,18 @@
     - Zmodyfikowano `onDragMove`, aby obliczać dominującą oś ruchu i blokować drugą współrzędną w czasie rzeczywistym.
 - **Weryfikacja**: Implementacja zgodna ze standardem Konva/React. (Uwaga: Automatyczna weryfikacja ograniczona przez narzędzia przeglądarkowe — zalecany test manualny).
 - **Pliki**: `src/components/Workspace2D.tsx`.
+
+### Iteracja 3.3: Usprawnienia UI i Identyfikacja Systemów - 2026-03-20
+- **Wyświetlanie ID Systemu**: Zaktualizowano listę wyboru systemów w narzędziu rysowania oraz w panelu właściwości (`DuctPropertiesPanel.tsx`). Od teraz systemy są prezentowane w formacie `[ID]: [Nazwa]`, co ułatwia inżynierowi szybką identyfikację techniczną.
+- **Cleanup Kodu**: Usunięto nieużywane importy i zmienne w `DuctPropertiesPanel.tsx` (m.in. `canvasFloor`, `useCanvasStore`), poprawiając czytelność i wydajność komponentu.
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`.
+
+### Iteracja 3.3.1: Przesuwanie Całych Odcinków Kanałów (Segment Drag) - 2026-03-20
+- **Funkcjonalność**: Umożliwiono przesuwanie całych segmentów instalacji (linii między węzłami) za pomocą myszy. Przeciągnięcie odcinka przesuwa oba jego węzły o ten sam wektor, zachowując geometrię i połączenia z pozostałymi elementami sieci.
+- **Implementacja**:
+    - Dodano `dragStartEdgeNodes` ref w `Workspace2D.tsx`.
+    - Zmodyfikowano `Group` renderujący krawędź, czyniąc go `draggable`.
+    - W `onDragMove` obliczany jest delta ruchu, aktualizowane są pozycje węzłów w storze, a następnie przeliczane długości wszystkich sąsiednich odcinków.
+    - Pozycja grupy jest resetowana do `(0,0)` po każdym kroku ruchu, aby uniknąć podwójnego przesunięcia (tzw. "double-transform bug").
+- **Weryfikacja**: Potwierdzono w przeglądarce — segmenty przesuwają się płynnie wraz z węzłami.
+- **Pliki**: `src/components/Workspace2D.tsx`.
