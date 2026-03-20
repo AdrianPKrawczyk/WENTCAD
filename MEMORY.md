@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 2.11.4 ZWERYFIKOWANA
-* **Active Step:** FAZA 2.11.4 (Optymalizacja Eksportu & Smart Tag)
-* **Pending Task:** Akceptacja końcowa użytkownika
+## CURRENT STATE: FAZA 3.1 & 3.2 (Trasowanie Instalacji)
+* **Active Step:** FAZA 3.1 & 3.2 (Topologia i Trasowanie Jednokreskowe)
+* **Pending Task:** Dalsza rozbudowa parametrów kanałów (edycja węzłów)
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -20,16 +20,12 @@
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
-    *   Implementacja parsera `dxf-parser` oraz serwisu renderującego `dxfUtils.ts`.
-    *   Obsługa transformacji układu CAD (Y-up) na Canvas (Y-down) oraz automatyczna kalibracja jednostek (mm, cm, m).
 * [x] **FAZA 2.5.1: Szuflada Obrysów & Link Tool Fix** - Done
-    *   Odseparowanie surowych obrysów CAD od obiektów `Zone`.
-    *   Manualny Link Tool (usunięcie nieprzewidywalnej automatyzacji).
-    *   Funkcja "Przyłącz istniejące pomieszczenie" z filtrowaniem po kondygnacji.
 * [x] **FAZA 2.10: Eksport do PNG & DXF** - Done
-    - [x] Narzędzie "Kadrowanie" (CROP) do definiowania obszarów eksportu.
-    - [x] Generator DXF (`@tarikjabiri/dxf`) z obsługą warstw, skali i dopasowaniem do punktu 0,0.
-    - [x] Selektor kadrów i opcja dołączania tła w modalnym oknie eksportu.
+* [x] **FAZA 3.1 & 3.2: Topologia i Trasowanie Jednokreskowe (Narzędzie DRAW_DUCT)** - Done
+    - [x] Utworzenie `useDuctStore` z obsługą `zundo` dla logiki tras (graf DAG).
+    - [x] Dodanie wsparcia dla Snappingu (przyciągania do węzłów) oraz Ortho (łamane 90 stopni pod `Shift`).
+    - [x] Renderowanie kolorystyczne krawędzi zgodnie z podziałem systemowym w UI.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*

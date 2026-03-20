@@ -3,10 +3,11 @@ import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Label, Tag, Grou
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
+import { useDuctStore } from '../stores/useDuctStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
@@ -125,6 +126,16 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
   const dxfExportSettings = useZoneStore((s) => s.dxfExportSettings);
   const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
+
+  // Duct store
+  const ductNodes = useDuctStore((s) => s.nodes);
+  const ductEdges = useDuctStore((s) => s.edges);
+  const drawingSystemId = useDuctStore((s) => s.drawingSystemId);
+  const activeNodeId = useDuctStore((s) => s.activeNodeId);
+  const setDrawingSystemId = useDuctStore((s) => s.setDrawingSystemId);
+  const setActiveNodeId = useDuctStore((s) => s.setActiveNodeId);
+  const addDuctNode = useDuctStore((s) => s.addNode);
+  const addDuctEdge = useDuctStore((s) => s.addEdge);
 
   const sortedFloors = Object.values(projectFloors).sort((a, b) => a.order - b.order);
 
@@ -338,6 +349,99 @@ export function Workspace2D({ className }: Workspace2DProps) {
       }
     }
 
+    if (currentTool === 'DRAW_DUCT') {
+      if (e.evt.button === 0) {
+        if (!drawingSystemId) {
+          toast.error("Wybierz system z paska przed rysowaniem!");
+          return;
+        }
+        
+        let finalPos = { ...canvasPos };
+        // Ortho
+        if (e.evt.shiftKey && activeNodeId) {
+          const prevNode = ductNodes[activeNodeId];
+          if (prevNode) {
+            const dx = Math.abs(canvasPos.x - prevNode.x);
+            const dy = Math.abs(canvasPos.y - prevNode.y);
+            if (dx > dy) {
+              finalPos.y = prevNode.y;
+            } else {
+              finalPos.x = prevNode.x;
+            }
+          }
+        }
+        
+        // Snapping do innych węzłów (na tej kondygnacji)
+        const snapThreshold = 15 / scale;
+        let snappedNodeId = null;
+        for (const nodeId in ductNodes) {
+          const node = ductNodes[nodeId];
+          if (node.floorId !== activeFloorId) continue;
+          if (node.id === activeNodeId) continue; // nie snapuj do siebie
+          
+          const dist = Math.sqrt(Math.pow(finalPos.x - node.x, 2) + Math.pow(finalPos.y - node.y, 2));
+          if (dist < snapThreshold) {
+            finalPos = { x: node.x, y: node.y };
+            snappedNodeId = node.id;
+            break;
+          }
+        }
+
+        let targetNodeId = snappedNodeId;
+
+        // Jeśli nie było snapa, tworzymy nowy węzeł
+        if (!targetNodeId) {
+          targetNodeId = `node-${crypto.randomUUID()}`;
+          addDuctNode({
+            id: targetNodeId,
+            type: 'BRANCH',
+            systemId: drawingSystemId,
+            ahuId: '',
+            x: finalPos.x,
+            y: finalPos.y,
+            floorId: activeFloorId,
+            flow: 0,
+            pressureDropLocal: 0,
+            soundPowerLevel: [0,0,0,0,0,0,0,0]
+          });
+        }
+
+        // Jeśli mamy poprzedni aktywny węzeł, łączymy je
+        if (activeNodeId) {
+          // Unikaj pętli (ten sam węzeł)
+          if (activeNodeId !== targetNodeId) {
+            const edgeId = `edge-${crypto.randomUUID()}`;
+            const p1 = ductNodes[activeNodeId] || finalPos;
+            const p2 = ductNodes[targetNodeId] || finalPos;
+            const lengthPx = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+            const lengthM = scaleFactor ? lengthPx * scaleFactor : 0;
+            
+            addDuctEdge({
+              id: edgeId,
+              sourceNodeId: activeNodeId,
+              targetNodeId: targetNodeId,
+              systemId: drawingSystemId,
+              ahuId: '',
+              length: lengthM,
+              shape: 'CIRCULAR',
+              roughness: 0.00015,
+              internalInsulationThickness: 0,
+              externalInsulationThickness: 0,
+              velocity: 0,
+              pressureDropLin: 0
+            });
+          }
+        }
+        
+        // Zawsze kontynuujemy rysowanie z tego nowego punktu
+        setActiveNodeId(targetNodeId);
+      } else if (e.evt.button === 2) {
+        // Prawy klik kończy trasę
+        setActiveNodeId(null);
+      }
+      return;
+    }
+
     if (isCalibrating) {
       if (calibrationPoints.length < 2) {
         const newPoints = [...calibrationPoints, canvasPos];
@@ -527,7 +631,34 @@ export function Workspace2D({ className }: Workspace2DProps) {
       }
     }
 
-    if (isCalibrating || isMeasuring || isSettingOrigin || isDrawingPolygon) {
+    if (isCalibrating || isMeasuring || isSettingOrigin || isDrawingPolygon || currentTool === 'DRAW_DUCT') {
+      if (currentTool === 'DRAW_DUCT' && activeNodeId) {
+        if (e.evt.shiftKey) {
+          const prevNode = ductNodes[activeNodeId];
+          if (prevNode) {
+            const dx = Math.abs(canvasPos.x - prevNode.x);
+            const dy = Math.abs(canvasPos.y - prevNode.y);
+            if (dx > dy) {
+              canvasPos.y = prevNode.y;
+            } else {
+              canvasPos.x = prevNode.x;
+            }
+          }
+        }
+        
+        // Visual Snapping preview
+        const snapThreshold = 15 / scale;
+        for (const nodeId in ductNodes) {
+          const node = ductNodes[nodeId];
+          if (node.floorId !== activeFloorId || node.id === activeNodeId) continue;
+          
+          const dist = Math.sqrt(Math.pow(canvasPos.x - node.x, 2) + Math.pow(canvasPos.y - node.y, 2));
+          if (dist < snapThreshold) {
+            canvasPos = { x: node.x, y: node.y };
+            break;
+          }
+        }
+      }
       setMousePos(canvasPos);
       return;
     }
@@ -570,6 +701,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
         if (isDrawingPolygon) {
           setIsDrawingPolygon(false);
           setCurrentPolygonPoints([]);
+        }
+        if (currentTool === 'DRAW_DUCT') {
+          setActiveNodeId(null);
+          setCurrentTool(activeFloorId, null);
         }
       }
       if (e.code === 'Enter' && isDrawingPolygon && currentPolygonPoints.length > 2) {
@@ -1362,6 +1497,83 @@ export function Workspace2D({ className }: Workspace2DProps) {
             );
           })}
 
+          {/* === PRZEWODY (DUCT EDGES) === */}
+          {Object.values(ductEdges).map(edge => {
+            const source = ductNodes[edge.sourceNodeId];
+            const target = ductNodes[edge.targetNodeId];
+            if (!source || !target || source.floorId !== activeFloorId || target.floorId !== activeFloorId) return null;
+
+            const system = systems.find(s => s.id === edge.systemId);
+            const edgeColor = system?.color || '#94a3b8';
+
+            return (
+              <Line
+                key={edge.id}
+                points={[source.x, source.y, target.x, target.y]}
+                stroke={isSystemColoringEnabled ? edgeColor : '#94a3b8'}
+                strokeWidth={4 / scale}
+                lineCap="round"
+                lineJoin="round"
+                opacity={0.9}
+                onMouseEnter={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container && currentTool === 'ERASER') container.style.cursor = 'crosshair';
+                }}
+                onMouseLeave={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+                onClick={(e: any) => {
+                  if (currentTool === 'ERASER') {
+                    e.cancelBubble = true;
+                    useDuctStore.getState().removeEdge(edge.id);
+                  }
+                }}
+              />
+            );
+          })}
+
+          {/* === WĘZŁY (DUCT NODES) === */}
+          {Object.values(ductNodes).map(node => {
+            if (node.floorId !== activeFloorId) return null;
+            const system = systems.find(s => s.id === node.systemId);
+            const nodeColor = system?.color || '#94a3b8';
+            const isHovered = false; // Do implementacji jeśli potrzebne
+            const isActive = activeNodeId === node.id;
+
+            return (
+              <Circle
+                key={node.id}
+                x={node.x}
+                y={node.y}
+                radius={(isActive ? 6 : 4) / scale}
+                fill={isActive ? '#ffffff' : (isSystemColoringEnabled ? nodeColor : '#cbd5e1')}
+                stroke={isSystemColoringEnabled ? nodeColor : '#94a3b8'}
+                strokeWidth={2 / scale}
+                onMouseEnter={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) {
+                    if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
+                    else if (currentTool === 'DRAW_DUCT') container.style.cursor = 'crosshair';
+                  }
+                }}
+                onMouseLeave={(e: any) => {
+                  const container = e.target.getStage()?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
+                onClick={(e: any) => {
+                  if (currentTool === 'ERASER') {
+                    e.cancelBubble = true;
+                    useDuctStore.getState().removeNode(node.id);
+                  } else if (currentTool === 'DRAW_DUCT') {
+                    // Snapping z kliknięcia
+                    e.cancelBubble = true;
+                  }
+                }}
+              />
+            );
+          })}
+
           {/* === METKI SMART TAG === */}
           {showZonesOnCanvas && polygons.map((poly) => {
             const zone = zones[poly.zoneId];
@@ -1452,6 +1664,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         {/* === WARSTWA UI NAD ZAWARTOŚCIĄ (ramki kadru - UKRYWANA PRZED EKSPORTEM) === */}
         <Layer ref={uiOverlayLayerRef} name="ui-overlay">
+          {/* Current Drawing Duct (DRAW_DUCT) */}
+          {(currentTool === 'DRAW_DUCT') && activeNodeId && ductNodes[activeNodeId] && (
+            <Line
+              points={[ductNodes[activeNodeId].x, ductNodes[activeNodeId].y, mousePos.x, mousePos.y]}
+              stroke={isSystemColoringEnabled && drawingSystemId ? (systems.find(s => s.id === drawingSystemId)?.color || '#0ea5e9') : '#0ea5e9'}
+              strokeWidth={4 / scale}
+              dash={[10 / scale, 5 / scale]}
+              opacity={0.7}
+              lineCap="round"
+            />
+          )}
+
           {/* Current Drawing Polygon (PEN) */}
           {(isDrawingPolygon && currentTool === 'PEN') && currentPolygonPoints.length > 0 && (
             <>
@@ -1757,6 +1981,44 @@ export function Workspace2D({ className }: Workspace2DProps) {
             <span className="text-[10px] font-bold">Kadr</span>
           </button>
         </div>
+
+        <div className="h-4 w-px bg-gray-200" />
+
+        <div className="flex items-center gap-1 bg-indigo-50/50 p-0.5 rounded-lg border border-indigo-100">
+          <button
+            onClick={() => {
+              if (currentTool === 'DRAW_DUCT') {
+                setCurrentTool(activeFloorId, null);
+                setActiveNodeId(null);
+              } else {
+                setCurrentTool(activeFloorId, 'DRAW_DUCT');
+                setIsDrawingPolygon(false);
+                if (!drawingSystemId && systems.length > 0) {
+                  setDrawingSystemId(systems[0].id);
+                }
+                toast.info('Rysowanie tras: kliknij, aby utworzyć węzeł. Shift = Ortho.');
+              }
+            }}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${currentTool === 'DRAW_DUCT' ? 'bg-indigo-600 shadow-sm text-white' : 'text-indigo-600 hover:bg-indigo-100'}`}
+            title="Rysuj trasy wentylacyjne"
+          >
+            <Route className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold">Trasa</span>
+          </button>
+          
+          <select 
+            className="text-[10px] bg-transparent border-none focus:ring-0 text-indigo-800 font-bold py-1 w-24 truncate cursor-pointer"
+            value={drawingSystemId || ''}
+            onChange={(e) => setDrawingSystemId(e.target.value)}
+            disabled={currentTool !== 'DRAW_DUCT'}
+          >
+            {systems.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="h-4 w-px bg-gray-200" />
 
         <button
           disabled={!scaleFactor}

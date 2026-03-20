@@ -166,6 +166,11 @@ export interface DuctNode {
   systemId: string; // np. 'NW1', 'WW1'
   ahuId: string;    // Powiązanie z konkretną centralą wentylacyjną
   
+  // Coordinates
+  x: number;
+  y: number;
+  floorId: string;
+  
   // Aerodynamics
   flow: number; // m^3/h (calculated or input)
   pressureDropLocal: number; // Pa (miejscowy spadek ciśnienia - zeta factor equivalent)
