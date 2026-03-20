@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useZoneStore } from '../stores/useZoneStore';
+import { useDuctStore } from '../stores/useDuctStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { exportCurrentProjectData, downloadProjectFile } from '../lib/projectTransfer';
 import { ProjectImportModal } from './ProjectImportModal';
@@ -42,12 +43,17 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
   
   // Temporal store for Undo/Redo
-  const temporalStore = useZoneStore.temporal;
-  const { undo, redo } = temporalStore.getState();
+  const zoneTemporalStore = useZoneStore.temporal;
+  const ductTemporalStore = useDuctStore.temporal;
+  
+  const isDuctStage = currentStage === 3;
+  const activeTemporalStore = isDuctStage ? ductTemporalStore : zoneTemporalStore;
+  
+  const { undo, redo } = activeTemporalStore.getState();
   
   // Use useStore to subscribe to the temporal sub-store
-  const undoCount = useStore(temporalStore, (state: any) => state.pastStates.length);
-  const redoCount = useStore(temporalStore, (state: any) => state.futureStates.length);
+  const undoCount = useStore(activeTemporalStore, (state: any) => state.pastStates.length);
+  const redoCount = useStore(activeTemporalStore, (state: any) => state.futureStates.length);
   
   const showZonesOnCanvas = useZoneStore((s) => s.showZonesOnCanvas);
   const toggleShowZonesOnCanvas = useZoneStore((s) => s.toggleShowZonesOnCanvas);

@@ -549,3 +549,16 @@
 - **Wstawianie Węzłów (Edge Splitting)**: Implementacja narzędzia pozwalającego na kliknięcie w dowolny punkt istniejącego przewodu w trybie `DRAW_DUCT`. System automatycznie dzieli odcinek na dwa, wstawia nowy węzeł typu `BRANCH` i pozwala na natychmiastowe kontynuowanie rysowania odgałęzienia.
 - **Ulepszony Inspektor**: `DuctPropertiesPanel.tsx` wyświetla teraz wybór systemu również dla węzłów, a wizualizacja węzłów poprawnie odzwierciedla kolor sieci dzięki bezwarunkowemu dziedziczeniu kolorów systemowych.
 - **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`.
+
+### Iteracja 3.2.5: Stabilizacja Undo/Redo i Integracja Topologii - 2026-03-20
+- **Inteligentne Undo/Redo (Stage-aware)**: Naprawiono błąd, w którym `Ctrl+Z` zawsze cofał tylko strefy (Krok 2). Zaimplementowano dynamiczne przełączanie magazynu historii:
+    - W Krokach 1, 2, 7 -> Historia `useZoneStore` (architektura).
+    - W Kroku 3 -> Historia `useDuctStore` (instalacje).
+    - Zaktualizowano `App.tsx` (skróty klawiszowe) oraz `TopBar.tsx` (przyciski UI).
+- **Zabezpieczenie przed Crashem (Defensive Rendering)**: Rozwiązano problem "Białego Ekranu" po cofnięciu do pustego stanu. Wprowadzono bezpieczne mapowanie `nodes || {}` oraz `edges || {}` w komponentach i procesie serializacji stanu (partialize).
+- **Zaawansowane Łączenie z Krawędzią (Snap-to-Edge)**:
+    - Wdrożono funkcję rzutu punktu na odcinek (`getClosestPointOnSegment`).
+    - **Rysowanie**: Możliwość rozpoczęcia i zakończenia przewodu w dowolnym miejscu istniejącej rury (automatyczne wstawienie węzła `BRANCH`).
+    - **Przeciąganie (Drag & Drop)**: Przeciągnięcie węzła i upuszczenie go na inny odcinek powoduje jego bezpieczne rozcięcie i scalenie sieci topologicznej.
+- **Cleanup**: Usunięto nieużywane zmienne i zsynchronizowano brakujące importy dla zachowania czystości budowania.
+- **Pliki**: `src/App.tsx`, `src/components/TopBar.tsx`, `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`, `src/lib/geometryUtils.ts`.

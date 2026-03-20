@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import './styles/patterns.css';
 import { useZoneStore } from './stores/useZoneStore';
+import { useDuctStore } from './stores/useDuctStore';
 import { useProjectStore } from './stores/useProjectStore';
 import { AirBalanceTable } from './components/AirBalanceTable';
 import { ZonePropertiesPanel } from './components/ZonePropertiesPanel';
@@ -127,12 +128,15 @@ function App() {
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() === 'z') {
           if (e.shiftKey) {
-            useZoneStore.temporal.getState().redo();
+            if (useUIStore.getState().currentStage === 3) useDuctStore.temporal.getState().redo();
+            else useZoneStore.temporal.getState().redo();
           } else {
-            useZoneStore.temporal.getState().undo();
+            if (useUIStore.getState().currentStage === 3) useDuctStore.temporal.getState().undo();
+            else useZoneStore.temporal.getState().undo();
           }
         } else if (e.key.toLowerCase() === 'y') {
-          useZoneStore.temporal.getState().redo();
+          if (useUIStore.getState().currentStage === 3) useDuctStore.temporal.getState().redo();
+          else useZoneStore.temporal.getState().redo();
         }
       }
     };

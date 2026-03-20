@@ -61,3 +61,27 @@ export function calculatePolygonCentroid(points: number[]): { x: number, y: numb
 
   return { x: Math.abs(centroidX), y: Math.abs(centroidY) }; 
 }
+
+/**
+ * Calculates the closest point on a line segment to a given point.
+ * @param p The point to check {x, y}
+ * @param v The start of the line segment {x, y}
+ * @param w The end of the line segment {x, y}
+ * @returns The closest point on the segment {x, y}
+ */
+export function getClosestPointOnSegment(
+  p: { x: number, y: number },
+  v: { x: number, y: number },
+  w: { x: number, y: number }
+): { x: number, y: number } {
+  const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+  if (l2 === 0) return { ...v };
+  
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  
+  return { 
+    x: v.x + t * (w.x - v.x), 
+    y: v.y + t * (w.y - v.y) 
+  };
+}

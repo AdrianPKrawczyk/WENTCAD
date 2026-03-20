@@ -87,8 +87,6 @@ export const useDuctStore = create<DuctStore>()(
           const node = state.nodes[id];
           if (!node) return state;
 
-          const newState = { ...state };
-          
           // If systemId is changing, propagate to whole network
           if (updates.systemId && updates.systemId !== node.systemId) {
             const network = getConnectedNetwork(id, state.nodes, state.edges);
@@ -129,9 +127,6 @@ export const useDuctStore = create<DuctStore>()(
         }),
 
         addEdge: (edge) => set((state) => {
-          const sourceNode = state.nodes[edge.sourceNodeId];
-          const targetNode = state.nodes[edge.targetNodeId];
-          
           // If we connect two systems, we must unify them
           // As per requirement: "Zmiana systemu w jednym punkcie powinna zmienić system w całej instalacji"
           // We'll take the edge.systemId as the truth for the newly formed network
@@ -248,16 +243,16 @@ export const useDuctStore = create<DuctStore>()(
         name: 'wentcad-duct-storage',
         version: 1,
         partialize: (state) => ({
-          nodes: state.nodes,
-          edges: state.edges
+          nodes: state.nodes || {},
+          edges: state.edges || {}
         })
       }
     ),
     {
       limit: 50,
       partialize: (state) => ({
-        nodes: state.nodes,
-        edges: state.edges
+        nodes: state.nodes || {},
+        edges: state.edges || {}
       })
     }
   )

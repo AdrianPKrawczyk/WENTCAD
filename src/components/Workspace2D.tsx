@@ -6,7 +6,7 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
-import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
+import { calculatePolygonArea, calculatePolygonCentroid, getClosestPointOnSegment } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
 import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2 } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
@@ -129,8 +129,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
 
   // Duct store
-  const ductNodes = useDuctStore((s) => s.nodes);
-  const ductEdges = useDuctStore((s) => s.edges);
+  const ductNodes = useDuctStore((s) => s.nodes || {});
+  const ductEdges = useDuctStore((s) => s.edges || {});
   const drawingSystemId = useDuctStore((s) => s.drawingSystemId);
   const activeNodeId = useDuctStore((s) => s.activeNodeId);
   const selectedNodeId = useDuctStore((s) => s.selectedNodeId);
@@ -396,7 +396,29 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
         let targetNodeId = snappedNodeId;
 
-        // Jeśli nie było snapa, tworzymy nowy węzeł
+        // Jeśli nie było snapa do węzła, próbujemy snapować do krawędzi (odcinka)
+        if (!targetNodeId) {
+          for (const edgeId in ductEdges) {
+            const edge = ductEdges[edgeId];
+            const source = ductNodes[edge.sourceNodeId];
+            const target = ductNodes[edge.targetNodeId];
+            if (!source || !target || source.floorId !== activeFloorId) continue;
+            
+            // nie snapuj do krawędzi, z których właśnie wychodzimy
+            if (activeNodeId === source.id || activeNodeId === target.id) continue;
+            
+            const closest = getClosestPointOnSegment(finalPos, { x: source.x, y: source.y }, { x: target.x, y: target.y });
+            const dist = Math.sqrt(Math.pow(finalPos.x - closest.x, 2) + Math.pow(finalPos.y - closest.y, 2));
+            
+            if (dist < snapThreshold) {
+              finalPos = closest;
+              targetNodeId = useDuctStore.getState().splitEdge(edge.id, closest.x, closest.y, scaleFactor || 0);
+              break;
+            }
+          }
+        }
+
+        // Jeśli nie było snapa, tworzymy nowy swobodny węzeł
         if (!targetNodeId) {
           targetNodeId = `node-${crypto.randomUUID()}`;
           addDuctNode({
@@ -412,8 +434,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
             soundPowerLevel: [0,0,0,0,0,0,0,0]
           });
         } else {
-          // Jeśli snapowaliśmy do istniejącego węzła, przełącz system rysowania na jego system
-          const snappedNode = ductNodes[targetNodeId];
+          // Jeśli snapowaliśmy do istniejącego węzła (lub z niego ruszamy), przełącz system rysowania na jego system
+          const snappedNode = useDuctStore.getState().nodes[targetNodeId];
           if (snappedNode && snappedNode.systemId !== drawingSystemId) {
             setDrawingSystemId(snappedNode.systemId);
           }
@@ -1429,7 +1451,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const solidColor = style.color ? style.color.replace(/, [\d\.]+\)$/, ', 1)') : '#0ea5e9';
 
             let patternImg: HTMLCanvasElement | null = null;
-            if (shouldUseSystemStyle && activePatternId) {
+            if (activePatternId) {
               const cacheKey = `${activePatternId}-${solidColor}`;
               if (!patternCache.current[cacheKey]) {
                 const newPattern = createPatternImage(activePatternId as string, solidColor);
@@ -1631,6 +1653,56 @@ export function Workspace2D({ className }: Workspace2DProps) {
                         }
                       }
                     });
+                  }
+                }}
+                onDragEnd={(e) => {
+                  if (currentTool === null) {
+                    const newX = e.target.x();
+                    const newY = e.target.y();
+                    const state = useDuctStore.getState();
+                    const edges = state.edges;
+                    const nodes = state.nodes;
+                    
+                    // Check if dropped on an edge
+                    const snapThreshold = 15 / scale;
+                    for (const edgeId in edges) {
+                      const edge = edges[edgeId];
+                      if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) continue;
+                      
+                      const source = nodes[edge.sourceNodeId];
+                      const target = nodes[edge.targetNodeId];
+                      if (!source || !target || source.floorId !== activeFloorId) continue;
+                      
+                      const closest = getClosestPointOnSegment({ x: newX, y: newY }, { x: source.x, y: source.y }, { x: target.x, y: target.y });
+                      const dist = Math.sqrt(Math.pow(newX - closest.x, 2) + Math.pow(newY - closest.y, 2));
+                      
+                      if (dist < snapThreshold) {
+                         // 1. Split the target edge, getting a new node exactly on the edge
+                         const newNodeId = state.splitEdge(edgeId, closest.x, closest.y, scaleFactor || 0);
+                         if (!newNodeId) break;
+
+                         // 2. Re-route edges pointing to old node to the new node
+                         Object.values(state.edges).forEach(e2 => {
+                           if (e2.sourceNodeId === node.id) {
+                              state.updateEdge(e2.id, { sourceNodeId: newNodeId });
+                              // Inherit system
+                              if (e2.systemId !== state.nodes[newNodeId].systemId) {
+                                state.updateEdge(e2.id, { systemId: state.nodes[newNodeId].systemId }); // This propagates
+                              }
+                           }
+                           if (e2.targetNodeId === node.id) {
+                              state.updateEdge(e2.id, { targetNodeId: newNodeId });
+                              if (e2.systemId !== state.nodes[newNodeId].systemId) {
+                                state.updateEdge(e2.id, { systemId: state.nodes[newNodeId].systemId }); // This propagates
+                              }
+                           }
+                         });
+                         
+                         // 3. Delete the old dragged node
+                         state.removeNode(node.id);
+                         break;
+                      }
+                    }
                   }
                 }}
                 onClick={(e: any) => {
