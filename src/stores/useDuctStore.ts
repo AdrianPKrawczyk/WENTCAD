@@ -45,6 +45,14 @@ interface DuctStore {
   calculateEdgeAngle: (edge: DuctSegment) => number;
   getTerminalsInZone: (zoneId: string, systemId?: string) => DuctNode[];
   getNodesOnFloor: (floorId: string) => DuctNode[];
+
+  // SHAFT management
+  getOrphanedShaftNodes: (shaftId: string, shaftRange: { fromFloorId: string; toFloorId: string } | undefined) => DuctNode[];
+  getAllShaftsWithSameId: (shaftId: string) => DuctNode[];
+  syncShaftToFloors: (sourceNodeId: string) => void;
+  removeOrphanedShaftNodes: (shaftId: string, nodeIds: string[]) => void;
+  reassignShaftNodes: (nodeIds: string[], targetShaftId?: string, extendTargetRange?: boolean) => string | null;
+  createShaftNode: (sourceNode: DuctNode, targetFloorId: string, shaftId: string) => DuctNode;
 }
 
 /**
@@ -523,6 +531,173 @@ export const useDuctStore = create<DuctStore>()(
         getNodesOnFloor: (floorId) => {
           const state = get();
           return Object.values(state.nodes).filter(node => node.floorId === floorId);
+        },
+
+        // Create a new SHAFT node based on source node
+        createShaftNode: (sourceNode, targetFloorId, shaftId) => {
+          const nodeId = `node-${crypto.randomUUID()}`;
+          return {
+            id: nodeId,
+            type: sourceNode.type,
+            componentCategory: 'SHAFT' as const,
+            componentType: sourceNode.componentType,
+            systemId: sourceNode.systemId,
+            ahuId: sourceNode.ahuId,
+            x: sourceNode.x,
+            y: sourceNode.y,
+            floorId: targetFloorId,
+            flow: sourceNode.flow,
+            pressureDropLocal: sourceNode.pressureDropLocal,
+            shaftId,
+            shaftAutoNumber: sourceNode.shaftAutoNumber,
+            shaftShiftX: sourceNode.shaftShiftX,
+            shaftShiftY: sourceNode.shaftShiftY,
+            soundPowerLevel: [0, 0, 0, 0, 0, 0, 0, 0],
+          };
+        },
+
+        // Get all SHAFT nodes with the same shaftId
+        getAllShaftsWithSameId: (shaftId) => {
+          const state = get();
+          return Object.values(state.nodes).filter(
+            node => node.componentCategory === 'SHAFT' && node.shaftId === shaftId
+          );
+        },
+
+        // Get orphaned SHAFT nodes (outside the current shaftRange)
+        getOrphanedShaftNodes: (shaftId, shaftRange) => {
+          const state = get();
+          const allShaftsWithId = Object.values(state.nodes).filter(
+            node => node.componentCategory === 'SHAFT' && node.shaftId === shaftId
+          );
+
+          if (!shaftRange || !shaftRange.fromFloorId || !shaftRange.toFloorId) {
+            return allShaftsWithId;
+          }
+
+          return allShaftsWithId.filter(node => {
+            return node.floorId !== shaftRange.fromFloorId && node.floorId !== shaftRange.toFloorId;
+          });
+        },
+
+        // Sync SHAFT nodes to all floors in range (create/update nodes and vertical edges)
+        syncShaftToFloors: (sourceNodeId) => {
+          const state = get();
+          const sourceNode = state.nodes[sourceNodeId];
+          if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
+
+          const shaftId = sourceNode.shaftId;
+          const shaftRange = sourceNode.shaftRange;
+          const shaftShiftX = sourceNode.shaftShiftX || 0;
+          const shaftShiftY = sourceNode.shaftShiftY || 0;
+
+          if (!shaftRange || !shaftRange.fromFloorId || !shaftRange.toFloorId) return;
+
+          const sourceFloorId = sourceNode.floorId;
+          const targetFloorIds = [shaftRange.fromFloorId, shaftRange.toFloorId].filter(
+            (id, idx, arr) => arr.indexOf(id) === idx && id !== sourceFloorId
+          );
+
+          const newNodes = { ...state.nodes };
+          const newEdges = { ...state.edges };
+
+          // For each target floor, create or update SHAFT node
+          for (const floorId of targetFloorIds) {
+            // Check if node already exists on this floor
+            const existingNode = Object.values(state.nodes).find(
+              n => n.componentCategory === 'SHAFT' && n.shaftId === shaftId && n.floorId === floorId
+            );
+
+            if (!existingNode) {
+              // Create new node on this floor
+              const newNode = get().createShaftNode(sourceNode, floorId, shaftId);
+              newNode.x = sourceNode.x + shaftShiftX;
+              newNode.y = sourceNode.y + shaftShiftY;
+              newNodes[newNode.id] = newNode;
+
+              // Create vertical edge between source and new node
+              // We don't know the elevation difference here, so we'll set length = 0
+              // The actual length calculation will be done when we have access to Floor metadata
+              const verticalEdgeId = `edge-${crypto.randomUUID()}`;
+              newEdges[verticalEdgeId] = {
+                id: verticalEdgeId,
+                sourceNodeId: sourceFloorId === shaftRange.fromFloorId ? sourceNode.id : newNode.id,
+                targetNodeId: sourceFloorId === shaftRange.fromFloorId ? newNode.id : sourceNode.id,
+                systemId: sourceNode.systemId,
+                ahuId: sourceNode.ahuId,
+                length: 0, // Will be calculated with Floor elevation data
+                shape: 'CIRCULAR',
+                roughness: 0.00015,
+                internalInsulationThickness: 0,
+                externalInsulationThickness: 0,
+                velocity: 0,
+                pressureDropLin: 0,
+              };
+            }
+          }
+
+          set({ nodes: newNodes, edges: newEdges });
+        },
+
+        // Remove orphaned SHAFT nodes and their vertical edges
+        removeOrphanedShaftNodes: (shaftId, nodeIds) => {
+          const state = get();
+          const newNodes = { ...state.nodes };
+          const newEdges = { ...state.edges };
+
+          // Remove nodes
+          for (const nodeId of nodeIds) {
+            delete newNodes[nodeId];
+          }
+
+          // Remove edges connected only to removed nodes
+          for (const edgeId of Object.keys(newEdges)) {
+            const edge = newEdges[edgeId];
+            if (nodeIds.includes(edge.sourceNodeId) || nodeIds.includes(edge.targetNodeId)) {
+              // Check if this edge connects only SHAFT nodes with the same shaftId
+              const sourceNode = newNodes[edge.sourceNodeId] || state.nodes[edge.sourceNodeId];
+              const targetNode = newNodes[edge.targetNodeId] || state.nodes[edge.targetNodeId];
+              if (
+                (sourceNode?.componentCategory === 'SHAFT' && sourceNode?.shaftId === shaftId) ||
+                (targetNode?.componentCategory === 'SHAFT' && targetNode?.shaftId === shaftId)
+              ) {
+                delete newEdges[edgeId];
+              }
+            }
+          }
+
+          set({ nodes: newNodes, edges: newEdges });
+        },
+
+        // Reassign SHAFT nodes to another shaft (or create new)
+        reassignShaftNodes: (nodeIds, targetShaftId, _extendTargetRange) => {
+          const state = get();
+          const newNodes = { ...state.nodes };
+          
+          // Find or generate target shaftId
+          let finalShaftId = targetShaftId;
+          if (!finalShaftId) {
+            // Generate new shaftId (P1, P2, P3...)
+            const existingShaftNumbers = Object.values(state.nodes)
+              .filter(n => n.componentCategory === 'SHAFT' && n.shaftAutoNumber)
+              .map(n => n.shaftAutoNumber || 0);
+            const nextNum = existingShaftNumbers.length > 0 ? Math.max(...existingShaftNumbers) + 1 : 1;
+            finalShaftId = `P${nextNum}`;
+          }
+
+          // Update nodes with new shaftId
+          for (const nodeId of nodeIds) {
+            if (newNodes[nodeId]) {
+              newNodes[nodeId] = {
+                ...newNodes[nodeId],
+                shaftId: finalShaftId,
+                shaftAutoNumber: parseInt(finalShaftId.replace('P', '')) || undefined,
+              };
+            }
+          }
+
+          set({ nodes: newNodes });
+          return finalShaftId;
         },
       }),
       {

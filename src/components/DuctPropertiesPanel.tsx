@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Hash, Layers, Ruler, Volume2, Activity } from 'lucide-react';
+import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle } from 'lucide-react';
+import { OrphanedShaftModal } from './OrphanedShaftModal';
 import type { ComponentCategory, ComponentType } from '../types';
 
 const COMPONENT_LABELS: Record<ComponentType, string> = {
@@ -46,10 +48,14 @@ export function DuctPropertiesPanel() {
   const setSelectedNodeId = useDuctStore((s) => s.setSelectedNodeId);
   const setSelectedEdgeId = useDuctStore((s) => s.setSelectedEdgeId);
   const getTerminalsInZone = useDuctStore((s) => s.getTerminalsInZone);
+  const getOrphanedShaftNodes = useDuctStore((s) => s.getOrphanedShaftNodes);
+  const syncShaftToFloors = useDuctStore((s) => s.syncShaftToFloors);
   
   const systems = useZoneStore((s) => s.systems);
   const floors = useZoneStore((s) => s.floors);
   const zones = useZoneStore((s) => s.zones);
+
+  const [showOrphanedModal, setShowOrphanedModal] = useState(false);
 
   const activeNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const activeEdge = selectedEdgeId ? edges[selectedEdgeId] : null;
@@ -57,6 +63,11 @@ export function DuctPropertiesPanel() {
   if (!activeNode && !activeEdge) return null;
 
   const floor = activeNode ? floors[activeNode.floorId] : (activeEdge ? floors[nodes[activeEdge.targetNodeId]?.floorId] : null);
+
+  // Get orphaned SHAFT nodes for current shaft
+  const orphanedNodes = activeNode?.componentCategory === 'SHAFT' && activeNode.shaftId
+    ? getOrphanedShaftNodes(activeNode.shaftId, activeNode.shaftRange)
+    : [];
   
   const handleClose = () => {
     setSelectedNodeId(null);
@@ -399,12 +410,17 @@ export function DuctPropertiesPanel() {
                     <select
                       className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
                       value={activeNode.shaftRange?.fromFloorId || ''}
-                      onChange={(e) => updateNode(activeNode.id, { 
-                        shaftRange: { 
+                      onChange={(e) => {
+                        const newRange = { 
                           fromFloorId: e.target.value, 
                           toFloorId: activeNode.shaftRange?.toFloorId || e.target.value 
-                        } 
-                      })}
+                        };
+                        updateNode(activeNode.id, { shaftRange: newRange });
+                        syncShaftToFloors(activeNode.id);
+                        if (orphanedNodes.length > 0) {
+                          setShowOrphanedModal(true);
+                        }
+                      }}
                     >
                       <option value="">-- wybierz --</option>
                       {Object.values(floors).sort((a, b) => a.order - b.order).map(f => (
@@ -417,12 +433,17 @@ export function DuctPropertiesPanel() {
                     <select
                       className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
                       value={activeNode.shaftRange?.toFloorId || ''}
-                      onChange={(e) => updateNode(activeNode.id, { 
-                        shaftRange: { 
+                      onChange={(e) => {
+                        const newRange = { 
                           fromFloorId: activeNode.shaftRange?.fromFloorId || '', 
                           toFloorId: e.target.value 
-                        } 
-                      })}
+                        };
+                        updateNode(activeNode.id, { shaftRange: newRange });
+                        syncShaftToFloors(activeNode.id);
+                        if (orphanedNodes.length > 0) {
+                          setShowOrphanedModal(true);
+                        }
+                      }}
                     >
                       <option value="">-- wybierz --</option>
                       {Object.values(floors).sort((a, b) => a.order - b.order).map(f => (
@@ -458,6 +479,16 @@ export function DuctPropertiesPanel() {
                     />
                   </div>
                 </div>
+
+                {orphanedNodes.length > 0 && (
+                  <button
+                    onClick={() => setShowOrphanedModal(true)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Zarządzaj osieroconymi ({orphanedNodes.length})</span>
+                  </button>
+                )}
               </section>
             )}
 
@@ -546,6 +577,14 @@ export function DuctPropertiesPanel() {
       <div className="p-4 bg-gray-50 rounded-b-2xl border-t border-gray-100 text-[10px] text-gray-400 italic">
         * Zmiany są automatycznie zapisywane i objęte historią (Ctrl+Z).
       </div>
+
+      {showOrphanedModal && activeNode && orphanedNodes.length > 0 && (
+        <OrphanedShaftModal
+          shaftId={activeNode.shaftId || ''}
+          orphanedNodes={orphanedNodes}
+          onClose={() => setShowOrphanedModal(false)}
+        />
+      )}
     </div>
   );
 }

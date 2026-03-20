@@ -4,7 +4,7 @@
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
 ## CURRENT STATE: FAZA 3.3 (Klasy Urządzeń i Elementów)
-* **Active Step:** FAZA 3.3.3 (Edycja Kondygnacji) - DONE
+* **Active Step:** FAZA 3.3.4 (Auto-tworzenie węzłów SHAFT na wielu kondygnacjach) - DONE
 * **Pending Task:** FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
 
 ## PROGRESS LOG
@@ -673,6 +673,25 @@
     - Hover na zakładce pokazuje ikony edycji/usuwania
     - Trigger modal FloorSettingsModal po kliknięciu ikony
 - **Pliki**: `src/components/FloorSettingsModal.tsx`, `src/components/FloorManagerBar.tsx`
+
+### FAZA 3.3.4: Auto-tworzenie węzłów SHAFT na wielu kondygnacjach - 2026-03-20
+- **Nowe akcje w useDuctStore.ts**:
+    - `createShaftNode(sourceNode, targetFloorId, shaftId)` - tworzy węzeł SHAFT z dziedziczonymi polami
+    - `getOrphanedShaftNodes(shaftId, shaftRange)` - zwraca węzły SHAFT spoza zakresu
+    - `getAllShaftsWithSameId(shaftId)` - zwraca wszystkie węzły z danym shaftId
+    - `syncShaftToFloors(sourceNodeId)` - synchronizuje węzły na wszystkich kondygnacjach w zakresie
+    - `removeOrphanedShaftNodes(shaftId, nodeIds)` - usuwa osierocone węzły i krawędzie pionowe
+    - `reassignShaftNodes(nodeIds, targetShaftId)` - przenosi węzły do innego/nowego pionu
+- **OrphanedShaftModal** (`src/components/OrphanedShaftModal.tsx`):
+    - Modal z opcjami zarządzania osieroconymi węzłami SHAFT
+    - Opcje: USUŃ, POZOSTAW, UTWÓRZ NOWY PION, PRZENIEŚ DO...
+    - Wyświetla listę osieroconych kondygnacji
+    - Opcja "Rozszerz zakres docelowego pionu"
+- **DuctPropertiesPanel.tsx**:
+    - Dodano przycisk "Zarządzaj osieroconymi" w sekcji SHAFT (widoczny gdy są osierocone węzły)
+    - Zmiana zakresu kondygnacji (Od/Do) wywołuje `syncShaftToFloors`
+    - Automatyczne wykrywanie osieroconych węzłów po zmianie zakresu
+- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/OrphanedShaftModal.tsx`, `src/components/DuctPropertiesPanel.tsx`
 
 ### FAZA 3.3.2: Naprawki Bugów i Ulepszenia UI - 2026-03-20
 - **Stały Rozmiar Elementów (Element Sizing)**:
