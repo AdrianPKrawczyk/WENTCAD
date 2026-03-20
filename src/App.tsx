@@ -311,6 +311,12 @@ function App() {
             </>
           )}
 
+          {currentStage === 3 && (
+            <div className="flex-1 overflow-hidden relative">
+              <Workspace2D />
+            </div>
+          )}
+
           {currentStage === 7 && (
             <div className="flex-1 overflow-hidden">
               <ExportDashboard />

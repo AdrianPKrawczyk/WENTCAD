@@ -4,6 +4,7 @@ import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useDuctStore } from '../stores/useDuctStore';
+import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
@@ -64,6 +65,7 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 export function Workspace2D({ className }: Workspace2DProps) {
+  const currentStage = useUIStore((s) => s.currentStage);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const uiLayerRef = useRef<Konva.Layer>(null);
@@ -608,7 +610,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
     isSettingOrigin, setIsSettingOrigin, setReferenceOrigin,
     isDrawingPolygon, currentPolygonPoints, setCurrentPolygonPoints,
     activeFloorId, selectedZoneId, addPolygon, calculatePolygonArea, scaleFactor, updateZone, setIsDrawingPolygon, zones,
-    referenceOrigin, updateFloorState, polygons
+    referenceOrigin, updateFloorState, polygons,
+    currentTool, ductNodes, drawingSystemId, activeNodeId, addDuctNode, addDuctEdge, setActiveNodeId
   ]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -668,7 +671,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
     const dy = e.evt.clientY - lastPointerPos.current.y;
     lastPointerPos.current = { x: e.evt.clientX, y: e.evt.clientY };
     setFloorPositionAndScale(scale, { x: position.x + dx, y: position.y + dy });
-  }, [isPanning, scale, position, setFloorPositionAndScale, isCalibrating, isMeasuring, isSettingOrigin, isDrawingPolygon]);
+  }, [
+    isPanning, scale, position, setFloorPositionAndScale, isCalibrating, isMeasuring, isSettingOrigin, isDrawingPolygon,
+    currentTool, activeNodeId, ductNodes, activeFloorId, referenceOrigin
+  ]);
 
   const handleMouseUp = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
     if (isPanning.current) {
@@ -1538,7 +1544,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
             if (node.floorId !== activeFloorId) return null;
             const system = systems.find(s => s.id === node.systemId);
             const nodeColor = system?.color || '#94a3b8';
-            const isHovered = false; // Do implementacji jeśli potrzebne
             const isActive = activeNodeId === node.id;
 
             return (
@@ -1881,283 +1886,340 @@ export function Workspace2D({ className }: Workspace2DProps) {
         </div>
       )}
 
-      {/* TOOLBAR */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg px-2 py-1.5 z-10">
-        <button onClick={() => fileInputRef.current?.click()} title="Wczytaj podkład" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
-          <ImageIcon className="w-4 h-4" />
-          Podkład
-        </button>
-
-        <div className="h-4 w-px bg-gray-200" />
-
-        <button
-          onClick={() => {
-            if (isCalibrating) {
-              setIsCalibrating(false);
-              setCalibrationPoints([]);
-            } else {
-              setIsCalibrating(true);
-              setCalibrationPoints([]);
-              toast.info('Tryb kalibracji: Kliknij dwa punkty na podkładzie.');
-            }
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isCalibrating ? 'bg-indigo-600 text-white shadow-inner' : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'}`}
-        >
-          <Ruler className="w-4 h-4" />
-          Kalibruj
-        </button>
-
-        <button
-          onClick={() => {
-            if (!scaleFactor && !isMeasuring) {
-              toast.error('Skalibruj podkład przed wykonaniem pomiaru.');
-              return;
-            }
-            if (isMeasuring) {
-              setIsMeasuring(false);
-              setMeasurePoints([]);
-            } else {
-              setIsMeasuring(true);
-              setMeasurePoints([]);
-              toast.info('Tryb pomiaru: Kliknij dwa punkty.');
-            }
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isMeasuring ? 'bg-orange-600 text-white shadow-inner' : 'text-gray-600 hover:bg-orange-50 hover:text-orange-700'}`}
-        >
-          <PencilRuler className="w-4 h-4" />
-          Zmierz
-        </button>
-
-        <button
-          onClick={() => {
-            if (isSettingOrigin) {
-              setIsSettingOrigin(false);
-            } else {
-              setIsSettingOrigin(true);
-              toast.info('Ustaw Punkt Bazowy budynku.');
-            }
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSettingOrigin ? 'bg-red-600 text-white shadow-inner' : 'text-gray-600 hover:bg-red-50 hover:text-red-700'}`}
-        >
-          <Crosshair className="w-4 h-4" />
-          Punkt 0,0
-        </button>
-
-        <div className="h-4 w-px bg-gray-200" />
-
-        <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
-          <button
-            onClick={() => setCurrentTool(activeFloorId, 'PEN')}
-            className={`p-1.5 rounded-md transition-all ${currentTool === 'PEN' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Pióro (Poligon)"
-          >
-            <Hexagon className="w-3.5 h-3.5" />
+      {/* TOOLBAR ETAP 2: PODKŁADY */}
+      {currentStage === 2 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg px-2 py-1.5 z-10">
+          <button onClick={() => fileInputRef.current?.click()} title="Wczytaj podkład" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
+            <ImageIcon className="w-4 h-4" />
+            Podkład
           </button>
-          <button
-            onClick={() => setCurrentTool(activeFloorId, 'RECT')}
-            className={`p-1.5 rounded-md transition-all ${currentTool === 'RECT' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Prostokąt"
-          >
-            <div className="w-3.5 h-3.5 border-2 border-current rounded-sm" />
-          </button>
-          <button
-            onClick={() => setCurrentTool(activeFloorId, 'ERASER')}
-            className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Gumka"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+
+          <div className="h-4 w-px bg-gray-200" />
+
           <button
             onClick={() => {
-              setCurrentTool(activeFloorId, 'CROP');
-              setIsDrawingPolygon(true);
-              setCurrentPolygonPoints([]);
-              toast.info('Tryb kadrowania: Narysuj prostokąt eksportu.');
-            }}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${currentTool === 'CROP' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Kadrowanie (Eksport)"
-          >
-            <Crop className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-bold">Kadr</span>
-          </button>
-        </div>
-
-        <div className="h-4 w-px bg-gray-200" />
-
-        <div className="flex items-center gap-1 bg-indigo-50/50 p-0.5 rounded-lg border border-indigo-100">
-          <button
-            onClick={() => {
-              if (currentTool === 'DRAW_DUCT') {
-                setCurrentTool(activeFloorId, null);
-                setActiveNodeId(null);
+              if (isCalibrating) {
+                setIsCalibrating(false);
+                setCalibrationPoints([]);
               } else {
-                setCurrentTool(activeFloorId, 'DRAW_DUCT');
-                setIsDrawingPolygon(false);
-                if (!drawingSystemId && systems.length > 0) {
-                  setDrawingSystemId(systems[0].id);
-                }
-                toast.info('Rysowanie tras: kliknij, aby utworzyć węzeł. Shift = Ortho.');
+                setIsCalibrating(true);
+                setCalibrationPoints([]);
+                toast.info('Tryb kalibracji: Kliknij dwa punkty na podkładzie.');
               }
             }}
-            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${currentTool === 'DRAW_DUCT' ? 'bg-indigo-600 shadow-sm text-white' : 'text-indigo-600 hover:bg-indigo-100'}`}
-            title="Rysuj trasy wentylacyjne"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isCalibrating ? 'bg-indigo-600 text-white shadow-inner' : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'}`}
           >
-            <Route className="w-3.5 h-3.5" />
-            <span className="text-[10px] font-bold">Trasa</span>
+            <Ruler className="w-4 h-4" />
+            Kalibruj
           </button>
-          
-          <select 
-            className="text-[10px] bg-transparent border-none focus:ring-0 text-indigo-800 font-bold py-1 w-24 truncate cursor-pointer"
-            value={drawingSystemId || ''}
-            onChange={(e) => setDrawingSystemId(e.target.value)}
-            disabled={currentTool !== 'DRAW_DUCT'}
-          >
-            {systems.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
 
-        <div className="h-4 w-px bg-gray-200" />
-
-        <button
-          disabled={!scaleFactor}
-          onClick={() => {
-            if (isDrawingPolygon) {
-              setIsDrawingPolygon(false);
-              setCurrentPolygonPoints([]);
-              setRedefiningZoneId(activeFloorId, null);
-            } else {
-              setIsDrawingPolygon(true);
-              setCurrentPolygonPoints([]);
-              if (!currentTool) setCurrentTool(activeFloorId, 'PEN');
-              toast.info(`Rysowanie strefy: ${zones[selectedZoneId!]?.name || 'Nieznana'}.`);
-            }
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-            isDrawingPolygon ? 'bg-sky-600 text-white shadow-inner' : 'text-gray-600 hover:bg-sky-50 hover:text-sky-700'
-          }`}
-        >
-          <div className={`w-2 h-2 rounded-full ${isDrawingPolygon ? 'bg-white animate-pulse' : 'bg-gray-300'}`} />
-          {isDrawingPolygon ? 'Anuluj' : 'Rysuj'}
-        </button>
-
-        <button
-          onClick={() => setIsTagModalOpen(true)}
-          title="Konfiguracja metek"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
-        >
-          <TagIcon className="w-4 h-4 text-slate-500" />
-          Metki
-        </button>
-
-        <button
-          onClick={() => setIsExportModalOpen(true)}
-          title="Eksportuj do PNG/DXF"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
-        >
-          <Download className="w-4 h-4 text-indigo-500" />
-          Eksport
-        </button>
-
-        {isDrawingPolygon && currentPolygonPoints.length > 2 && (
           <button
             onClick={() => {
-              const poly = addPolygon(activeFloorId, selectedZoneId!, currentPolygonPoints);
-              const areaPx = calculatePolygonArea(poly.points);
-              const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
-              
-              const activeZone = zones[selectedZoneId!];
-              const updates: any = { geometryArea: areaM2 };
-              
-              // area sync logic is now handled in resolveZonesState in store, 
-              // so we don't strictly need to do it here, but it's good for immediate UI feedback.
-              if (!activeZone?.isAreaManual) {
-                updates.area = Math.round(areaM2 * 100) / 100;
+              if (!scaleFactor && !isMeasuring) {
+                toast.error('Skalibruj podkład przed wykonaniem pomiaru.');
+                return;
               }
-              
-              updateZone(selectedZoneId!, updates);
-              setRedefiningZoneId(activeFloorId, null);
-              
-              setIsDrawingPolygon(false);
-              setCurrentPolygonPoints([]);
-              toast.success('Pomyślnie narysowano obrys strefy.');
+              if (isMeasuring) {
+                setIsMeasuring(false);
+                setMeasurePoints([]);
+              } else {
+                setIsMeasuring(true);
+                setMeasurePoints([]);
+                toast.info('Tryb pomiaru: Kliknij dwa punkty.');
+              }
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white shadow-lg animate-bounce"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isMeasuring ? 'bg-orange-600 text-white shadow-inner' : 'text-gray-600 hover:bg-orange-50 hover:text-orange-700'}`}
           >
-            Zakończ obrys
+            <PencilRuler className="w-4 h-4" />
+            Zmierz
           </button>
-        )}
 
-        {selectedZoneId && (
-          <div className="flex items-center px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
-            <span className="text-[10px] font-bold text-indigo-700">
-              Strefa: {zones[selectedZoneId]?.nr || '?'} - {zones[selectedZoneId]?.name || '?'}
-              {zones[selectedZoneId]?.geometryArea !== null && !zones[selectedZoneId]?.isAreaManual && ' (Połączona)'}
-              {zones[selectedZoneId]?.isAreaManual && ' (Manual)'}
-            </span>
-          </div>
-        )}
+          <button
+            onClick={() => {
+              if (isSettingOrigin) {
+                setIsSettingOrigin(false);
+              } else {
+                setIsSettingOrigin(true);
+                toast.info('Ustaw Punkt Bazowy budynku.');
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isSettingOrigin ? 'bg-red-600 text-white shadow-inner' : 'text-gray-600 hover:bg-red-50 hover:text-red-700'}`}
+          >
+            <Crosshair className="w-4 h-4" />
+            Punkt 0,0
+          </button>
 
-        {referenceOrigin && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-indigo-100 shadow-sm">
-            <Crosshair className="w-3 h-3 text-indigo-500" />
-            <input 
-              type="text" 
-              className="text-[10px] w-48 border-none focus:ring-0 p-0 bg-transparent placeholder-gray-400"
-              placeholder="Opis punktu 0,0 (np. Przecięcie osi A-1)"
-              value={activeFloorMetadata?.originDescription || ""}
-              onChange={(e) => updateFloor(activeFloorId, { originDescription: e.target.value })}
-            />
-          </div>
-        )}
+          <div className="h-4 w-px bg-gray-200" />
 
-        {underlayName && (
-          <>
-            <div className="h-4 w-px bg-gray-200" />
-            <span className="text-xs text-gray-500 max-w-[120px] truncate" title={underlayName}>{underlayName}</span>
-            <button onClick={() => clearUnderlay(activeFloorId)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all" title="Usuń podkład (Rysunki zostaną)">
+          <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+            <button
+              onClick={() => setCurrentTool(activeFloorId, 'PEN')}
+              className={`p-1.5 rounded-md transition-all ${currentTool === 'PEN' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Pióro (Poligon)"
+            >
+              <Hexagon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setCurrentTool(activeFloorId, 'RECT')}
+              className={`p-1.5 rounded-md transition-all ${currentTool === 'RECT' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Prostokąt"
+            >
+              <div className="w-3.5 h-3.5 border-2 border-current rounded-sm" />
+            </button>
+            <button
+              onClick={() => setCurrentTool(activeFloorId, 'ERASER')}
+              className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Gumka"
+            >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
-          </>
-        )}
+            <button
+              onClick={() => {
+                setCurrentTool(activeFloorId, 'CROP');
+                setIsDrawingPolygon(true);
+                setCurrentPolygonPoints([]);
+                toast.info('Tryb kadrowania: Narysuj prostokąt eksportu.');
+              }}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${currentTool === 'CROP' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Kadrowanie (Eksport)"
+            >
+              <Crop className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold">Kadr</span>
+            </button>
+          </div>
 
-        <div className="h-4 w-px bg-gray-200" />
+          <div className="h-4 w-px bg-gray-200" />
 
-        <button onClick={() => {
-          const newScale = Math.max(scale / ZOOM_SENSITIVITY, MIN_SCALE);
-          const cx = containerWidth / 2;
-          const cy = containerHeight / 2;
-          const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
-          setFloorPositionAndScale(newScale, newPos);
-        }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
-          <ZoomOut className="w-4 h-4" />
-        </button>
+          <button
+            disabled={!scaleFactor}
+            onClick={() => {
+              if (isDrawingPolygon) {
+                setIsDrawingPolygon(false);
+                setCurrentPolygonPoints([]);
+                setRedefiningZoneId(activeFloorId, null);
+              } else {
+                setIsDrawingPolygon(true);
+                setCurrentPolygonPoints([]);
+                if (!currentTool) setCurrentTool(activeFloorId, 'PEN');
+                toast.info(`Rysowanie strefy: ${zones[selectedZoneId!]?.name || 'Nieznana'}.`);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+              isDrawingPolygon ? 'bg-sky-600 text-white shadow-inner' : 'text-gray-600 hover:bg-sky-50 hover:text-sky-700'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${isDrawingPolygon ? 'bg-white animate-pulse' : 'bg-gray-300'}`} />
+            {isDrawingPolygon ? 'Anuluj' : 'Rysuj'}
+          </button>
 
-        <span className="text-xs font-mono font-bold text-gray-600 w-12 text-center">{zoomPercent}%</span>
+          <button
+            onClick={() => setIsTagModalOpen(true)}
+            title="Konfiguracja metek"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+          >
+            <TagIcon className="w-4 h-4 text-slate-500" />
+            Metki
+          </button>
 
-        <button onClick={() => {
-          const newScale = Math.min(scale * ZOOM_SENSITIVITY, MAX_SCALE);
-          const cx = containerWidth / 2;
-          const cy = containerHeight / 2;
-          const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
-          setFloorPositionAndScale(newScale, newPos);
-        }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
-          <ZoomIn className="w-4 h-4" />
-        </button>
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            title="Eksportuj do PNG/DXF"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
+          >
+            <Download className="w-4 h-4 text-indigo-500" />
+            Eksport
+          </button>
 
-        <button onClick={fitToScreen} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
-          <Maximize2 className="w-4 h-4" />
-        </button>
+          {isDrawingPolygon && currentPolygonPoints.length > 2 && (
+            <button
+              onClick={() => {
+                const poly = addPolygon(activeFloorId, selectedZoneId!, currentPolygonPoints);
+                const areaPx = calculatePolygonArea(poly.points);
+                const areaM2 = areaPx * Math.pow(scaleFactor || 0, 2);
 
-        <div className="h-4 w-px bg-gray-200" />
+                const activeZone = zones[selectedZoneId!];
+                const updates: any = { geometryArea: areaM2 };
 
-        <div className="flex items-center gap-1 px-1 py-1 text-[10px] text-gray-400">
-          <Move className="w-3 h-3" />
-          <span>Scroll=Zoom, MMB=Pan</span>
+                if (!activeZone?.isAreaManual) {
+                  updates.area = Math.round(areaM2 * 100) / 100;
+                }
+
+                updateZone(selectedZoneId!, updates);
+                setRedefiningZoneId(activeFloorId, null);
+
+                setIsDrawingPolygon(false);
+                setCurrentPolygonPoints([]);
+                toast.success('Pomyślnie narysowano obrys strefy.');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white shadow-lg animate-bounce"
+            >
+              Zakończ obrys
+            </button>
+          )}
+
+          {selectedZoneId && (
+            <div className="flex items-center px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
+              <span className="text-[10px] font-bold text-indigo-700">
+                Strefa: {zones[selectedZoneId]?.nr || '?'} - {zones[selectedZoneId]?.name || '?'}
+                {zones[selectedZoneId]?.geometryArea !== null && !zones[selectedZoneId]?.isAreaManual && ' (Połączona)'}
+                {zones[selectedZoneId]?.isAreaManual && ' (Manual)'}
+              </span>
+            </div>
+          )}
+
+          {referenceOrigin && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-indigo-100 shadow-sm">
+              <Crosshair className="w-3 h-3 text-indigo-500" />
+              <input
+                type="text"
+                className="text-[10px] w-48 border-none focus:ring-0 p-0 bg-transparent placeholder-gray-400"
+                placeholder="Opis punktu 0,0 (np. Przecięcie osi A-1)"
+                value={activeFloorMetadata?.originDescription || ""}
+                onChange={(e) => updateFloor(activeFloorId, { originDescription: e.target.value })}
+              />
+            </div>
+          )}
+
+          {underlayName && (
+            <>
+              <div className="h-4 w-px bg-gray-200" />
+              <span className="text-xs text-gray-500 max-w-[120px] truncate" title={underlayName}>{underlayName}</span>
+              <button onClick={() => clearUnderlay(activeFloorId)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-all" title="Usuń podkład (Rysunki zostaną)">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <button onClick={() => {
+            const newScale = Math.max(scale / ZOOM_SENSITIVITY, MIN_SCALE);
+            const cx = containerWidth / 2;
+            const cy = containerHeight / 2;
+            const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+            setFloorPositionAndScale(newScale, newPos);
+          }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <ZoomOut className="w-4 h-4" />
+          </button>
+
+          <span className="text-xs font-mono font-bold text-gray-600 w-12 text-center">{zoomPercent}%</span>
+
+          <button onClick={() => {
+            const newScale = Math.min(scale * ZOOM_SENSITIVITY, MAX_SCALE);
+            const cx = containerWidth / 2;
+            const cy = containerHeight / 2;
+            const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+            setFloorPositionAndScale(newScale, newPos);
+          }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <ZoomIn className="w-4 h-4" />
+          </button>
+
+          <button onClick={fitToScreen} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <Maximize2 className="w-4 h-4" />
+          </button>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <div className="flex items-center gap-1 px-1 py-1 text-[10px] text-gray-400">
+            <Move className="w-3 h-3" />
+            <span>Scroll=Zoom, MMB=Pan</span>
+          </div>
         </div>
-      </div>
+      )}
 
+      {/* TOOLBAR ETAP 3: INSTALACJE */}
+      {currentStage === 3 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg px-2 py-1.5 z-10">
+          <button onClick={() => fileInputRef.current?.click()} title="Wczytaj podkład" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-700 transition-all">
+            <ImageIcon className="w-4 h-4" />
+            Podkład
+          </button>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <div className="flex items-center gap-0.5 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+            <button
+              onClick={() => setCurrentTool(activeFloorId, null)}
+              className={`p-1.5 rounded-md transition-all ${!currentTool ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Wybierz / Modyfikuj"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+            </button>
+            <button
+              onClick={() => setCurrentTool(activeFloorId, 'ERASER')}
+              className={`p-1.5 rounded-md transition-all ${currentTool === 'ERASER' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Usuń element (Gumka)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <div className="flex items-center gap-1 bg-orange-50/50 p-0.5 rounded-lg border border-orange-200">
+            <button
+              onClick={() => {
+                if (currentTool === 'DRAW_DUCT') {
+                  setCurrentTool(activeFloorId, null);
+                  setActiveNodeId(null);
+                } else {
+                  setCurrentTool(activeFloorId, 'DRAW_DUCT');
+                  setIsDrawingPolygon(false);
+                  if (!drawingSystemId && systems.length > 0) {
+                    setDrawingSystemId(systems[0].id);
+                  }
+                  toast.info('Rysowanie tras: kliknij, aby utworzyć węzeł. Shift = Ortho.');
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${currentTool === 'DRAW_DUCT' ? 'bg-orange-600 shadow-sm text-white' : 'text-orange-700 hover:bg-orange-100'}`}
+              title="Rysuj trasy wentylacyjne"
+            >
+              <Route className="w-4 h-4" />
+              <span className="text-xs font-bold">Rysuj Trasy</span>
+            </button>
+
+            <select 
+              className="text-xs bg-transparent border-none focus:ring-0 text-orange-900 font-bold py-1 w-32 truncate cursor-pointer"
+              value={drawingSystemId || ''}
+              onChange={(e) => setDrawingSystemId(e.target.value)}
+              disabled={currentTool !== 'DRAW_DUCT'}
+            >
+              <option value="" disabled>Wybierz system...</option>
+              {systems.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <button onClick={() => {
+            const newScale = Math.max(scale / ZOOM_SENSITIVITY, MIN_SCALE);
+            const cx = containerWidth / 2;
+            const cy = containerHeight / 2;
+            const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+            setFloorPositionAndScale(newScale, newPos);
+          }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <ZoomOut className="w-4 h-4" />
+          </button>
+
+          <span className="text-xs font-mono font-bold text-gray-600 w-12 text-center">{zoomPercent}%</span>
+
+          <button onClick={() => {
+            const newScale = Math.min(scale * ZOOM_SENSITIVITY, MAX_SCALE);
+            const cx = containerWidth / 2;
+            const cy = containerHeight / 2;
+            const newPos = { x: cx - (cx - position.x) * (newScale / scale), y: cy - (cy - position.y) * (newScale / scale) };
+            setFloorPositionAndScale(newScale, newPos);
+          }} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <ZoomIn className="w-4 h-4" />
+          </button>
+
+          <button onClick={fitToScreen} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-all">
+            <Maximize2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {!underlayImage && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center opacity-30">

@@ -25,7 +25,11 @@
 * [x] **FAZA 3.1 & 3.2: Topologia i Trasowanie Jednokreskowe (Narzędzie DRAW_DUCT)** - Done
     - [x] Utworzenie `useDuctStore` z obsługą `zundo` dla logiki tras (graf DAG).
     - [x] Dodanie wsparcia dla Snappingu (przyciągania do węzłów) oraz Ortho (łamane 90 stopni pod `Shift`).
-    - [x] Renderowanie kolorystyczne krawędzi zgodnie z podziałem systemowym w UI.
+    - [x] **Iteracja 3.2: Naprawa Logiki & UI Context**:
+        - [x] Dedykowany toolbar dla Etapu 3 (Instalacje) z wyborem systemu.
+        - [x] Naprawa "Chaining Bug" (brak aktualizacji `activeNodeId` przez stale closures w React).
+        - [x] Pełna separacja narzędzi rysowania stref (Etap 2) od trasowania (Etap 3).
+        - [x] Wizualny podgląd linii draftu w kolorze aktywnego systemu.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
