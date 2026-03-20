@@ -542,3 +542,10 @@
 - **Naprawa Linii Draftu**: Dynamiczna linia podglądu podczas rysowania (`DRAW_DUCT`) również została zsynchronizowana z kolorem wybranego systemu.
 - **Cleanup**: Usunięto nieużywane zmienne i poprawiono tablice zależności w hookach `useEffect` (m.in. w `App.tsx`, `AirBalanceTable.tsx`), co wyeliminowało ostrzeżenia lintera i potencjalne błędy wydajnościowe.
 - **Pliki**: `src/components/Workspace2D.tsx`, `src/App.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/VersionHistoryPanel.tsx`.
+
+### Iteracja 3.2.4: Logika Topologii i Propagacja Systemów - 2026-03-20
+- **Propagacja Systemów**: Wprowadzono algorytm BFS (Breadth-First Search) w `useDuctStore.ts`, który automatycznie synchronizuje `systemId` w całej połączonej sieci. Zmiana systemu w jednym węźle lub odcinku natychmiast aktualizuje całą instalację, eliminując błędy niespójności systemowej.
+- **Unifikacja przy Połączeniu**: Dodanie krawędzi łączącej dwie osobne sieci wymusza ujednolicenie ich systemów, zgodnie z wymogiem "jeden połączony system = jeden typ instalacji".
+- **Wstawianie Węzłów (Edge Splitting)**: Implementacja narzędzia pozwalającego na kliknięcie w dowolny punkt istniejącego przewodu w trybie `DRAW_DUCT`. System automatycznie dzieli odcinek na dwa, wstawia nowy węzeł typu `BRANCH` i pozwala na natychmiastowe kontynuowanie rysowania odgałęzienia.
+- **Ulepszony Inspektor**: `DuctPropertiesPanel.tsx` wyświetla teraz wybór systemu również dla węzłów, a wizualizacja węzłów poprawnie odzwierciedla kolor sieci dzięki bezwarunkowemu dziedziczeniu kolorów systemowych.
+- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`.

@@ -411,6 +411,12 @@ export function Workspace2D({ className }: Workspace2DProps) {
             pressureDropLocal: 0,
             soundPowerLevel: [0,0,0,0,0,0,0,0]
           });
+        } else {
+          // Jeśli snapowaliśmy do istniejącego węzła, przełącz system rysowania na jego system
+          const snappedNode = ductNodes[targetNodeId];
+          if (snappedNode && snappedNode.systemId !== drawingSystemId) {
+            setDrawingSystemId(snappedNode.systemId);
+          }
         }
 
         // Jeśli mamy poprzedni aktywny węzeł, łączymy je
@@ -1543,6 +1549,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
                       useDuctStore.getState().removeEdge(edge.id);
                     } else if (currentTool === null) {
                       setSelectedEdgeId(edge.id);
+                    } else if (currentTool === 'DRAW_DUCT') {
+                      // SPLIT EDGE
+                      const stage = e.target.getStage();
+                      const pointerPos = stage?.getPointerPosition();
+                      if (pointerPos) {
+                        const canvasClickPos = {
+                          x: (pointerPos.x - stage.x()) / stage.scaleX(),
+                          y: (pointerPos.y - stage.y()) / stage.scaleY(),
+                        };
+                        const newNodeId = useDuctStore.getState().splitEdge(edge.id, canvasClickPos.x, canvasClickPos.y, scaleFactor || 0);
+                        if (newNodeId) {
+                          setActiveNodeId(newNodeId);
+                        }
+                      }
                     }
                   }}
                 />

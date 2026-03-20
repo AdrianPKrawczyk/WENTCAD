@@ -99,7 +99,21 @@ export function DuctPropertiesPanel() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 mt-2">
+
+              <div className="space-y-1 mt-3">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">System HVAC</label>
+                <select
+                  className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+                  value={activeNode.systemId}
+                  onChange={(e) => updateNode(activeNode.id, { systemId: e.target.value })}
+                >
+                  {systems.map(sys => (
+                    <option key={sys.id} value={sys.id}>{sys.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">X [px]</label>
                   <input
