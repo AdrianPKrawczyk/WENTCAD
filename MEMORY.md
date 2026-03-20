@@ -4,7 +4,7 @@
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
 ## CURRENT STATE: FAZA 3.3 (Klasy Urządzeń i Elementów)
-* **Active Step:** FAZA 3.3 (Wprowadzenie Klas Urządzeń i Elementów Pośrednich) - DONE
+* **Active Step:** FAZA 3.3.3 (Edycja Kondygnacji) - DONE
 * **Pending Task:** FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
 
 ## PROGRESS LOG
@@ -660,6 +660,19 @@
     - Auto-przypisanie systemu z kontekstu
 
 - **Pliki**: `src/types.ts`, `src/stores/useDuctStore.ts`, `src/stores/useCanvasStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
+
+### FAZA 3.3.3: Edycja Kondygnacji (Floor Settings Modal) - 2026-03-20
+- **FloorSettingsModal** (`src/components/FloorSettingsModal.tsx`):
+    - Modal do edycji właściwości kondygnacji
+    - Pola: nazwa, rządna (m n.p.m.), opis punktu 0,0
+    - Przyciski przesuwania w hierarchii (↑/↓)
+    - Statystyki: liczba pomieszczeń i elementów instalacji
+    - Przycisk usuwania z ostrzeżeniem i listą elementów do usunięcia
+- **FloorManagerBar** (`src/components/FloorManagerBar.tsx`):
+    - Dodano ikony edycji (⚙️) przy każdej zakładce kondygnacji
+    - Hover na zakładce pokazuje ikony edycji/usuwania
+    - Trigger modal FloorSettingsModal po kliknięciu ikony
+- **Pliki**: `src/components/FloorSettingsModal.tsx`, `src/components/FloorManagerBar.tsx`
 
 ### FAZA 3.3.2: Naprawki Bugów i Ulepszenia UI - 2026-03-20
 - **Stały Rozmiar Elementów (Element Sizing)**:

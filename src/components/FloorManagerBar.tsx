@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
+import { FloorSettingsModal } from './FloorSettingsModal';
+import { Settings2 } from 'lucide-react';
 import type { Floor } from '../types';
 
 interface AddFloorModalProps {
@@ -75,6 +77,7 @@ export function FloorManagerBar() {
   const removeFloor = useZoneStore((s) => s.removeFloor);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
 
   const sortedFloors = Object.values(floors).sort((a, b) => a.order - b.order);
 
@@ -126,7 +129,7 @@ export function FloorManagerBar() {
           const isActive = activeFloorId === floor.id;
           const stats = getFloorStats(floor.id);
           return (
-            <div key={floor.id} className="flex-shrink-0 flex items-center mr-1">
+            <div key={floor.id} className="flex-shrink-0 flex items-center mr-1 group">
               <button
                 onClick={() => setActiveFloor(floor.id)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-t border transition-colors ${
@@ -141,11 +144,24 @@ export function FloorManagerBar() {
                   ({stats.count})
                 </span>
               </button>
+              {/* Edit floor button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingFloorId(floor.id);
+                }}
+                className={`ml-0.5 px-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity ${
+                  isActive ? 'text-blue-300 hover:text-blue-100' : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={`Edytuj kondygnację ${floor.name}`}
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
               {/* Remove floor button - only shown if >1 floor exists */}
               {sortedFloors.length > 1 && (
                 <button
                   onClick={() => handleRemoveFloor(floor)}
-                  className="ml-0.5 text-gray-400 hover:text-red-500 text-xs px-1"
+                  className="ml-0.5 text-gray-400 hover:text-red-500 text-xs px-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   title={`Usuń kondygnację ${floor.name}`}
                 >
                   ×
@@ -211,6 +227,13 @@ export function FloorManagerBar() {
         <AddFloorModal
           onSave={(name, elevation, originDescription) => addFloor({ name, elevation, originDescription } as any)}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {editingFloorId && (
+        <FloorSettingsModal
+          floorId={editingFloorId}
+          onClose={() => setEditingFloorId(null)}
         />
       )}
     </div>
