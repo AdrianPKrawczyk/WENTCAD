@@ -178,7 +178,7 @@ export type ComponentType =
   // JUNCTION
   | 'TEE' | 'CROSS' | 'WYE'
   // SHAFT
-  | 'SHAFT_UP' | 'SHAFT_DOWN'
+  | 'SHAFT_UP' | 'SHAFT_DOWN' | 'SHAFT_THROUGH'
   // VIRTUAL_ROOT
   | 'VIRTUAL_ROOT';
 
@@ -188,7 +188,7 @@ export const CATEGORY_DEFAULT_TYPE: Record<ComponentCategory, ComponentType> = {
   TERMINAL: 'ANEMOSTAT',
   INLINE: 'DAMPER',
   JUNCTION: 'TEE',
-  SHAFT: 'SHAFT_UP',
+  SHAFT: 'SHAFT_THROUGH', // Przelotowy jako domyślny
   VIRTUAL_ROOT: 'VIRTUAL_ROOT',
 };
 
@@ -233,9 +233,17 @@ export interface DuctNode {
   // Dimension lock for pricing (Krok 7)
   isLocked?: boolean;
   
-  // AHU/FAN parameters (for Krok 4 physics)
+  // AHU/FAN parameters (for Krok 4 physics) - w cm dla UX
   ratedFlow?: number;    // m³/h nominal
   ratedPressure?: number; // Pa nominal
+  widthCm?: number;     // Szerokość w cm (dla EQUIPMENT)
+  heightCm?: number;    // Wysokość w cm (dla EQUIPMENT)
+  lengthCm?: number;    // Długość w cm (dla EQUIPMENT/FAN)
+  
+  // TERMINAL dimensions - w cm
+  terminalWidthCm?: number;
+  terminalHeightCm?: number;
+  terminalDiameterCm?: number;
   
   // Heat exchanger parameters
   heatRecoveryType?: 'ROTARY' | 'PLATE' | 'HEAT_PIPE' | 'RUN_AROUND';
@@ -244,6 +252,16 @@ export interface DuctNode {
   // INLINE component dimensions (for rendering)
   width?: number;  // mm
   height?: number; // mm
+  
+  // SHAFT parameters
+  shaftId?: string;           // Unikalny identyfikator pionu (np. "P1")
+  shaftAutoNumber?: number;   // Numer automatyczny (1, 2, 3...)
+  shaftRange?: {              // Zakres kondygnacji
+    fromFloorId: string;      // Od kondygnacji
+    toFloorId: string;         // Do kondygnacji
+  };
+  shaftShiftX?: number;       // Przesunięcie X na innych kondygnacjach (px)
+  shaftShiftY?: number;       // Przesunięcie Y na innych kondygnacjach (px)
   
   // Acoustics (8 octave bands: 63, 125, 250, 500, 1000, 2000, 4000, 8000 Hz)
   // Placeholder for Krok 6 - initialized to zeros

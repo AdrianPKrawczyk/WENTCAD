@@ -23,6 +23,7 @@ const COMPONENT_LABELS: Record<ComponentType, string> = {
   WYE: 'Rozgałęzienie Y',
   SHAFT_UP: 'Pion wentylacyjny ↑',
   SHAFT_DOWN: 'Pion wentylacyjny ↓',
+  SHAFT_THROUGH: 'Pion wentylacyjny ↕',
   VIRTUAL_ROOT: 'Węzeł wirtualny (sumowanie)',
 };
 
@@ -186,6 +187,38 @@ export function DuctPropertiesPanel() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Szer. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={activeNode.widthCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { widthCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 100"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Wys. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={activeNode.heightCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { heightCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 80"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Dł. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={activeNode.lengthCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { lengthCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 200"
+                    />
+                  </div>
+                </div>
               </section>
             )}
 
@@ -219,7 +252,7 @@ export function DuctPropertiesPanel() {
                         <span className="text-green-700 font-bold">{Math.round(activeZone.calculatedVolume)} m³/h</span>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-green-600 font-medium">Terminali w strefi:</span>
+                        <span className="text-green-600 font-medium">Terminali w strefie:</span>
                         <span className="text-green-700 font-bold">
                           {getTerminalsInZone(activeZone.id, activeNode.systemId).length + 1}
                         </span>
@@ -239,6 +272,43 @@ export function DuctPropertiesPanel() {
                     </div>
                   </>
                 )}
+
+                <div className="flex items-center gap-2 text-green-600 mt-3">
+                  <Ruler className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Wymiary Terminala</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Szer. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={activeNode.terminalWidthCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { terminalWidthCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Wys. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={activeNode.terminalHeightCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { terminalHeightCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 15"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Śr. [cm]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={activeNode.terminalDiameterCm || ''}
+                      onChange={(e) => updateNode(activeNode.id, { terminalDiameterCm: Number(e.target.value) || undefined })}
+                      placeholder="np. 20"
+                    />
+                  </div>
+                </div>
               </section>
             )}
 
@@ -285,10 +355,107 @@ export function DuctPropertiesPanel() {
                   <div className="text-xs text-purple-700">
                     {activeNode.componentType === 'SHAFT_UP' 
                       ? '↑ Kierunek przepływu: DO GÓRY' 
-                      : '↓ Kierunek przepływu: W DÓŁ'}
+                      : activeNode.componentType === 'SHAFT_DOWN'
+                      ? '↓ Kierunek przepływu: W DÓŁ'
+                      : '↕ Kierunek przepływu: PRZELOTOWY'}
                   </div>
                   <div className="text-[10px] text-purple-500 mt-1">
                     Piony łączą instalację między kondygnacjami
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Identyfikator Pionu</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={activeNode.shaftId || ''}
+                      onChange={(e) => updateNode(activeNode.id, { shaftId: e.target.value || undefined })}
+                      placeholder="np. P1"
+                    />
+                    <button
+                      onClick={() => {
+                        const existingShafts = Object.values(useDuctStore.getState().nodes)
+                          .filter(n => n.componentCategory === 'SHAFT' && n.shaftAutoNumber)
+                          .map(n => n.shaftAutoNumber || 0);
+                        const nextNum = existingShafts.length > 0 ? Math.max(...existingShafts) + 1 : 1;
+                        updateNode(activeNode.id, { shaftId: `P${nextNum}`, shaftAutoNumber: nextNum });
+                      }}
+                      className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors"
+                    >
+                      Auto
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Ruler className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Zakres Kondygnacji</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Od Kondygnacji</label>
+                    <select
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={activeNode.shaftRange?.fromFloorId || ''}
+                      onChange={(e) => updateNode(activeNode.id, { 
+                        shaftRange: { 
+                          fromFloorId: e.target.value, 
+                          toFloorId: activeNode.shaftRange?.toFloorId || e.target.value 
+                        } 
+                      })}
+                    >
+                      <option value="">-- wybierz --</option>
+                      {Object.values(floors).sort((a, b) => a.order - b.order).map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Do Kondygnacji</label>
+                    <select
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={activeNode.shaftRange?.toFloorId || ''}
+                      onChange={(e) => updateNode(activeNode.id, { 
+                        shaftRange: { 
+                          fromFloorId: activeNode.shaftRange?.fromFloorId || '', 
+                          toFloorId: e.target.value 
+                        } 
+                      })}
+                    >
+                      <option value="">-- wybierz --</option>
+                      {Object.values(floors).sort((a, b) => a.order - b.order).map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-purple-600">
+                  <Activity className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Przesunięcie na Innych Kondygnacjach</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Przes. X [px]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={activeNode.shaftShiftX || 0}
+                      onChange={(e) => updateNode(activeNode.id, { shaftShiftX: Number(e.target.value) || 0 })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Przes. Y [px]</label>
+                    <input
+                      type="number"
+                      className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={activeNode.shaftShiftY || 0}
+                      onChange={(e) => updateNode(activeNode.id, { shaftShiftY: Number(e.target.value) || 0 })}
+                      placeholder="0"
+                    />
                   </div>
                 </div>
               </section>

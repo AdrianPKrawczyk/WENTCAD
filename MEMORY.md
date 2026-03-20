@@ -660,3 +660,29 @@
     - Auto-przypisanie systemu z kontekstu
 
 - **Pliki**: `src/types.ts`, `src/stores/useDuctStore.ts`, `src/stores/useCanvasStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
+
+### FAZA 3.3.2: Naprawki Bugów i Ulepszenia UI - 2026-03-20
+- **Stały Rozmiar Elementów (Element Sizing)**:
+    - Zmieniono `nodeSize = 6 / scale` na stałą `nodeSize = 8` (piksele canvas, nie skaluje się z zoomem)
+    - Stały `strokeWidth = 1.5-2.5` zamiast skalonowego
+    - Jawny stały wymiar EQUIPMENT (50x30px), SHAFT (20x20px), INLINE (20x12px)
+- **Stały Próg Snapowania**:
+    - Zmieniono `snapThreshold = 15 / scale` na stałą `SNAP_THRESHOLD_PX = 15` pikseli
+    - Naprawiono błąd: zmienna `snapThreshold` była niezdefiniowana w zasięgu `dragEnd` (linie ~2044)
+- **Wstawianie Elementów INLINE na Krawędziach**:
+    - Dodano stałą `INLINE_TOOLS` w `Workspace2D.tsx`
+    - Zmodyfikowano `onClick` handler dla krawędzi, aby obsługiwał wstawianie elementów INLINE
+    - Po kliknięciu na krawędź z aktywnym narzędziem INLINE (DAMPER, FIRE_DAMPER, SILENCER, HEATER, COOLER, FILTER_BOX), system wywołuje `insertInlineComponent()` i automatycznie wyłącza narzędzie
+- **Dodano SHAFT_THROUGH do Toolbar'a**:
+    - Dodano przycisk "Pion ↕" (Przelotowy) obok SHAFT_UP i SHAFT_DOWN
+    - Zaktualizowano `COMPONENT_LABELS` w `DuctPropertiesPanel.tsx`
+- **Edycja Wymiarów w Inspektorze**:
+    - EQUIPMENT: Dodano pola `widthCm`, `heightCm`, `lengthCm` (w cm)
+    - TERMINAL: Dodano pola `terminalWidthCm`, `terminalHeightCm`, `terminalDiameterCm` (w cm)
+    - INLINE: Już miał `width` i `height` w mm
+- **Właściwości Pionu (SHAFT) w Inspektorze**:
+    - `shaftId`: Pole tekstowe z przyciskiem "Auto" generującym P1, P2, P3...
+    - `shaftRange`: Select'y "Od Kondygnacji" / "Do Kondygnacji" dla określenia zakresu
+    - `shaftShiftX`, `shaftShiftY`: Przesunięcie na innych kondygnacjach (px)
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
+

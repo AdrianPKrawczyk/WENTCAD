@@ -27,10 +27,10 @@ import type { DuctComponentTool } from '../stores/useCanvasStore';
 
 function getCategoryForDuctTool(tool: DuctComponentTool): 'EQUIPMENT' | 'TERMINAL' | 'INLINE' | 'JUNCTION' | 'SHAFT' | 'VIRTUAL_ROOT' {
   const EQUIPMENT_TOOLS: DuctComponentTool[] = ['AHU', 'FAN', 'HEAT_RECOVERY'];
-  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE'];
-  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER'];
+  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE', 'AIR_VALVE'];
+  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER', 'FILTER_BOX'];
   const JUNCTION_TOOLS: DuctComponentTool[] = ['TEE', 'CROSS', 'WYE'];
-  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN'];
+  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN', 'SHAFT_THROUGH'];
   const VIRTUAL_TOOLS: DuctComponentTool[] = ['VIRTUAL_ROOT'];
 
   if (EQUIPMENT_TOOLS.includes(tool)) return 'EQUIPMENT';
@@ -51,16 +51,19 @@ function getDuctToolLabel(tool: DuctComponentTool): string {
     GRILLE: 'Kratka',
     DIFFUSER: 'Dysza',
     LOUVRE: 'Wentylacja ścienna',
+    AIR_VALVE: 'Zawór',
     DAMPER: 'Przepustnica',
     FIRE_DAMPER: 'Klapa PPOŻ',
     SILENCER: 'Tłumik',
     HEATER: 'Nagrzewnica',
     COOLER: 'Chłodnica',
+    FILTER_BOX: 'Skrzynka filtr.',
     TEE: 'Trójnik',
     CROSS: 'Czwórnik',
     WYE: 'Rozgałęzienie Y',
     SHAFT_UP: 'Pion ↑',
     SHAFT_DOWN: 'Pion ↓',
+    SHAFT_THROUGH: 'Pion ↕',
     VIRTUAL_ROOT: 'Wirtualny korzeń',
   };
   return labels[tool] || tool;
@@ -69,6 +72,8 @@ function getDuctToolLabel(tool: DuctComponentTool): string {
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 const ZOOM_SENSITIVITY = 1.12;
+
+const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER', 'FILTER_BOX'];
 
 const measureTextWidth = (text: string, fontSize: number): number => {
   if (!text) return 0;
@@ -1714,10 +1719,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     e.cancelBubble = true;
                     if (currentTool === 'ERASER') {
                       useDuctStore.getState().removeEdge(edge.id);
-                    } else if (currentTool === null) {
-                      setSelectedEdgeId(edge.id);
                     } else if (currentTool === 'DRAW_DUCT') {
-                      // SPLIT EDGE
+                      // SPLIT EDGE for duct drawing
                       const stage = e.target.getStage();
                       const pointerPos = stage?.getPointerPosition();
                       if (pointerPos) {
@@ -1729,6 +1732,32 @@ export function Workspace2D({ className }: Workspace2DProps) {
                         if (newNodeId) {
                           setActiveNodeId(newNodeId);
                         }
+                      }
+                    } else if (currentTool === null) {
+                      // INLINE component insertion on existing edge
+                      if (activeDuctTool && INLINE_TOOLS.includes(activeDuctTool)) {
+                        const stage = e.target.getStage();
+                        const pointerPos = stage?.getPointerPosition();
+                        if (pointerPos) {
+                          const canvasClickPos = {
+                            x: (pointerPos.x - stage.x()) / stage.scaleX(),
+                            y: (pointerPos.y - stage.y()) / stage.scaleY(),
+                          };
+                          const newNodeId = useDuctStore.getState().insertInlineComponent(
+                            edge.id,
+                            canvasClickPos.x,
+                            canvasClickPos.y,
+                            scaleFactor || 0,
+                            activeDuctTool
+                          );
+                          if (newNodeId) {
+                            toast.success(`Wstawiono: ${getDuctToolLabel(activeDuctTool)}`);
+                            setActiveDuctTool(null);
+                            setActiveNodeId(newNodeId);
+                          }
+                        }
+                      } else {
+                        setSelectedEdgeId(edge.id);
                       }
                     }
                   }}
@@ -1758,8 +1787,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const isActive = activeNodeId === node.id;
             const isSelected = selectedNodeId === node.id;
             
-            const nodeSize = (isActive || isSelected ? 8 : 6) / scale;
-            const strokeWidth = (isActive || isSelected ? 2.5 : 1.5) / scale;
+            // STAŁE wymiary w pikselach - NIE skalują się z zoomem!
+            const nodeSize = isActive || isSelected ? 10 : 8;
+            const strokeWidth = isActive || isSelected ? 2.5 : 1.5;
+            const fontSize = 11;
 
             // Renderuj węzeł na podstawie kategorii
             const renderNodeShape = () => {
@@ -1767,8 +1798,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
               if (!node.componentCategory || node.componentCategory === 'JUNCTION') {
                 return (
                   <Circle
-                    x={node.x}
-                    y={node.y}
                     radius={nodeSize}
                     fill={isActive || isSelected ? '#ffffff' : nodeColor}
                     stroke={nodeColor}
@@ -1777,29 +1806,30 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 );
               }
               
-              // EQUIPMENT - RoundedRect (AHU, FAN)
+              // EQUIPMENT - RoundedRect (AHU, FAN) - STAŁE wymiary
               if (node.componentCategory === 'EQUIPMENT') {
+                const eqWidth = 50;
+                const eqHeight = 30;
+                const isAHU = node.componentType === 'AHU';
                 return (
-                  <Group x={node.x} y={node.y}>
+                  <Group>
                     <Rect
-                      x={-nodeSize * 2}
-                      y={-nodeSize}
-                      width={nodeSize * 4}
-                      height={nodeSize * 2}
-                      cornerRadius={nodeSize * 0.3}
+                      x={-eqWidth / 2}
+                      y={-eqHeight / 2}
+                      width={eqWidth}
+                      height={eqHeight}
+                      cornerRadius={4}
                       fill={isActive || isSelected ? '#ffffff' : nodeColor}
                       stroke={nodeColor}
                       strokeWidth={strokeWidth}
                     />
                     <Text
-                      text={node.componentType === 'AHU' ? 'AHU' : 'FAN'}
-                      fontSize={nodeSize * 1.2}
+                      text={isAHU ? 'AHU' : 'FAN'}
+                      fontSize={fontSize}
                       fill={isActive || isSelected ? nodeColor : '#ffffff'}
                       fontStyle="bold"
                       align="center"
                       verticalAlign="middle"
-                      offsetX={nodeSize * 1.5}
-                      offsetY={nodeSize * 0.5}
                     />
                   </Group>
                 );
@@ -1808,7 +1838,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
               // TERMINAL - Circle z X (Anemostat, Kratka, Dysza)
               if (node.componentCategory === 'TERMINAL') {
                 return (
-                  <Group x={node.x} y={node.y}>
+                  <Group>
                     <Circle
                       radius={nodeSize}
                       fill={isActive || isSelected ? '#ffffff' : nodeColor}
@@ -1831,13 +1861,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
               
               // INLINE - Prostokąt poprzeczny na kanale
               if (node.componentCategory === 'INLINE') {
+                const inlineWidth = 20;
+                const inlineHeight = 12;
                 return (
-                  <Group x={node.x} y={node.y} rotation={node.rotation || 0}>
+                  <Group rotation={node.rotation || 0}>
                     <Rect
-                      x={-nodeSize * 1.5}
-                      y={-nodeSize * 0.5}
-                      width={nodeSize * 3}
-                      height={nodeSize}
+                      x={-inlineWidth / 2}
+                      y={-inlineHeight / 2}
+                      width={inlineWidth}
+                      height={inlineHeight}
                       fill={isActive || isSelected ? '#ffffff' : nodeColor}
                       stroke={nodeColor}
                       strokeWidth={strokeWidth}
@@ -1845,8 +1877,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     {/* Ikona dla klapy PPOŻ */}
                     {node.componentType === 'FIRE_DAMPER' && (
                       <Text
-                        text="🔥"
-                        fontSize={nodeSize * 1.2}
+                        text="F"
+                        fontSize={8}
+                        fontStyle="bold"
+                        fill={isActive || isSelected ? nodeColor : '#ffffff'}
                         align="center"
                         verticalAlign="middle"
                       />
@@ -1854,8 +1888,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     {/* Fale dla tłumika */}
                     {node.componentType === 'SILENCER' && (
                       <>
-                        <Line points={[-nodeSize * 0.8, -nodeSize * 0.3, -nodeSize * 0.4, nodeSize * 0.3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={strokeWidth * 0.7} />
-                        <Line points={[nodeSize * 0.4, -nodeSize * 0.3, nodeSize * 0.8, nodeSize * 0.3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={strokeWidth * 0.7} />
+                        <Line points={[-6, -3, -3, 3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={1} />
+                        <Line points={[3, -3, 6, 3]} stroke={isActive || isSelected ? nodeColor : '#ffffff'} strokeWidth={1} />
                       </>
                     )}
                   </Group>
@@ -1864,29 +1898,55 @@ export function Workspace2D({ className }: Workspace2DProps) {
               
               // SHAFT - Kwadrat z symbolem kierunku
               if (node.componentCategory === 'SHAFT') {
+                const shaftSize = 20;
                 return (
-                  <Group x={node.x} y={node.y}>
+                  <Group>
                     <Rect
-                      x={-nodeSize}
-                      y={-nodeSize}
-                      width={nodeSize * 2}
-                      height={nodeSize * 2}
+                      x={-shaftSize / 2}
+                      y={-shaftSize / 2}
+                      width={shaftSize}
+                      height={shaftSize}
                       fill={isActive || isSelected ? '#ffffff' : nodeColor}
                       stroke={nodeColor}
                       strokeWidth={strokeWidth}
                     />
-                    {node.componentType === 'SHAFT_UP' && (
+                    {(node.componentType === 'SHAFT_UP' || node.componentType === 'SHAFT_THROUGH') && (
                       <Line
-                        points={[0, nodeSize * 0.6, 0, -nodeSize * 0.6]}
+                        points={[0, shaftSize * 0.4, 0, -shaftSize * 0.4]}
                         stroke={isActive || isSelected ? nodeColor : '#ffffff'}
                         strokeWidth={strokeWidth}
                       />
                     )}
                     {node.componentType === 'SHAFT_DOWN' && (
                       <Line
-                        points={[0, -nodeSize * 0.6, 0, nodeSize * 0.6]}
+                        points={[0, shaftSize * 0.4, 0, -shaftSize * 0.4]}
                         stroke={isActive || isSelected ? nodeColor : '#ffffff'}
                         strokeWidth={strokeWidth}
+                      />
+                    )}
+                    {node.componentType === 'SHAFT_THROUGH' && (
+                      <>
+                        <Line
+                          points={[-shaftSize * 0.3, -shaftSize * 0.2, shaftSize * 0.3, -shaftSize * 0.2]}
+                          stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                          strokeWidth={strokeWidth}
+                        />
+                        <Line
+                          points={[-shaftSize * 0.3, shaftSize * 0.2, shaftSize * 0.3, shaftSize * 0.2]}
+                          stroke={isActive || isSelected ? nodeColor : '#ffffff'}
+                          strokeWidth={strokeWidth}
+                        />
+                      </>
+                    )}
+                    {/* shaftId label */}
+                    {node.shaftId && (
+                      <Text
+                        text={node.shaftId}
+                        fontSize={8}
+                        fill="#1f2937"
+                        fontStyle="bold"
+                        align="center"
+                        y={shaftSize / 2 + 3}
                       />
                     )}
                   </Group>
@@ -1895,10 +1955,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
               
               // VIRTUAL_ROOT - Trójkąt otwarty
               if (node.componentCategory === 'VIRTUAL_ROOT') {
+                const vrSize = 16;
                 return (
-                  <Group x={node.x} y={node.y}>
+                  <Group>
                     <Line
-                      points={[-nodeSize, nodeSize, 0, -nodeSize, nodeSize, nodeSize]}
+                      points={[-vrSize, vrSize / 2, 0, -vrSize / 2, vrSize, vrSize / 2]}
                       closed={true}
                       fill={isActive || isSelected ? '#ffffff' : nodeColor}
                       stroke={nodeColor}
@@ -1911,8 +1972,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
               // Fallback
               return (
                 <Circle
-                  x={node.x}
-                  y={node.y}
                   radius={nodeSize}
                   fill={isActive || isSelected ? '#ffffff' : nodeColor}
                   stroke={nodeColor}
@@ -1980,7 +2039,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     const edges = state.edges;
                     const nodes = state.nodes;
                     
-                    const snapThreshold = 15 / scale;
+                    // STAŁY threshold snap w pikselach canvas (nie skaluje się z zoomem)
+                    const SNAP_THRESHOLD_PX = 15;
                     let snappedToNode = false;
                      for (const targetId in nodes) {
                         if (targetId === node.id) continue;
@@ -1988,7 +2048,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                         if (target.floorId !== activeFloorId) continue;
 
                         const dist = Math.sqrt(Math.pow(newX - target.x, 2) + Math.pow(newY - target.y, 2));
-                        if (dist < snapThreshold) {
+                        if (dist < SNAP_THRESHOLD_PX) {
                            state.mergeNodes(node.id, targetId);
                            snappedToNode = true;
                            break;
@@ -2007,8 +2067,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                           const closest = getClosestPointOnSegment({ x: newX, y: newY }, { x: source.x, y: source.y }, { x: target.x, y: target.y });
                           const dist = Math.sqrt(Math.pow(newX - closest.x, 2) + Math.pow(newY - closest.y, 2));
                           
-                          if (dist < snapThreshold) {
-                             state.mergeNodeToEdge(node.id, edgeId, closest.x, closest.y, scaleFactor || 0);
+                          if (dist < SNAP_THRESHOLD_PX) {
+                              state.mergeNodeToEdge(node.id, edgeId, closest.x, closest.y, scaleFactor || 0);
                              break;
                           }
                         }
@@ -2754,6 +2814,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
               >
                 <ArrowDown className="w-4 h-4" />
                 <span>Pion ↓</span>
+              </button>
+              <button
+                onClick={() => setActiveDuctTool('SHAFT_THROUGH')}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 ${activeDuctTool === 'SHAFT_THROUGH' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'}`}
+              >
+                <ArrowUp className="w-4 h-4" />
+                <ArrowDown className="w-4 h-4 -ml-5" />
+                <span className="-ml-2">Pion ↕</span>
               </button>
               <button
                 onClick={() => setActiveDuctTool('VIRTUAL_ROOT')}

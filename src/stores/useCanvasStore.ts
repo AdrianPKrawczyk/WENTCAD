@@ -26,19 +26,19 @@ export interface Point {
 // HVAC Component insertion tool types
 export type DuctComponentTool = 
   | 'AHU' | 'FAN' | 'HEAT_RECOVERY'
-  | 'ANEMOSTAT' | 'GRILLE' | 'DIFFUSER' | 'LOUVRE'
-  | 'DAMPER' | 'FIRE_DAMPER' | 'SILENCER' | 'HEATER' | 'COOLER'
+  | 'ANEMOSTAT' | 'GRILLE' | 'DIFFUSER' | 'LOUVRE' | 'AIR_VALVE'
+  | 'DAMPER' | 'FIRE_DAMPER' | 'SILENCER' | 'HEATER' | 'COOLER' | 'FILTER_BOX'
   | 'TEE' | 'CROSS' | 'WYE'
-  | 'SHAFT_UP' | 'SHAFT_DOWN'
+  | 'SHAFT_UP' | 'SHAFT_DOWN' | 'SHAFT_THROUGH'
   | 'VIRTUAL_ROOT';
 
 // Map tool types to their categories
 export function getCategoryForTool(tool: DuctComponentTool): CanvasState['activeDuctCategory'] {
   const EQUIPMENT_TOOLS: DuctComponentTool[] = ['AHU', 'FAN', 'HEAT_RECOVERY'];
-  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE'];
-  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER'];
+  const TERMINAL_TOOLS: DuctComponentTool[] = ['ANEMOSTAT', 'GRILLE', 'DIFFUSER', 'LOUVRE', 'AIR_VALVE'];
+  const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER', 'FILTER_BOX'];
   const JUNCTION_TOOLS: DuctComponentTool[] = ['TEE', 'CROSS', 'WYE'];
-  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN'];
+  const SHAFT_TOOLS: DuctComponentTool[] = ['SHAFT_UP', 'SHAFT_DOWN', 'SHAFT_THROUGH'];
   const VIRTUAL_TOOLS: DuctComponentTool[] = ['VIRTUAL_ROOT'];
 
   if (EQUIPMENT_TOOLS.includes(tool)) return 'EQUIPMENT';
