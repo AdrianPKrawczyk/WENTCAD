@@ -31,6 +31,8 @@ interface DuctStore {
 
   // Advanced topology actions
   splitEdge: (edgeId: string, x: number, y: number, scaleFactor: number) => string; // returns new nodeId
+  mergeNodeToEdge: (nodeId: string, edgeId: string, x: number, y: number, scaleFactor: number) => void;
+  mergeNodes: (sourceId: string, targetId: string) => void;
 }
 
 /**
@@ -38,7 +40,7 @@ interface DuctStore {
  */
 function getConnectedNetwork(
   startNodeId: string, 
-  nodes: Record<string, DuctNode>, 
+  _nodes: Record<string, DuctNode>, 
   edges: Record<string, DuctSegment>
 ): { nodeIds: string[], edgeIds: string[] } {
   const visitedNodes = new Set<string>();
@@ -237,6 +239,149 @@ export const useDuctStore = create<DuctStore>()(
           });
 
           return newNodeId;
+        },
+
+        mergeNodeToEdge: (nodeId, edgeId, x, y, scaleFactor) => {
+          const state = get();
+          const node = state.nodes[nodeId];
+          const edge = state.edges[edgeId];
+          if (!node || !edge) return;
+
+          const source = state.nodes[edge.sourceNodeId];
+          const target = state.nodes[edge.targetNodeId];
+          if (!source || !target) return;
+
+          // 1. Create the new node on the edge
+          const newNodeId = `node-${crypto.randomUUID()}`;
+          const newNode: DuctNode = {
+            id: newNodeId,
+            type: 'BRANCH',
+            systemId: edge.systemId,
+            ahuId: edge.ahuId,
+            x,
+            y,
+            floorId: source.floorId,
+            flow: 0,
+            pressureDropLocal: 0,
+            soundPowerLevel: [0,0,0,0,0,0,0,0]
+          };
+
+          // 2. Split the edge into two
+          const edge1Id = `edge-${crypto.randomUUID()}`;
+          const edge2Id = `edge-${crypto.randomUUID()}`;
+          const dist1Px = Math.sqrt(Math.pow(x - source.x, 2) + Math.pow(y - source.y, 2));
+          const dist2Px = Math.sqrt(Math.pow(target.x - x, 2) + Math.pow(target.y - y, 2));
+
+          const edge1: DuctSegment = {
+            ...edge,
+            id: edge1Id,
+            targetNodeId: newNodeId,
+            length: dist1Px * scaleFactor
+          };
+          const edge2: DuctSegment = {
+            ...edge,
+            id: edge2Id,
+            sourceNodeId: newNodeId,
+            length: dist2Px * scaleFactor
+          };
+
+          set((s) => {
+            const newNodes = { ...s.nodes, [newNodeId]: newNode };
+            const newEdges = { ...s.edges, [edge1Id]: edge1, [edge2Id]: edge2 };
+            delete newEdges[edgeId];
+
+            // 3. Re-route edges pointing to OLD node to the NEW node
+            Object.keys(newEdges).forEach(eId => {
+              const e = newEdges[eId];
+              let changed = false;
+              const updates: Partial<DuctSegment> = {};
+
+              if (e.sourceNodeId === nodeId) {
+                updates.sourceNodeId = newNodeId;
+                changed = true;
+              }
+              if (e.targetNodeId === nodeId) {
+                updates.targetNodeId = newNodeId;
+                changed = true;
+              }
+
+              if (changed) {
+                newEdges[eId] = { ...e, ...updates, systemId: newNode.systemId };
+              }
+            });
+
+            // 4. Remove the old node
+            delete newNodes[nodeId];
+
+            return {
+              nodes: newNodes,
+              edges: newEdges,
+              selectedNodeId: s.selectedNodeId === nodeId ? null : s.selectedNodeId,
+              selectedEdgeId: s.selectedEdgeId === edgeId ? null : s.selectedEdgeId,
+              activeNodeId: s.activeNodeId === nodeId ? null : s.activeNodeId
+            };
+          });
+        },
+
+        mergeNodes: (sourceId, targetId) => {
+          if (sourceId === targetId) return;
+          const state = get();
+          const sourceNode = state.nodes[sourceId];
+          const targetNode = state.nodes[targetId];
+          if (!sourceNode || !targetNode) return;
+
+          set((s) => {
+            const newNodes = { ...s.nodes };
+            const newEdges = { ...s.edges };
+
+            // 1. Re-route all edges from source to target
+            Object.keys(newEdges).forEach(eId => {
+              const e = newEdges[eId];
+              let changed = false;
+              let newSource = e.sourceNodeId;
+              let newTarget = e.targetNodeId;
+
+              if (e.sourceNodeId === sourceId) {
+                newSource = targetId;
+                changed = true;
+              }
+              if (e.targetNodeId === sourceId) {
+                newTarget = targetId;
+                changed = true;
+              }
+
+              if (changed) {
+                // If this re-route creates a zero-length edge (source == target), don't update, we'll delete it later or now
+                if (newSource === newTarget) {
+                   delete newEdges[eId];
+                } else {
+                   newEdges[eId] = { ...e, sourceNodeId: newSource, targetNodeId: newTarget };
+                }
+              }
+            });
+
+            // 2. Remove the old node
+            delete newNodes[sourceId];
+
+            // 3. Propagate systemId from targetNode to all connected elements
+            const network = getConnectedNetwork(targetId, newNodes, newEdges);
+            
+            network.nodeIds.forEach(nId => {
+              newNodes[nId] = { ...newNodes[nId], systemId: targetNode.systemId };
+            });
+            network.edgeIds.forEach(eId => {
+              if (newEdges[eId]) {
+                newEdges[eId] = { ...newEdges[eId], systemId: targetNode.systemId };
+              }
+            });
+
+            return {
+              nodes: newNodes,
+              edges: newEdges,
+              selectedNodeId: s.selectedNodeId === sourceId ? null : s.selectedNodeId,
+              activeNodeId: s.activeNodeId === sourceId ? null : s.activeNodeId
+            };
+          });
         }
       }),
       {

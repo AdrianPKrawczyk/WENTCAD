@@ -562,3 +562,27 @@
     - **Przeciąganie (Drag & Drop)**: Przeciągnięcie węzła i upuszczenie go na inny odcinek powoduje jego bezpieczne rozcięcie i scalenie sieci topologicznej.
 - **Cleanup**: Usunięto nieużywane zmienne i zsynchronizowano brakujące importy dla zachowania czystości budowania.
 - **Pliki**: `src/App.tsx`, `src/components/TopBar.tsx`, `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`, `src/lib/geometryUtils.ts`.
+
+### Iteracja 3.2.6: Naprawa Błędu Regresyjnego 'ReferenceError' - 2026-03-20
+- **Przyczyna: Niezdefiniowana Zmienna**: Zidentyfikowano krytyczny błąd w `Workspace2D.tsx` (linia 1454), gdzie odwołanie do `shouldUseSystemStyle` rzucało wyjątek `ReferenceError`, uniemożliwiając renderowanie całej aplikacji (biały ekran po wejściu w projekt).
+- **Naprawa**: Zgodnie z decyzją o „Wymuszeniu Kolorów Systemowych” z Iteracji 3.2.3, usunięto zbędny i niezdefiniowany warunek. Renderowanie wzorów (patterns) stref od teraz odbywa się bezwarunkowo, gdy tylko strefa posiada przypisany system.
+- **Weryfikacja**: Potwierdzono poprawne ładowanie rzutu 2D oraz Dashboardu bez błędów w konsoli.
+- **Pliki**: `src/components/Workspace2D.tsx`.
+
+### Iteracja 3.2.7: Akcje Atomowe i Eliminacja 'Ghost Nodes' - 2026-03-20
+- **Problem 'Pustych Węzłów' (Ghost Nodes)**: Podczas przeciągania węzła na inny kanał (`Drag & Drop`), sekwencyjne aktualizacje stanu powodowały, że stary węzeł pozostawał widoczny pod kursorem („duch”), zanim React/Konva zdążyli go odmontować.
+- **Akcja Atomowa `mergeNodeToEdge`**: 
+    - Skonsolidowano rozbicie krawędzi (`splitEdge`), przepięcie podłączonych rur (`re-routing`) oraz usunięcie starego węzła w jedną operację `set()` w magazynie `useDuctStore.ts`.
+    - Gwarantuje to spójność topologiczną i wizualną grafu w jednym cyklu renderowania.
+- **Uproszczenie Logiki CAD**: Przeniesiono odpowiedzialność za manipulację grafem z komponentu `Workspace2D.tsx` do warstwy Store, co zwiększa stabilność i łatwość testowania silnika trasowania.
+- **Cleanup Linter'a**: Usunięto nieużywane parametry w funkcjach pomocniczych magazynu (`getConnectedNetwork`).
+- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`.
+
+### Iteracja 3.2.8: Inteligentne Mergowanie Węzłów (Node-to-Node Snap) - 2026-03-20
+- **Problem**: Przeciąganie końca jednego kanału na koniec innego skutkowało utworzeniem odgałęzienia (`BRANCH`) zamiast prostego połączenia (kolana/łącznika). Działo się tak, bo system priorytetyzował snapping do krawędzi (split edge) nad snappingiem do punktów końcowych.
+- **Akcja Atomowa `mergeNodes`**:
+    - Wprowadzono w `useDuctStore.ts` akcję, która bezpiecznie przepina wszystkie krawędzie z węzła źródłowego do docelowego i usuwa ten pierwszy.
+    - Automatycznie usuwa pętle (krawędzie o zerowej długości), jeśli takowe powstałyby podczas łączenia.
+- **Hierarchia Snappingu**: Zmodyfikowano `Workspace2D.tsx`, aby w pierwszej kolejności sprawdzał bliskość innych węzłów. Dopiero gdy w promieniu 15px nie ma żadnego węzła, system szuka krawędzi do rozcięcia.
+- **Weryfikacja**: Potwierdzono poprawne tworzenie kolan i usuwanie nadmiarowych węzłów przy łączeniu końcówek instalacji.
+- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`.

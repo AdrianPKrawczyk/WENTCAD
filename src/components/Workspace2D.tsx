@@ -1663,46 +1663,41 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     const edges = state.edges;
                     const nodes = state.nodes;
                     
-                    // Check if dropped on an edge
                     const snapThreshold = 15 / scale;
-                    for (const edgeId in edges) {
-                      const edge = edges[edgeId];
-                      if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) continue;
-                      
-                      const source = nodes[edge.sourceNodeId];
-                      const target = nodes[edge.targetNodeId];
-                      if (!source || !target || source.floorId !== activeFloorId) continue;
-                      
-                      const closest = getClosestPointOnSegment({ x: newX, y: newY }, { x: source.x, y: source.y }, { x: target.x, y: target.y });
-                      const dist = Math.sqrt(Math.pow(newX - closest.x, 2) + Math.pow(newY - closest.y, 2));
-                      
-                      if (dist < snapThreshold) {
-                         // 1. Split the target edge, getting a new node exactly on the edge
-                         const newNodeId = state.splitEdge(edgeId, closest.x, closest.y, scaleFactor || 0);
-                         if (!newNodeId) break;
+                    // Check for SNAP TO OTHER NODES
+                     let snappedToNode = false;
+                     for (const targetId in nodes) {
+                        if (targetId === node.id) continue;
+                        const target = nodes[targetId];
+                        if (target.floorId !== activeFloorId) continue;
 
-                         // 2. Re-route edges pointing to old node to the new node
-                         Object.values(state.edges).forEach(e2 => {
-                           if (e2.sourceNodeId === node.id) {
-                              state.updateEdge(e2.id, { sourceNodeId: newNodeId });
-                              // Inherit system
-                              if (e2.systemId !== state.nodes[newNodeId].systemId) {
-                                state.updateEdge(e2.id, { systemId: state.nodes[newNodeId].systemId }); // This propagates
-                              }
-                           }
-                           if (e2.targetNodeId === node.id) {
-                              state.updateEdge(e2.id, { targetNodeId: newNodeId });
-                              if (e2.systemId !== state.nodes[newNodeId].systemId) {
-                                state.updateEdge(e2.id, { systemId: state.nodes[newNodeId].systemId }); // This propagates
-                              }
-                           }
-                         });
-                         
-                         // 3. Delete the old dragged node
-                         state.removeNode(node.id);
-                         break;
-                      }
-                    }
+                        const dist = Math.sqrt(Math.pow(newX - target.x, 2) + Math.pow(newY - target.y, 2));
+                        if (dist < snapThreshold) {
+                           state.mergeNodes(node.id, targetId);
+                           snappedToNode = true;
+                           break;
+                        }
+                     }
+
+                     if (!snappedToNode) {
+                        // Check if dropped on an edge
+                        for (const edgeId in edges) {
+                          const edge = edges[edgeId];
+                          if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) continue;
+                          
+                          const source = nodes[edge.sourceNodeId];
+                          const target = nodes[edge.targetNodeId];
+                          if (!source || !target || source.floorId !== activeFloorId) continue;
+                          
+                          const closest = getClosestPointOnSegment({ x: newX, y: newY }, { x: source.x, y: source.y }, { x: target.x, y: target.y });
+                          const dist = Math.sqrt(Math.pow(newX - closest.x, 2) + Math.pow(newY - closest.y, 2));
+                          
+                          if (dist < snapThreshold) {
+                             state.mergeNodeToEdge(node.id, edgeId, closest.x, closest.y, scaleFactor || 0);
+                             break;
+                          }
+                        }
+                     }
                   }
                 }}
                 onClick={(e: any) => {
