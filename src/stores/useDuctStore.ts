@@ -53,6 +53,8 @@ interface DuctStore {
   removeOrphanedShaftNodes: (shaftId: string, nodeIds: string[]) => void;
   reassignShaftNodes: (nodeIds: string[], targetShaftId?: string, extendTargetRange?: boolean) => string | null;
   createShaftNode: (sourceNode: DuctNode, targetFloorId: string, shaftId: string) => DuctNode;
+  syncShaftProperties: (sourceNodeId: string, updates: Partial<DuctNode>) => void;
+  resetPositionSync: (sourceNodeId: string) => void;
 }
 
 /**
@@ -550,8 +552,10 @@ export const useDuctStore = create<DuctStore>()(
             pressureDropLocal: sourceNode.pressureDropLocal,
             shaftId,
             shaftAutoNumber: sourceNode.shaftAutoNumber,
+            shaftRange: sourceNode.shaftRange,
             shaftShiftX: sourceNode.shaftShiftX,
             shaftShiftY: sourceNode.shaftShiftY,
+            isPositionManuallySet: false,
             soundPowerLevel: [0, 0, 0, 0, 0, 0, 0, 0],
           };
         },
@@ -633,6 +637,13 @@ export const useDuctStore = create<DuctStore>()(
                 velocity: 0,
                 pressureDropLin: 0,
               };
+            } else if (!existingNode.isPositionManuallySet) {
+              // Update position only if not manually set
+              newNodes[existingNode.id] = {
+                ...newNodes[existingNode.id],
+                x: sourceNode.x + shaftShiftX,
+                y: sourceNode.y + shaftShiftY,
+              };
             }
           }
 
@@ -698,6 +709,62 @@ export const useDuctStore = create<DuctStore>()(
 
           set({ nodes: newNodes });
           return finalShaftId;
+        },
+
+        // Sync SHAFT properties (shaftId, shaftRange, systemId) across all nodes with same shaftId
+        syncShaftProperties: (sourceNodeId, updates) => {
+          const state = get();
+          const sourceNode = state.nodes[sourceNodeId];
+          if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
+
+          const newNodes = { ...state.nodes };
+          const shaftId = updates.shaftId ?? sourceNode.shaftId;
+
+          // Find all SHAFT nodes with the same shaftId
+          Object.values(state.nodes).forEach(node => {
+            if (node.componentCategory === 'SHAFT' && node.shaftId === shaftId && node.id !== sourceNodeId) {
+              newNodes[node.id] = {
+                ...newNodes[node.id],
+                ...updates,
+              };
+            }
+          });
+
+          set({ nodes: newNodes });
+        },
+
+        // Reset position sync for all SHAFT nodes with the same shaftId
+        resetPositionSync: (sourceNodeId) => {
+          const state = get();
+          const sourceNode = state.nodes[sourceNodeId];
+          if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
+
+          const shaftId = sourceNode.shaftId;
+          const shaftShiftX = sourceNode.shaftShiftX || 0;
+          const shaftShiftY = sourceNode.shaftShiftY || 0;
+          const newNodes = { ...state.nodes };
+
+          // Reset isPositionManuallySet on all nodes with the same shaftId
+          Object.values(state.nodes).forEach(node => {
+            if (node.componentCategory === 'SHAFT' && node.shaftId === shaftId) {
+              if (node.id !== sourceNodeId && !node.isPositionManuallySet) {
+                // Only sync position if not manually set
+                newNodes[node.id] = {
+                  ...newNodes[node.id],
+                  isPositionManuallySet: false,
+                  x: sourceNode.x + shaftShiftX,
+                  y: sourceNode.y + shaftShiftY,
+                };
+              } else {
+                newNodes[node.id] = {
+                  ...newNodes[node.id],
+                  isPositionManuallySet: false,
+                };
+              }
+            }
+          });
+
+          set({ nodes: newNodes });
         },
       }),
       {

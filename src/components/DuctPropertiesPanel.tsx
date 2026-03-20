@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle } from 'lucide-react';
+import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { OrphanedShaftModal } from './OrphanedShaftModal';
 import type { ComponentCategory, ComponentType } from '../types';
 
@@ -50,6 +50,8 @@ export function DuctPropertiesPanel() {
   const getTerminalsInZone = useDuctStore((s) => s.getTerminalsInZone);
   const getOrphanedShaftNodes = useDuctStore((s) => s.getOrphanedShaftNodes);
   const syncShaftToFloors = useDuctStore((s) => s.syncShaftToFloors);
+  const syncShaftProperties = useDuctStore((s) => s.syncShaftProperties);
+  const resetPositionSync = useDuctStore((s) => s.resetPositionSync);
   
   const systems = useZoneStore((s) => s.systems);
   const floors = useZoneStore((s) => s.floors);
@@ -382,7 +384,13 @@ export function DuctPropertiesPanel() {
                       type="text"
                       className="flex-1 text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
                       value={activeNode.shaftId || ''}
-                      onChange={(e) => updateNode(activeNode.id, { shaftId: e.target.value || undefined })}
+                      onChange={(e) => {
+                        const newShaftId = e.target.value || undefined;
+                        updateNode(activeNode.id, { shaftId: newShaftId });
+                        if (newShaftId) {
+                          syncShaftProperties(activeNode.id, { shaftId: newShaftId });
+                        }
+                      }}
                       placeholder="np. P1"
                     />
                     <button
@@ -391,7 +399,9 @@ export function DuctPropertiesPanel() {
                           .filter(n => n.componentCategory === 'SHAFT' && n.shaftAutoNumber)
                           .map(n => n.shaftAutoNumber || 0);
                         const nextNum = existingShafts.length > 0 ? Math.max(...existingShafts) + 1 : 1;
-                        updateNode(activeNode.id, { shaftId: `P${nextNum}`, shaftAutoNumber: nextNum });
+                        const newShaftId = `P${nextNum}`;
+                        updateNode(activeNode.id, { shaftId: newShaftId, shaftAutoNumber: nextNum });
+                        syncShaftProperties(activeNode.id, { shaftId: newShaftId, shaftAutoNumber: nextNum });
                       }}
                       className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors"
                     >
@@ -487,6 +497,16 @@ export function DuctPropertiesPanel() {
                   >
                     <AlertTriangle className="w-4 h-4" />
                     <span>Zarządzaj osieroconymi ({orphanedNodes.length})</span>
+                  </button>
+                )}
+
+                {activeNode.isPositionManuallySet && (
+                  <button
+                    onClick={() => resetPositionSync(activeNode.id)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Włącz synchronizację pozycji</span>
                   </button>
                 )}
               </section>

@@ -262,6 +262,7 @@ export interface DuctNode {
   };
   shaftShiftX?: number;       // Przesunięcie X na innych kondygnacjach (px)
   shaftShiftY?: number;       // Przesunięcie Y na innych kondygnacjach (px)
+  isPositionManuallySet?: boolean; // Flaga: pozycja ustawiona ręcznie (chroniona przed sync)
   
   // Acoustics (8 octave bands: 63, 125, 250, 500, 1000, 2000, 4000, 8000 Hz)
   // Placeholder for Krok 6 - initialized to zeros

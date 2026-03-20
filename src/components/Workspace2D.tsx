@@ -2039,6 +2039,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
                     const edges = state.edges;
                     const nodes = state.nodes;
                     
+                    // Ustaw flage isPositionManuallySet dla SHAFT
+                    if (node.componentCategory === 'SHAFT') {
+                      updateDuctNode(node.id, { x: newX, y: newY, isPositionManuallySet: true });
+                    }
+                    
                     // STAŁY threshold snap w pikselach canvas (nie skaluje się z zoomem)
                     const SNAP_THRESHOLD_PX = 15;
                     let snappedToNode = false;

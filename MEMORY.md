@@ -4,7 +4,7 @@
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
 ## CURRENT STATE: FAZA 3.3 (Klasy Urządzeń i Elementów)
-* **Active Step:** FAZA 3.3.4 (Auto-tworzenie węzłów SHAFT na wielu kondygnacjach) - DONE
+* **Active Step:** FAZA 3.3.4 (Auto-tworzenie węzłów SHAFT na wielu kondygnacjach + synchronizacja) - DONE
 * **Pending Task:** FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
 
 ## PROGRESS LOG
@@ -676,10 +676,12 @@
 
 ### FAZA 3.3.4: Auto-tworzenie węzłów SHAFT na wielu kondygnacjach - 2026-03-20
 - **Nowe akcje w useDuctStore.ts**:
-    - `createShaftNode(sourceNode, targetFloorId, shaftId)` - tworzy węzeł SHAFT z dziedziczonymi polami
+    - `createShaftNode(sourceNode, targetFloorId, shaftId)` - tworzy węzeł SHAFT z dziedziczonymi polami (w tym `shaftRange`)
     - `getOrphanedShaftNodes(shaftId, shaftRange)` - zwraca węzły SHAFT spoza zakresu
     - `getAllShaftsWithSameId(shaftId)` - zwraca wszystkie węzły z danym shaftId
     - `syncShaftToFloors(sourceNodeId)` - synchronizuje węzły na wszystkich kondygnacjach w zakresie
+    - `syncShaftProperties(sourceNodeId, updates)` - synchronizuje właściwości (shaftId, shaftRange, systemId) między węzłami
+    - `resetPositionSync(sourceNodeId)` - resetuje flagi `isPositionManuallySet` i synchronizuje pozycje
     - `removeOrphanedShaftNodes(shaftId, nodeIds)` - usuwa osierocone węzły i krawędzie pionowe
     - `reassignShaftNodes(nodeIds, targetShaftId)` - przenosi węzły do innego/nowego pionu
 - **OrphanedShaftModal** (`src/components/OrphanedShaftModal.tsx`):
@@ -689,9 +691,15 @@
     - Opcja "Rozszerz zakres docelowego pionu"
 - **DuctPropertiesPanel.tsx**:
     - Dodano przycisk "Zarządzaj osieroconymi" w sekcji SHAFT (widoczny gdy są osierocone węzły)
-    - Zmiana zakresu kondygnacji (Od/Do) wywołuje `syncShaftToFloors`
-    - Automatyczne wykrywanie osieroconych węzłów po zmianie zakresu
-- **Pliki**: `src/stores/useDuctStore.ts`, `src/components/OrphanedShaftModal.tsx`, `src/components/DuctPropertiesPanel.tsx`
+    - Dodano przycisk "Włącz synchronizację pozycji" (widoczny gdy `isPositionManuallySet = true`)
+    - Zmiana shaftId lub zakresu wywołuje `syncShaftProperties`
+- **Workspace2D.tsx**:
+    - Dodano ustawianie `isPositionManuallySet = true` przy przeciąganiu węzłów SHAFT
+- **Synchronizacja pozycji SHAFT**:
+    - Pole `isPositionManuallySet` w `DuctNode` - chroni pozycję przed automatyczną synchronizacją
+    - Gdy użytkownik przeciągnie węzeł SHAFT, flaga ustawia się na `true`
+    - Przycisk "Włącz synchronizację pozycji" resetuje flagę i synchronizuje pozycje
+- **Pliki**: `src/types.ts`, `src/stores/useDuctStore.ts`, `src/components/OrphanedShaftModal.tsx`, `src/components/DuctPropertiesPanel.tsx`, `src/components/Workspace2D.tsx`
 
 ### FAZA 3.3.2: Naprawki Bugów i Ulepszenia UI - 2026-03-20
 - **Stały Rozmiar Elementów (Element Sizing)**:
