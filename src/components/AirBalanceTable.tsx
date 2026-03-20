@@ -41,7 +41,6 @@ export function AirBalanceTable() {
   const bulkDeleteZones = useZoneStore((state) => state.bulkDeleteZones);
   const clearZoneGeometry = useZoneStore((state) => state.clearZoneGeometry);
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
-  const setIsSystemColoringEnabled = useZoneStore((s) => s.setIsSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const activeProjectId = useProjectStore((s) => s.activeProject?.id);
   const columnState = useZoneStore((s) => s.columnState);
@@ -402,9 +401,9 @@ export function AirBalanceTable() {
       return { backgroundColor: '#eef2ff', outline: '2px solid #4f46e5', outlineOffset: '-2px', zIndex: 10, fontWeight: 'bold' };
     }
     if (!isSystemColoringEnabled || !params.data) return undefined;
-    const { color } = resolveZoneStyle(params.data, systems, globalSystemOpacity);
-    if (!color) return undefined;
-    return { backgroundColor: color };
+    const style = resolveZoneStyle(params.data, systems, globalSystemOpacity);
+    if (!style.color) return undefined;
+    return { backgroundColor: style.color };
   };
 
   const getRowClass = (params: any) => {

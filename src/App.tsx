@@ -39,7 +39,6 @@ function App() {
   const systems = useZoneStore((s) => s.systems);
   const analysisPresets = useZoneStore((s) => s.analysisPresets);
   const stylePresets = useZoneStore((s) => s.stylePresets);
-  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const columnState = useZoneStore((s) => s.columnState);
   const activeProjectIdInZoneStore = useZoneStore((s) => s.activeProjectId);
   const loadWorkspaceState = useZoneStore((s) => s.loadState);
@@ -114,15 +113,14 @@ function App() {
         zones, 
         floors, 
         systems, 
-        analysisPresets, 
-        stylePresets, 
-        isSystemColoringEnabled,
+        analysisPresets,
+        stylePresets,
+        isSystemColoringEnabled: useZoneStore.getState().isSystemColoringEnabled,
         columnState
-      };
-      debouncedSync(activeProject.id, stateToSync);
-    }
-  }, [zones, floors, systems, analysisPresets, stylePresets, isSystemColoringEnabled, columnState, activeProject?.id, debouncedSync]);
-
+        };
+        debouncedSync(activeProject.id, stateToSync);
+        }
+        }, [zones, floors, systems, analysisPresets, stylePresets, columnState, activeProject?.id, debouncedSync]);
   // KEYBOARD SHORTCUTS LOGIC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

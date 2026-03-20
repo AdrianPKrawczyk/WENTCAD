@@ -14,7 +14,6 @@ export function VersionHistoryPanel() {
   const systems = useZoneStore((s) => s.systems);
   const analysisPresets = useZoneStore((s) => s.analysisPresets);
   const stylePresets = useZoneStore((s) => s.stylePresets);
-  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const columnState = useZoneStore((s) => s.columnState);
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
@@ -30,12 +29,11 @@ export function VersionHistoryPanel() {
       zones, 
       floors, 
       systems, 
-      analysisPresets, 
-      stylePresets, 
-      isSystemColoringEnabled, 
+      analysisPresets,
+      stylePresets,
+      isSystemColoringEnabled: useZoneStore.getState().isSystemColoringEnabled,
       globalSystemOpacity,
-      columnState,
-      globalTagSettings,
+      columnState,      globalTagSettings,
       globalPatternScale
     });
     setNewSnapshotName('');

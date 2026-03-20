@@ -122,7 +122,6 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const toggleSystemVisibility = useZoneStore((s) => s.toggleSystemVisibility);
   const isZoneFilterPanelOpen = useZoneStore((s) => s.isZoneFilterPanelOpen);
   const setZoneFilterPanelOpen = useZoneStore((s) => s.setZoneFilterPanelOpen);
-  const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const globalPatternScale = useZoneStore((s) => s.globalPatternScale) || 1.0;
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
@@ -1377,8 +1376,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             if (isSupplyHidden || isExhaustHidden || isNoneHidden) return null;
 
             const style = resolveZoneStyle(zone, systems, globalSystemOpacity);
-            const shouldUseSystemStyle = isSystemColoringEnabled && style.color;
-            const baseColor = shouldUseSystemStyle ? (style.color || '#0ea5e9') : '#0ea5e9';
+            const baseColor = style.color || '#0ea5e9';
             
             const isRedefining = redefiningZoneId === poly.zoneId;
             const isChecked = checkedZoneIds.includes(zone.id);
@@ -1386,7 +1384,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
 
             let currentFill = isRedefining ? '#ef444460' : baseColor;
             if (!isRedefining && !isChecked && !isSelected) {
-               if (shouldUseSystemStyle && style.color) {
+               if (style.color) {
                   currentFill = style.color; 
                } else {
                   currentFill = baseColor + '40';
@@ -1551,7 +1549,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 {/* Visible line */}
                 <Line
                   points={[source.x, source.y, target.x, target.y]}
-                  stroke={isSystemColoringEnabled ? edgeColor : '#94a3b8'}
+                  stroke={edgeColor}
                   strokeWidth={(isSelected ? 7 : 5) / scale}
                   lineCap="round"
                   lineJoin="round"
@@ -1579,8 +1577,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 x={node.x}
                 y={node.y}
                 radius={(isActive || isSelected ? 7 : 5) / scale}
-                fill={isActive || isSelected ? '#ffffff' : (isSystemColoringEnabled ? nodeColor : '#cbd5e1')}
-                stroke={isSystemColoringEnabled ? nodeColor : '#94a3b8'}
+                fill={isActive || isSelected ? '#ffffff' : nodeColor}
+                stroke={nodeColor}
                 strokeWidth={(isActive || isSelected ? 3 : 2) / scale}
                 draggable={currentTool === null}
                 onMouseEnter={(e: any) => {
@@ -1724,7 +1722,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           {(currentTool === 'DRAW_DUCT') && activeNodeId && ductNodes[activeNodeId] && (
             <Line
               points={[ductNodes[activeNodeId].x, ductNodes[activeNodeId].y, mousePos.x, mousePos.y]}
-              stroke={isSystemColoringEnabled && drawingSystemId ? (systems.find(s => s.id === drawingSystemId)?.color || '#0ea5e9') : '#0ea5e9'}
+              stroke={drawingSystemId ? (systems.find(s => s.id === drawingSystemId)?.color || '#0ea5e9') : '#0ea5e9'}
               strokeWidth={4 / scale}
               dash={[10 / scale, 5 / scale]}
               opacity={0.7}

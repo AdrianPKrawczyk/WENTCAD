@@ -533,3 +533,12 @@
     - **Naprawa**: Wprowadzono bezpieczne rzutowanie `String(error)` oraz sprawdzanie `typeof error === 'string'` przed operacjami na tekście.
 - **Weryfikacja**: Aplikacja przeszła testy manualne i automatyczne przy użyciu `browser_subagent`. Potwierdzono poprawne ładowanie dashboardu, tworzenie projektów oraz stabilność etapu instalacji.
 - **Pliki**: `src/main.tsx`, `src/App.tsx`, `src/components/ProjectDashboard.tsx`, `src/components/DuctPropertiesPanel.tsx`.
+
+### Iteracja 3.2.3: Naprawa Kolorowania Systemowego i Wizualizacji - 2026-03-20
+- **Wymuszenie Kolorów Systemowych**: Rozwiązano problem "jasnoniebieskich stref" oraz szarych linii instalacji. Usunięto zależność renderowania od globalnego przełącznika `isSystemColoringEnabled` w module CAD. 
+- **Logika Renderowania**: 
+    - Strefy architektoniczne (`Polygons`) oraz sieć rur (`Ducts`) od teraz zawsze pobierają kolory bezpośrednio z algorytmu `resolveZoneStyle` i definicji systemów.
+    - Gwarantuje to czytelność instalacji (np. czerwony wyciąg, zielony nawiew) niezależnie od ustawień widoku tabeli.
+- **Naprawa Linii Draftu**: Dynamiczna linia podglądu podczas rysowania (`DRAW_DUCT`) również została zsynchronizowana z kolorem wybranego systemu.
+- **Cleanup**: Usunięto nieużywane zmienne i poprawiono tablice zależności w hookach `useEffect` (m.in. w `App.tsx`, `AirBalanceTable.tsx`), co wyeliminowało ostrzeżenia lintera i potencjalne błędy wydajnościowe.
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/App.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/VersionHistoryPanel.tsx`.
