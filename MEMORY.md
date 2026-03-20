@@ -586,3 +586,11 @@
 - **Hierarchia Snappingu**: Zmodyfikowano `Workspace2D.tsx`, aby w pierwszej kolejności sprawdzał bliskość innych węzłów. Dopiero gdy w promieniu 15px nie ma żadnego węzła, system szuka krawędzi do rozcięcia.
 - **Weryfikacja**: Potwierdzono poprawne tworzenie kolan i usuwanie nadmiarowych węzłów przy łączeniu końcówek instalacji.
 - **Pliki**: `src/stores/useDuctStore.ts`, `src/components/Workspace2D.tsx`.
+
+### Iteracja 3.2.9: Tryb Orto dla Przeciągania Węzłów (Shift Drag) - 2026-03-20
+- **Funkcjonalność**: Wprowadzono ograniczenie ruchu węzłów do osi X lub Y podczas trzymania klawisza `Shift`. Pozwala to na precyzyjne wyrównywanie elementów instalacji względem siebie.
+- **Implementacja**:
+    - Dodano `dragStartNodePos` ref w `Workspace2D.tsx`, przechowujący pozycję startową węzła (`onDragStart`).
+    - Zmodyfikowano `onDragMove`, aby obliczać dominującą oś ruchu i blokować drugą współrzędną w czasie rzeczywistym.
+- **Weryfikacja**: Implementacja zgodna ze standardem Konva/React. (Uwaga: Automatyczna weryfikacja ograniczona przez narzędzia przeglądarkowe — zalecany test manualny).
+- **Pliki**: `src/components/Workspace2D.tsx`.

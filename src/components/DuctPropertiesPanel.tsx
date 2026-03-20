@@ -16,15 +16,13 @@ export function DuctPropertiesPanel() {
   
   const systems = useZoneStore((s) => s.systems);
   const floors = useZoneStore((s) => s.floors);
-  const canvasFloors = useCanvasStore((s) => s.floors);
 
   const activeNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const activeEdge = selectedEdgeId ? edges[selectedEdgeId] : null;
 
   if (!activeNode && !activeEdge) return null;
 
-  const floor = activeNode ? floors[activeNode.floorId] : (activeEdge ? floors[nodes[activeEdge.sourceNodeId]?.floorId] : null);
-  const canvasFloor = activeNode ? canvasFloors[activeNode.floorId] : (activeEdge ? canvasFloors[nodes[activeEdge.sourceNodeId]?.floorId] : null);
+  const floor = activeNode ? floors[activeNode.floorId] : (activeEdge ? floors[nodes[activeEdge.targetNodeId]?.floorId] : null);
 
   const handleClose = () => {
     setSelectedNodeId(null);
@@ -108,7 +106,7 @@ export function DuctPropertiesPanel() {
                   onChange={(e) => updateNode(activeNode.id, { systemId: e.target.value })}
                 >
                   {systems.map(sys => (
-                    <option key={sys.id} value={sys.id}>{sys.name}</option>
+                    <option key={sys.id} value={sys.id}>{sys.id}: {sys.name}</option>
                   ))}
                 </select>
               </div>
@@ -154,7 +152,7 @@ export function DuctPropertiesPanel() {
                   onChange={(e) => updateEdge(activeEdge.id, { systemId: e.target.value })}
                 >
                   {systems.map(sys => (
-                    <option key={sys.id} value={sys.id}>{sys.name}</option>
+                    <option key={sys.id} value={sys.id}>{sys.id}: {sys.name}</option>
                   ))}
                 </select>
               </div>

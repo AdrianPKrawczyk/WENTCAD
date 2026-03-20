@@ -306,6 +306,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const isPanning = useRef(false);
   const isSpaceDown = useRef(false);
   const lastPointerPos = useRef({ x: 0, y: 0 });
+  const dragStartNodePos = useRef<{ x: number, y: number } | null>(null);
 
   // Zoom to pointer
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -1623,6 +1624,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 stroke={nodeColor}
                 strokeWidth={(isActive || isSelected ? 3 : 2) / scale}
                 draggable={currentTool === null}
+                onDragStart={(_) => {
+                  dragStartNodePos.current = { x: node.x, y: node.y };
+                }}
                 onMouseEnter={(e: any) => {
                   const container = e.target.getStage()?.container();
                   if (container) {
@@ -1637,8 +1641,22 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 }}
                 onDragMove={(e) => {
                   if (currentTool === null) {
-                    const newX = e.target.x();
-                    const newY = e.target.y();
+                    let newX = e.target.x();
+                    let newY = e.target.y();
+
+                    // ORTHO snapping
+                    if (e.evt.shiftKey && dragStartNodePos.current) {
+                      const dx = Math.abs(newX - dragStartNodePos.current.x);
+                      const dy = Math.abs(newY - dragStartNodePos.current.y);
+                      if (dx > dy) {
+                        newY = dragStartNodePos.current.y;
+                      } else {
+                        newX = dragStartNodePos.current.x;
+                      }
+                      e.target.x(newX);
+                      e.target.y(newY);
+                    }
+
                     updateDuctNode(node.id, { x: newX, y: newY });
                     
                     // Recalculate lengths of connected edges
@@ -2327,7 +2345,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             >
               <option value="" disabled>Wybierz system...</option>
               {systems.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>{s.id}: {s.name}</option>
               ))}
             </select>
           </div>
