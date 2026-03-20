@@ -1,7 +1,33 @@
+import React from 'react';
 import { useStore } from 'zustand';
-import { Undo2, Redo2, FolderSync, Clock, User, Eye, EyeOff, Settings2 } from 'lucide-react';
+import { 
+  Settings2, 
+  Clock, 
+  User, 
+  Eye, 
+  EyeOff, 
+  Download,
+  Upload,
+  Undo2,
+  Redo2,
+  FolderSync
+} from 'lucide-react';
+import { useUIStore } from '../stores/useUIStore';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useProjectStore } from '../stores/useProjectStore';
+import { exportCurrentProjectData, downloadProjectFile } from '../lib/projectTransfer';
+import { ProjectImportModal } from './ProjectImportModal';
+import { importProjectService } from '../lib/importProjectService';
+
+const STAGE_NAMES: Record<number, string> = {
+  1: 'Krok 1 (Bilans)',
+  2: 'Krok 2 (Podkłady)',
+  3: 'Krok 3 (Instalacje)',
+  4: 'Krok 4 (Aksonometria)',
+  5: 'Krok 5 (Akustyka)',
+  6: 'Krok 6 (Zestawienia)',
+  7: 'Krok 7 (Eksport)',
+};
 
 interface TopBarProps {
   onOpenVersionHistory: () => void;
@@ -11,6 +37,9 @@ interface TopBarProps {
 export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps) {
   const activeProject = useProjectStore((s) => s.activeProject);
   const setActiveProject = useProjectStore((s) => s.setActiveProject);
+  const currentStage = useUIStore((s) => s.currentStage);
+  
+  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
   
   // Temporal store for Undo/Redo
   const temporalStore = useZoneStore.temporal;
@@ -32,8 +61,15 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
           className="flex flex-col cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors"
           onClick={() => setActiveProject(null)}
         >
-          <h1 className="text-sm font-bold leading-tight">WENTCAD</h1>
-          <span className="text-[10px] text-gray-500 tracking-widest uppercase">Pulpit Inżyniera</span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-bold leading-tight">WENTCAD</h1>
+            {activeProject && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-indigo-700 text-[10px] font-bold uppercase tracking-wider">
+                {STAGE_NAMES[currentStage] || `Krok ${currentStage}`}
+              </div>
+            )}
+          </div>
+          <span className="text-[10px] text-gray-500 tracking-widest uppercase mt-0.5">Pulpit Inżyniera</span>
         </div>
 
         <div className="h-6 w-px bg-gray-200"></div>
@@ -112,6 +148,27 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
       
       <div className="flex items-center space-x-3">
         <button 
+          onClick={() => setIsImportModalOpen(true)}
+          className="p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-all flex items-center gap-2 text-sm font-medium border border-transparent hover:border-slate-300"
+          title="Wczytaj i połącz plik projektu (.wentcad)"
+        >
+          <Upload className="w-5 h-5" />
+          Wczytaj
+        </button>
+        <button 
+          onClick={() => {
+            const data = exportCurrentProjectData();
+            if (data) {
+              downloadProjectFile(data);
+            }
+          }}
+          className="p-2 rounded-md hover:bg-indigo-50 text-indigo-600 transition-all flex items-center gap-2 text-sm font-medium border border-transparent hover:border-indigo-200"
+          title="Pobierz plik projektu z kopią zapasową (.wentcad)"
+        >
+          <Download className="w-5 h-5" />
+          Zapisz (.wentcad)
+        </button>
+        <button 
           onClick={onOpenVersionHistory}
           className={`p-2 rounded-md transition-all flex items-center gap-2 text-sm font-medium ${
             isVersionPanelOpen 
@@ -133,6 +190,19 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
            </div>
         </div>
       </div>
+
+      <ProjectImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        currentProjectId={activeProject?.id}
+        onImport={async (data, options) => {
+          try {
+            await importProjectService.execute(data, options);
+          } catch (e: any) {
+             alert('Błąd importu: ' + e.message);
+          }
+        }}
+      />
     </header>
   );
 }

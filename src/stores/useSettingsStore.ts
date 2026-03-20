@@ -16,7 +16,8 @@ export interface ExportProfile {
   scope: 'ALL_FLOORS' | 'ACTIVE_FLOOR';
   includeBalanceTable: boolean;
   includeRoomCards: boolean;
-  fontFamily: 'helvetica' | 'times' | 'courier';
+  includeSummaries: boolean;
+  fontFamily: 'helvetica' | 'times' | 'courier' | 'roboto';
   fontSize: number;
   columnProfileId: string | null;
 }

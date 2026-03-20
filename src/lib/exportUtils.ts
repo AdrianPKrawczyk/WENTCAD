@@ -9,7 +9,8 @@ type ExportOptions = {
   scope: 'ALL_FLOORS' | 'ACTIVE_FLOOR';
   includeBalanceTable: boolean;
   includeRoomCards: boolean;
-  fontFamily: 'helvetica' | 'times' | 'courier';
+  includeSummaries: boolean;
+  fontFamily: 'helvetica' | 'times' | 'courier' | 'roboto';
   fontSize: number;
   columnProfileName?: string;
   columnState?: ColumnState[];
@@ -73,18 +74,141 @@ export async function exportData(
   if (options.format === 'PDF') {
     // Generate PDF (A3 Landscape is best for large tables)
     const doc = new jsPDF({ orientation: 'landscape', format: 'a3' });
-    doc.setFont(options.fontFamily);
+    
+    if (options.fontFamily === 'roboto') {
+      try {
+        const [regResp, boldResp] = await Promise.all([
+          fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf'),
+          fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf')
+        ]);
+        
+        const regBuffer = await regResp.arrayBuffer();
+        const boldBuffer = await boldResp.arrayBuffer();
+        
+        const toBase64 = (buf: ArrayBuffer) => {
+          let binary = '';
+          const bytes = new Uint8Array(buf);
+          for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+          return btoa(binary);
+        };
+
+        doc.addFileToVFS("Roboto-Regular.ttf", toBase64(regBuffer));
+        doc.addFont("Roboto-Regular.ttf", "roboto", "normal");
+        
+        doc.addFileToVFS("Roboto-Medium.ttf", toBase64(boldBuffer));
+        doc.addFont("Roboto-Medium.ttf", "roboto", "bold");
+        
+        doc.setFont("roboto");
+      } catch (e) {
+        console.error("Failed to load Roboto font, falling back to Helvetica", e);
+        doc.setFont("helvetica");
+      }
+    } else {
+      doc.setFont(options.fontFamily);
+    }
+    
+    let currentY = 20;
+
+    // --- ZESTAWIENIA (SUMMARIES) ---
+    if (options.includeSummaries) {
+      doc.setFontSize(20);
+      doc.setFont(options.fontFamily, 'bold');
+      doc.text("Podsumowanie Projektu", 14, currentY);
+      currentY += 12;
+
+      // 1. Zestawienie Globalne (Budynek)
+      const totalArea = filteredZones.reduce((sum, z) => sum + (z.area || 0), 0);
+      const totalVol = filteredZones.reduce((sum, z) => sum + (z.manualVolume ?? ((z.area||0)*(z.height||0))), 0);
+      const totalSup = filteredZones.reduce((sum, z) => sum + (z.calculatedVolume || 0), 0);
+      const totalExh = filteredZones.reduce((sum, z) => sum + (z.calculatedExhaust || 0), 0);
+
+      doc.setFontSize(14);
+      doc.text("1. Dane Ogólne", 14, currentY);
+      currentY += 4;
+      
+      autoTable(doc, {
+        startY: currentY,
+        body: [
+          ['Ilość Pomieszczeń:', String(filteredZones.length), 'Powierzchnia Całk.:', `${totalArea.toFixed(2)} m²`],
+          ['Kubatura Całk.:', `${totalVol.toFixed(2)} m³`, 'Bilans Wymiany:', `${(totalSup - totalExh).toFixed(2)} m³/h`],
+          ['Nawiew Całkowity:', `${totalSup.toFixed(2)} m³/h`, 'Wywiew Całkowity:', `${totalExh.toFixed(2)} m³/h`],
+        ],
+        theme: 'grid',
+        styles: { font: options.fontFamily, fontSize: 11, cellPadding: 3, textColor: [40, 40, 40] },
+        columnStyles: { 0: { fontStyle: 'bold', fillColor: [240, 244, 250] }, 2: { fontStyle: 'bold', fillColor: [240, 244, 250] } },
+        margin: { left: 14 }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // 2. Zestawienie na Kondygnacje
+      const floorSummaries: Record<string, { name: string, area: number, sup: number, exh: number, count: number }> = {};
+      filteredZones.forEach(z => {
+        if (!floorSummaries[z.floorId]) floorSummaries[z.floorId] = { name: floors[z.floorId]?.name || z.floorId, area: 0, sup: 0, exh: 0, count: 0 };
+        floorSummaries[z.floorId].area += (z.area || 0);
+        floorSummaries[z.floorId].sup += (z.calculatedVolume || 0);
+        floorSummaries[z.floorId].exh += (z.calculatedExhaust || 0);
+        floorSummaries[z.floorId].count += 1;
+      });
+
+      doc.text("2. Zestawienie Kondygnacji", 14, currentY);
+      currentY += 4;
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Kondygnacja', 'Ilość Pokoi', 'Powierzchnia [m²]', 'Suma Nawiewu [m³/h]', 'Suma Wywiewu [m³/h]']],
+        body: Object.values(floorSummaries).map(f => [f.name, String(f.count), f.area.toFixed(2), f.sup.toFixed(2), f.exh.toFixed(2)]),
+        theme: 'grid',
+        styles: { font: options.fontFamily, fontSize: 10, cellPadding: 2 },
+        headStyles: { fillColor: [71, 85, 105] },
+        margin: { left: 14 }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // 3. Zestawienie Maszyn (Obciążenie Systemów)
+      const sysSummaries: Record<string, { type: 'Nawiew' | 'Wywiew', flow: number, rooms: number }> = {};
+      filteredZones.forEach(z => {
+        if (z.systemSupplyId && z.calculatedVolume > 0) {
+          if (!sysSummaries[z.systemSupplyId]) sysSummaries[z.systemSupplyId] = { type: 'Nawiew', flow: 0, rooms: 0 };
+          sysSummaries[z.systemSupplyId].flow += z.calculatedVolume;
+          sysSummaries[z.systemSupplyId].rooms += 1;
+        }
+        if (z.systemExhaustId && z.calculatedExhaust > 0) {
+          if (!sysSummaries[z.systemExhaustId]) sysSummaries[z.systemExhaustId] = { type: 'Wywiew', flow: 0, rooms: 0 };
+          sysSummaries[z.systemExhaustId].flow += z.calculatedExhaust;
+          sysSummaries[z.systemExhaustId].rooms += 1;
+        }
+      });
+
+      if (Object.keys(sysSummaries).length > 0) {
+        doc.text("3. Zapotrzebowanie i Klasyfikacja Systemów", 14, currentY);
+        currentY += 4;
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Identyfikator Systemu', 'Funkcja', 'Obsługiwane Pokoje', 'Zapotrzebowanie Całkowite [m³/h]']],
+          body: Object.entries(sysSummaries).map(([id, data]) => [id, data.type, String(data.rooms), data.flow.toFixed(2)]),
+          theme: 'grid',
+          styles: { font: options.fontFamily, fontSize: 10, cellPadding: 2 },
+          headStyles: { fillColor: [15, 118, 110] }, // Teal
+          margin: { left: 14 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 15;
+      }
+    }
     
     if (options.includeBalanceTable) {
+      if (options.includeSummaries) doc.addPage();
+      currentY = 20;
+
       doc.setFontSize(16);
-      doc.text("Tabela Bilansu Powietrza", 14, 20);
+      doc.setFont(options.fontFamily, 'bold');
+      doc.text("Tabela Bilansu Powietrza", 14, currentY);
       
       const subText = options.scope === 'ALL_FLOORS' ? "Cały Projekt" : `Kondygnacja: ${floors[activeFloorId]?.name || activeFloorId}`;
       doc.setFontSize(10);
-      doc.text(subText, 14, 26);
+      doc.setFont(options.fontFamily, 'normal');
+      doc.text(subText, 14, currentY + 6);
       
       autoTable(doc, {
-        startY: 32,
+        startY: currentY + 12,
         head: [tableHeaders],
         body: tableData,
         styles: {
@@ -104,37 +228,61 @@ export async function exportData(
 
     if (options.includeRoomCards) {
       // Room cards logic (Start a new page if table exists)
-      if (options.includeBalanceTable) {
+      if (options.includeBalanceTable || options.includeSummaries) {
         doc.addPage();
       }
       
-      let yOffset = 20;
-      doc.setFontSize(16);
-      doc.text("Karty Pomieszczeń", 14, yOffset);
-      yOffset += 10;
-      doc.setFontSize(10);
+      currentY = 20;
+      doc.setFontSize(18);
+      doc.setFont(options.fontFamily, 'bold');
+      doc.text("Karty Szczegółowe Pomieszczeń", 14, currentY);
+      currentY += 12;
       
       for (const z of filteredZones) {
-        // Draw card per room
-        if (yOffset > doc.internal.pageSize.height - 60) {
+        // Oblicz czy karta (ok. 50px) zmieści się na stronie
+        if (currentY > doc.internal.pageSize.height - 60) {
           doc.addPage();
-          yOffset = 20;
+          currentY = 20;
         }
-        
-        doc.setFontSize(12);
+
+        // Title of the room card
+        doc.setFontSize(14);
         doc.setFont(options.fontFamily, 'bold');
-        doc.text(`[${z.nr}] ${z.name}`, 14, yOffset);
-        yOffset += 6;
-        
-        doc.setFontSize(options.fontSize);
-        doc.setFont(options.fontFamily, 'normal');
-        
-        doc.text(`Typ: ${z.activityType}    Osoby: ${z.occupants}`, 14, yOffset);
-        yOffset += 5;
-        doc.text(`Powierzchnia: ${z.area.toFixed(2)} m²    Krotność Rzecz.: ${(z.realACH || 0).toFixed(2)} [1/h]`, 14, yOffset);
-        yOffset += 5;
-        doc.text(`Obliczeniowy Nawiew: ${z.calculatedVolume} m³/h    Obliczeniowy Wywiew: ${z.calculatedExhaust} m³/h`, 14, yOffset);
-        yOffset += 15;
+        doc.text(`[${z.nr}] ${z.name}`, 14, currentY);
+        currentY += 4;
+
+        // AutoTable for Room Metadata
+        const cardData = [
+          ['Typ Pomieszczenia:', z.activityType, 'Liczba Osób:', String(z.occupants)],
+          ['Powierzchnia:', `${z.area.toFixed(2)} m²`, 'Wysokość:', `${z.height.toFixed(2)} m`],
+          ['Nawiew Obliczeniowy:', `${z.calculatedVolume} m³/h`, 'Wywiew Obliczeniowy:', `${z.calculatedExhaust} m³/h`],
+          ['Zadana Krotność:', `${(z.isTargetACHManual ? z.manualTargetACH : z.targetACH)?.toFixed(2) || '-'} [1/h]`, 'Rzeczywista Krotność:', `${(z.realACH || 0).toFixed(2)} [1/h]`],
+          ['System Nawiewu:', z.systemSupplyId || 'Brak', 'System Wywiewu:', z.systemExhaustId || 'Brak'],
+        ];
+
+        autoTable(doc, {
+          startY: currentY,
+          body: cardData,
+          theme: 'grid',
+          styles: {
+            font: options.fontFamily,
+            fontSize: options.fontSize,
+            cellPadding: 3,
+            textColor: [60, 60, 60],
+            lineColor: [220, 220, 220],
+            lineWidth: 0.1,
+          },
+          columnStyles: {
+            0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 45 },
+            1: { cellWidth: 60 },
+            2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 45 },
+            3: { cellWidth: 60 }
+          },
+          margin: { left: 14 }
+        });
+
+        // @ts-ignore - autotable sets finalY on doc
+        currentY = (doc as any).lastAutoTable.finalY + 15;
       }
     }
 
@@ -143,6 +291,22 @@ export async function exportData(
   else if (options.format === 'XLSX') {
     // Generate Excel File
     const wb = XLSX.utils.book_new();
+
+    if (options.includeSummaries) {
+      // Globals
+      const totalArea = filteredZones.reduce((sum, z) => sum + (z.area || 0), 0);
+      const totalSup = filteredZones.reduce((sum, z) => sum + (z.calculatedVolume || 0), 0);
+      const totalExh = filteredZones.reduce((sum, z) => sum + (z.calculatedExhaust || 0), 0);
+      const ws_summ = XLSX.utils.aoa_to_sheet([
+        ['Podsumowanie Projektu'],
+        [],
+        ['Ilość Pomieszczeń', filteredZones.length],
+        ['Powierzchnia Całk. [m²]', totalArea.toFixed(2)],
+        ['Nawiew Całk. [m³/h]', totalSup.toFixed(2)],
+        ['Wywiew Całk. [m³/h]', totalExh.toFixed(2)],
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws_summ, "Dane Ogólne");
+    }
 
     if (options.includeBalanceTable) {
       // Create worksheet

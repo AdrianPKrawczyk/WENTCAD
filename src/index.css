@@ -10,3 +10,31 @@ body {
   padding: 0;
   overscroll-behavior: none;
 }
+
+/* Niestandardowe Nagłówki Kolumn AG-Grid (Złamanie tekstu + ikony pod tekstem) */
+.custom-ag-headers .ag-header-cell-label {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding-top: 6px !important;
+  padding-bottom: 2px !important;
+  height: 100% !important;
+}
+
+.custom-ag-headers .ag-header-cell-text {
+  text-align: center !important;
+  white-space: normal !important; /* Wymuszenie łamania tekstu w AG-Grid */
+  line-height: 1.1 !important;
+  margin-bottom: 4px !important;
+  width: 100% !important;
+}
+
+/* Icons container should take a full row below */
+.custom-ag-headers .ag-header-cell-menu-button,
+.custom-ag-headers .ag-header-icon {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 !important;
+}

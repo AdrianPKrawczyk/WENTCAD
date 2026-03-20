@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '../stores/useProjectStore';
 import { useZoneStore } from '../stores/useZoneStore';
+import { exportProjectFromDashboard, downloadProjectFile } from '../lib/projectTransfer';
+import { ProjectImportModal } from './ProjectImportModal';
+import { importProjectService } from '../lib/importProjectService';
 import type { Project } from '../types';
 
 export function ProjectDashboard() {
@@ -10,6 +13,7 @@ export function ProjectDashboard() {
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [search, setSearch] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -67,6 +71,16 @@ export function ProjectDashboard() {
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all shadow-lg shadow-blue-900/40 disabled:opacity-50 min-w-[180px]"
             >
               {isCreating ? 'Tworzenie...' : 'Utwórz Nowy Projekt'}
+            </button>
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white border border-slate-600 hover:border-indigo-500 rounded-lg font-semibold transition-all flex items-center gap-2"
+              title="Wczytaj projekt WENTCAD z dysku"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Zaimportuj...
             </button>
           </div>
           {useProjectStore.getState().error && (
@@ -128,20 +142,37 @@ export function ProjectDashboard() {
                       </div>
                     </div>
                     
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Czy na pewno usunąć projekt "${project.name}"?`)) {
-                          deleteProject(project.id);
-                        }
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-500 transition-all rounded-lg"
-                      title="Usuń projekt"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center space-x-1">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const data = exportProjectFromDashboard(project);
+                          if (data) {
+                            downloadProjectFile(data);
+                          }
+                        }}
+                        className="p-2 text-slate-500 hover:text-indigo-400 transition-all rounded-lg"
+                        title="Pobierz plik projektu (.wentcad)"
+                      >
+                        <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Czy na pewno usunąć projekt "${project.name}"?`)) {
+                            deleteProject(project.id);
+                          }
+                        }}
+                        className="p-2 text-slate-500 hover:text-red-500 transition-all rounded-lg"
+                        title="Usuń projekt"
+                      >
+                        <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -149,6 +180,21 @@ export function ProjectDashboard() {
           )}
         </div>
       </div>
+
+      <ProjectImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        currentProjectId={useProjectStore.getState().activeProject?.id}
+        onImport={async (data, options) => {
+          try {
+            await importProjectService.execute(data, options);
+            // After successful import, re-fetch list
+            fetchProjects();
+          } catch (e: any) {
+             alert('Błąd importu: ' + e.message);
+          }
+        }}
+      />
     </div>
   );
 }

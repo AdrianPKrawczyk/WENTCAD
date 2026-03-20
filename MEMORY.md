@@ -477,3 +477,24 @@
   - Dodano możliwość ustalania formatowania PDF (typ czcionki i jej wymiar). Umożliwiono zapis profilu eksportu do pamięci trwałej `useSettingsStore` w celu ponownego i szybkiego generowania zaawansowanych raportów dla kolejnych projektów.
   - Skrypt generowania PDF/XLS znajduje się w nowym pliku usług: `src/lib/exportUtils.ts`. Wykorzystuje płaskie mapowanie tabel na format kompatybilny z `AutoTable` oraz arkuszami binarnymi Excela. Puste parametry są czyszczone do domyślnych by łagodzić błędy TypeScript w obydwu formatach.  
   - **Pliki**: `src/components/ExportDashboard.tsx`, `src/lib/exportUtils.ts`, `src/stores/useSettingsStore.ts`, `src/App.tsx`
+
+- **Poprawka 2.11.5 (2026-03-20): Udoskonalenie Eksportu PDF (Fonty i Zestawienia)**
+  - **Obsługa Polskich Znaków**: Wprowadzono dynamiczne wstrzykiwanie czcionki `Roboto` do `jsPDF`. Skrypt asynchronicznie pobiera pliki `.ttf` z CDN, konwertuje na Base64 i rejestruje w VFS, eliminując błędy kodowania w raportach.
+  - **Tabele Podsumowań**: Dodano funkcję "Zestawienia" (Globalne, Kondygnacji, Systemów) do `exportUtils.ts` (opcja w `ExportDashboard.tsx`). Agregują one dane o powierzchniach i sumach przepływów niezbędne do doboru central/wentylatorów.
+  - **Rozbudowane Karty Pomieszczeń**: Zastąpiono proste wiersze tekstu sformalizowanymi wielosekcyjnymi tabelami `AutoTable` (grid layout), kategoryzując dane na Geometrię i Systemy.
+  - **Pliki**: `src/lib/exportUtils.ts`, `src/components/ExportDashboard.tsx`, `src/stores/useSettingsStore.ts`.
+
+- **Poprawka 2.11.6 (2026-03-20): Optymalizacja UX Nagłówków AG-Grid**
+  - **Zmiana Układu (Flex Column)**: Przebudowano strukturę nagłówków w `AirBalanceTable.tsx`. Przeniesiono ikony filtrów i menu poniżej nazwy kolumny, co drastycznie poprawiło czytelność długich nazw przy wąskich kolumnach.
+  - **Formatowanie Tekstu**: Włączono `wrapHeaderText` oraz `white-space: normal`, pozwalające na łamanie nazw kolumn do wielu linii.
+  - **Wysokość Nagłówka**: Ustalono stałą wysokość `headerHeight: 80px`.
+  - **Pliki**: `src/components/AirBalanceTable.tsx`, `src/index.css`.
+
+- **Nowy Moduł 2.11.8 (2026-03-20): System Eksportu i Importu Projektów (.wentcad)**
+  - **Serializacja Danych**: Stworzono format `.wentcad` (JSON) przechowujący kompletny zrzut `useZoneStore` (pokoje, systemy, tagi) oraz powiązane stany `useCanvasStore` (rysunki, podkłady DXF).
+  - **Eksport**: Dodano przyciski zapisu w `TopBar.tsx` (dla aktywnego projektu) oraz `ProjectDashboard.tsx` (dla projektów z listy). Obsługiwany przez `projectTransfer.ts`.
+  - **Import Wizard**: Wdrożono `ProjectImportModal.tsx`, który pozwala na:
+    - **Odtworzenie jako Nowy Projekt**: Pełna kopia projektu w nowej bazie.
+    - **Scalanie (Merge)**: Wybiórczy import poszczególnych kondygnacji z pliku do obecnie otwartego projektu.
+  - **Bezpieczeństwo ID**: Implementacja `importProjectService.ts` zawiera algorytm `remapAllIds`, który przy każdym imporcie generuje nowe UUID dla wszystkich kondygnacji, stref i poligonów. Zapobiega to konfliktom danych i "wyciekom" rysunków między różnymi projektami w IndexDB.
+  - **Pliki**: `src/lib/projectTransfer.ts`, `src/lib/importProjectService.ts`, `src/components/ProjectImportModal.tsx`, `src/components/TopBar.tsx`, `src/components/ProjectDashboard.tsx`.

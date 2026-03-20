@@ -91,7 +91,6 @@ export function AirBalanceTable() {
     filter: true,
     resizable: true,
     wrapHeaderText: true,
-    autoHeaderHeight: true,
     onCellClicked: (params: any) => {
       if (params.column.colId === 'delete') {
         if (params.data && window.confirm(`Czy na pewno usunąć strefę ${params.data.nr} - ${params.data.name}?`)) {
@@ -820,7 +819,7 @@ export function AirBalanceTable() {
         </div>
       )}
 
-      <div style={{ height: '100%', width: '100%', flex: 1 }}>
+      <div className="custom-ag-headers" style={{ height: '100%', width: '100%', flex: 1 }}>
         <AgGridReact
           ref={gridRef}
           theme={themeQuartz}
@@ -846,7 +845,7 @@ export function AirBalanceTable() {
             checkboxes: true,
           }}
           suppressRowClickSelection={true}
-          headerHeight={48}
+          headerHeight={80}
           defaultColDef={defaultColDef}
         />
       </div>
