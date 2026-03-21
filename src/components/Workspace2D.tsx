@@ -8,7 +8,7 @@ import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
 import { calculatePolygonArea, calculatePolygonCentroid, getClosestPointOnSegment } from '../lib/geometryUtils';
 import { createPatternImage } from '../lib/patternUtils';
-import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2, Box as BoxIcon, Circle as CircleIcon, Minus, Wind, ArrowUp, ArrowDown, Triangle, ChevronDown, Circle as CircleDot } from 'lucide-react';
+import { ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, Move, Loader2, Ruler, PencilRuler, Crosshair, Hexagon, X, Eye, EyeOff, Layers, Link, Tag as TagIcon, Download, Crop, Route, MousePointer2, Box as BoxIcon, Circle as CircleIcon, Minus, Wind, ArrowUp, ArrowDown, Triangle, ChevronDown, Circle as CircleDot, GripVertical } from 'lucide-react';
 import { CalibrationModal } from './CalibrationModal';
 import { SmartTagModal } from './SmartTagModal';
 import { toast } from 'sonner';
@@ -150,6 +150,9 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
 
 export function Workspace2D({ className }: Workspace2DProps) {
   const currentStage = useUIStore((s) => s.currentStage);
+  const isFloorSwitcherVisible = useUIStore((s) => s.isFloorSwitcherVisible);
+  const floorSwitcherPosition = useUIStore((s) => s.floorSwitcherPosition);
+  const setFloorSwitcherPosition = useUIStore((s) => s.setFloorSwitcherPosition);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const uiLayerRef = useRef<Konva.Layer>(null);
@@ -270,6 +273,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [forceHideUnderlay, setForceHideUnderlay] = useState(false);
   const [editingRegionId, setEditingRegionId] = useState<string | null>(null);
+
+  // Dragging state for Floor Switcher
+  const [isDraggingFloorSwitcher, setIsDraggingFloorSwitcher] = useState(false);
+  const [floorSwitcherDragOffset, setFloorSwitcherDragOffset] = useState({ x: 0, y: 0 });
 
   const linkingZoneId = useZoneStore((s) => s.linkingZoneId);
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
@@ -897,6 +904,29 @@ export function Workspace2D({ className }: Workspace2DProps) {
     }
   }, [isCalibrating, isMeasuring, isSettingOrigin, isDrawingPolygon]);
 
+  // Handle Floor Switcher dragging
+  useEffect(() => {
+    if (!isDraggingFloorSwitcher) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      setFloorSwitcherPosition({
+        x: e.clientX - floorSwitcherDragOffset.x,
+        y: e.clientY - floorSwitcherDragOffset.y
+      });
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingFloorSwitcher(false);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isDraggingFloorSwitcher, floorSwitcherDragOffset, setFloorSwitcherPosition]);
+
   // Handle file upload
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1207,29 +1237,53 @@ export function Workspace2D({ className }: Workspace2DProps) {
   return (
     <div ref={containerRef} className={`relative w-full h-full bg-[#f0f2f5] overflow-hidden select-none ${className ?? ''}`}>
       {/* FLOATING FLOOR SWITCHER */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 p-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl pointer-events-auto">
-        <span className="text-[10px] font-bold text-slate-500 uppercase px-1 tracking-wider">Kondygnacje</span>
-        <div className="flex flex-col gap-1">
-          {sortedFloors.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setActiveFloor(f.id)}
-              className={`flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeFloorId === f.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span>{f.name}</span>
-              </div>
-              {canvasFloors[f.id]?.underlayUrl && (
-                <div className={`w-1.5 h-1.5 rounded-full ${activeFloorId === f.id ? 'bg-white animate-pulse' : 'bg-green-500'}`} />
-              )}
-            </button>
-          ))}
+      {isFloorSwitcherVisible && (
+        <div 
+          className="absolute z-20 flex flex-col gap-2 p-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl pointer-events-auto transition-shadow hover:shadow-2xl"
+          style={{ 
+            left: `${floorSwitcherPosition.x}px`, 
+            top: `${floorSwitcherPosition.y}px`,
+            cursor: isDraggingFloorSwitcher ? 'grabbing' : 'default'
+          }}
+        >
+          <div 
+            className="flex items-center justify-between gap-2 px-1 cursor-grab active:cursor-grabbing group"
+            onMouseDown={(e) => {
+              const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+              if (rect) {
+                setFloorSwitcherDragOffset({
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top
+                });
+                setIsDraggingFloorSwitcher(true);
+              }
+            }}
+          >
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kondygnacje</span>
+            <GripVertical className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
+          </div>
+          <div className="flex flex-col gap-1">
+            {sortedFloors.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setActiveFloor(f.id)}
+                className={`flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeFloorId === f.id
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>{f.name}</span>
+                </div>
+                {canvasFloors[f.id]?.underlayUrl && (
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeFloorId === f.id ? 'bg-white animate-pulse' : 'bg-green-500'}`} />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       {/* FLOATING FILTER PANEL */}
       {isZoneFilterPanelOpen && (
         <div className="absolute top-4 right-4 z-20 w-64 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl p-4 flex flex-col gap-3 pointer-events-auto">

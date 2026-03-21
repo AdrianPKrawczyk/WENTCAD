@@ -7,6 +7,10 @@ interface UIState {
   setCurrentStage: (stage: number) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  isFloorSwitcherVisible: boolean;
+  setIsFloorSwitcherVisible: (visible: boolean) => void;
+  floorSwitcherPosition: { x: number, y: number };
+  setFloorSwitcherPosition: (pos: { x: number, y: number }) => void;
 }
 
 // UI State Store - Not synchronized with project data, not in undo history
@@ -15,4 +19,8 @@ export const useUIStore = create<UIState>((set) => ({
   setCurrentStage: (currentStage) => set({ currentStage }),
   viewMode: 'split-horizontal',
   setViewMode: (viewMode) => set({ viewMode }),
+  isFloorSwitcherVisible: true,
+  setIsFloorSwitcherVisible: (isFloorSwitcherVisible) => set({ isFloorSwitcherVisible }),
+  floorSwitcherPosition: { x: 16, y: 16 },
+  setFloorSwitcherPosition: (floorSwitcherPosition) => set({ floorSwitcherPosition }),
 }));

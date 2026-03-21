@@ -10,7 +10,8 @@ import {
   Upload,
   Undo2,
   Redo2,
-  FolderSync
+  FolderSync,
+  Map
 } from 'lucide-react';
 import { useUIStore } from '../stores/useUIStore';
 import { useZoneStore } from '../stores/useZoneStore';
@@ -59,6 +60,9 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
   const toggleShowZonesOnCanvas = useZoneStore((s) => s.toggleShowZonesOnCanvas);
   const isZoneFilterPanelOpen = useZoneStore((s) => s.isZoneFilterPanelOpen);
   const setZoneFilterPanelOpen = useZoneStore((s) => s.setZoneFilterPanelOpen);
+
+  const isFloorSwitcherVisible = useUIStore((s) => s.isFloorSwitcherVisible);
+  const setIsFloorSwitcherVisible = useUIStore((s) => s.setIsFloorSwitcherVisible);
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between shadow-sm z-10 shrink-0">
@@ -148,6 +152,20 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
             }`}
           >
             <Settings2 className="w-5 h-5" />
+          </button>
+
+          <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+          <button
+            onClick={() => setIsFloorSwitcherVisible(!isFloorSwitcherVisible)}
+            title={isFloorSwitcherVisible ? "Ukryj przełącznik kondygnacji" : "Pokaż przełącznik kondygnacji"}
+            className={`p-1.5 rounded-md transition-all ${
+              isFloorSwitcherVisible 
+                ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' 
+                : 'text-gray-400 hover:bg-gray-100'
+            }`}
+          >
+            <Map className="w-5 h-5" />
           </button>
         </div>
       </div>

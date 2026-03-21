@@ -752,6 +752,14 @@
 - **Weryfikacja**: Pomyślnie wykonano pełny build produkcyjny (`npm run build`). System jest gotowy do dalszego rozwoju algorytmów przepływowych.
 - **Pliki**: `src/components/AirBalanceTable.tsx`, `src/components/Workspace2D.tsx`, `src/lib/importProjectService.ts`, `src/stores/useDuctStore.ts`.
 
+### Iteration 3.3.8: Pływający Przełącznik Kondygnacji (Draggable Floor Switcher) - 2026-03-21
+- **Problem**: Stała pozycja przełącznika kondygnacji w lewym górnym rogu zasłaniała inne elementy (np. Inspektor, Tabele) i nie pozwalała na dostosowanie widoku.
+- **Rozwiązanie**: 
+    - **Draggable UI**: Wdrożono mechanizm ręcznego przesuwania przełącznika w `Workspace2D.tsx`. Dodano ikonę „uchwytu” (`GripVertical`), pozwalającą na dowolne rozmieszczenie panelu na kanwie.
+    - **Visibility Toggle**: Dodano ikonę Mapy (🗺️) w TopBarze, umożliwiającą całkowite ukrycie/pokazanie przełącznika.
+    - **Persystencja Widoku**: Stan widoczności i ostatnia pozycja są zapisywane w `useUIStore.ts`, co gwarantuje ciągłość pracy po przełączaniu etapów budowy.
+- **Pliki**: `src/stores/useUIStore.ts`, `src/components/TopBar.tsx`, `src/components/Workspace2D.tsx`.
+
 ### Iteracja 3.3.6: Naprawa Logiki Tworzenia i Synchronizacji Pionów (SHAFT) - 2026-03-21
 - **Problem 1 (Tworzenie krawędzi pionowych)**: Węzły SHAFT tworzone na sąsiednich kondygnacjach nie miały wyrysowanych niewidzialnych krawędzi pionowych z powodu użycia starego stanu `nodes` w `syncShaftToAllFloorsInRange` jako zamknięcia ujęcia.
 - **Naprawa 1**: Funkcja została przepisana, aby zawsze pobierać najnowszy stan `nodes` z `useDuctStore.getState()`. Umożliwia to zlokalizowanie nowo wykreowanych węzłów.
