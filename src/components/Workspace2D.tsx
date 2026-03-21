@@ -75,6 +75,41 @@ const ZOOM_SENSITIVITY = 1.12;
 
 const INLINE_TOOLS: DuctComponentTool[] = ['DAMPER', 'FIRE_DAMPER', 'SILENCER', 'HEATER', 'COOLER', 'FILTER_BOX'];
 
+// Helper do obliczania punktu na krawędzi urządzenia (AHU/FAN) (automatyczne porty)
+const getEdgeConnectionPoint = (node: any, targetX: number, targetY: number, scaleFactor: number) => {
+  if (node.componentCategory !== 'EQUIPMENT') return { x: node.x, y: node.y };
+  
+  const width = (node.widthCm || 50) * scaleFactor;
+  const height = (node.heightCm || 30) * scaleFactor;
+  
+  const dx = targetX - node.x;
+  const dy = targetY - node.y;
+  
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return { x: node.x, y: node.y };
+  
+  // Znajdź 4 porty (TOP, BOTTOM, LEFT, RIGHT)
+  const ports = [
+    { x: node.x, y: node.y - height / 2, name: 'TOP' },
+    { x: node.x, y: node.y + height / 2, name: 'BOTTOM' },
+    { x: node.x - width / 2, y: node.y, name: 'LEFT' },
+    { x: node.x + width / 2, y: node.y, name: 'RIGHT' }
+  ];
+  
+  // Znajdź port najbliższy celowi
+  let closestPort = ports[0];
+  let minDist = Infinity;
+  
+  for (const port of ports) {
+    const dist = Math.pow(targetX - port.x, 2) + Math.pow(targetY - port.y, 2);
+    if (dist < minDist) {
+      minDist = dist;
+      closestPort = port;
+    }
+  }
+  
+  return { x: closestPort.x, y: closestPort.y };
+};
+
 const measureTextWidth = (text: string, fontSize: number): number => {
   if (!text) return 0;
   const canvas = document.createElement('canvas');
@@ -1551,6 +1586,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const system = systems.find(s => s.id === edge.systemId);
             const edgeColor = system?.color || '#94a3b8';
             const isSelected = selectedEdgeId === edge.id;
+            const sPt = getEdgeConnectionPoint(source, target.x, target.y, scaleFactor || 1);
+            const tPt = getEdgeConnectionPoint(target, source.x, source.y, scaleFactor || 1);
 
             return (
               <Group 
@@ -1608,7 +1645,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
               >
                 {/* Hit area (wider invisible line for easier selection) */}
                 <Line
-                  points={[source.x, source.y, target.x, target.y]}
+                  points={[sPt.x, sPt.y, tPt.x, tPt.y]}
                   stroke="transparent"
                   strokeWidth={15 / scale}
                   onMouseEnter={(e: any) => {
@@ -1668,7 +1705,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 />
                 {/* Visible line */}
                 <Line
-                  points={[source.x, source.y, target.x, target.y]}
+                  points={[sPt.x, sPt.y, tPt.x, tPt.y]}
                   stroke={edgeColor}
                   strokeWidth={(isSelected ? 7 : 5) / scale}
                   lineCap="round"
@@ -2170,16 +2207,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
         {/* === WARSTWA UI NAD ZAWARTOŚCIĄ (ramki kadru - UKRYWANA PRZED EKSPORTEM) === */}
         <Layer ref={uiOverlayLayerRef} name="ui-overlay">
           {/* Current Drawing Duct (DRAW_DUCT) */}
-          {(currentTool === 'DRAW_DUCT') && activeNodeId && ductNodes[activeNodeId] && (
-            <Line
-              points={[ductNodes[activeNodeId].x, ductNodes[activeNodeId].y, mousePos.x, mousePos.y]}
-              stroke={drawingSystemId ? (systems.find(s => s.id === drawingSystemId)?.color || '#0ea5e9') : '#0ea5e9'}
-              strokeWidth={4 / scale}
-              dash={[10 / scale, 5 / scale]}
-              opacity={0.7}
-              lineCap="round"
-            />
-          )}
+          {(currentTool === 'DRAW_DUCT') && activeNodeId && ductNodes[activeNodeId] && (() => {
+            const activeNode = ductNodes[activeNodeId];
+            const sPt = getEdgeConnectionPoint(activeNode, mousePos.x, mousePos.y, scaleFactor || 1);
+            return (
+              <Line
+                points={[sPt.x, sPt.y, mousePos.x, mousePos.y]}
+                stroke={drawingSystemId ? (systems.find(s => s.id === drawingSystemId)?.color || '#0ea5e9') : '#0ea5e9'}
+                strokeWidth={4 / scale}
+                dash={[10 / scale, 5 / scale]}
+                opacity={0.7}
+                lineCap="round"
+              />
+            );
+          })()}
 
           {/* Current Drawing Polygon (PEN) */}
           {(isDrawingPolygon && currentTool === 'PEN') && currentPolygonPoints.length > 0 && (

@@ -762,3 +762,10 @@
 - **Problem 4 (Resetowanie Przesunięcia)**: Przycisk "Włącz synchronizację pozycji" działał błędnie, modyfikując węzły tylko i wyłącznie wtedy kiedy ICH pozycja nie była manualna, a celem przycisku z założenia jest NADPISANIE staniu zmanualizowanego na domyślny scentrowany układ.
 - **Naprawa 4**: Uodporniono funkcję `resetPositionSync` poleceniem bezwarunkowego przeniesienia wszystkich członkowskich węzłów na wspólną pozycję osi XY wektora głównego z wyzerowaniem flagi uciętej `isPositionManuallySet`.
 - **Pliki**: `src/components/DuctPropertiesPanel.tsx`, `src/stores/useDuctStore.ts`.
+
+### Iteracja 3.3.7: Implementacja Portów Przyłączeniowych i Mocy dla AHU/FAN - 2026-03-21
+- **Problem 1 (Brak Portów Przyłączeniowych)**: Krawędzie nawiewne rysowane od i do elementów EQUIPMENT (AHU, FAN) celowały wyłącznie w środek węzła, ignorując jego fizyczne wymiary. Zlewało się to psując wizualny aspekt projektu.
+- **Naprawa 1**: Zaaplikowano funkcję `getEdgeConnectionPoint` do logiki rysowania przewodów (zarówno krawędzi stałych, jak i "ciągniętej" podczas edycji). Punkty są teraz rzutowane na najbliższy środek boku prostokątnego wymiaru centrali/wentylatora (TOP, BOTTOM, LEFT, RIGHT).
+- **Problem 2 (Brak parametru Mocy Elektrycznej)**: Mimo definicji w specyfikacji `03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`, we właściwościach wizualnych i w modelach typów `types.ts` brakowało zmiennej definiującej moc (urządzenia elektrycznego).
+- **Naprawa 2**: Zaktualizowano interfejs `DuctNode` o `powerConsumption?: number`. Ujawniono pole input "Pobór mocy [W]" z obsługą dla obu komponentów AHU i FAN w `DuctPropertiesPanel.tsx` pod kategorią "Parametry Urządzenia". Pomyślnie skompilowano.
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`, `src/types.ts`, `docs/03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`.

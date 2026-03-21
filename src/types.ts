@@ -236,6 +236,7 @@ export interface DuctNode {
   // AHU/FAN parameters (for Krok 4 physics) - w cm dla UX
   ratedFlow?: number;    // m³/h nominal
   ratedPressure?: number; // Pa nominal
+  powerConsumption?: number; // W nominal
   widthCm?: number;     // Szerokość w cm (dla EQUIPMENT)
   heightCm?: number;    // Wysokość w cm (dla EQUIPMENT)
   lengthCm?: number;    // Długość w cm (dla EQUIPMENT/FAN)
