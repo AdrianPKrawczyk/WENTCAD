@@ -1887,6 +1887,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
             return (
               <Group
                 key={node.id}
+                x={node.x}
+                y={node.y}
                 draggable={currentTool === null}
                 onDragStart={(_) => {
                   dragStartNodePos.current = { x: node.x, y: node.y };

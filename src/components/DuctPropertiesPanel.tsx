@@ -129,6 +129,15 @@ export function DuctPropertiesPanel() {
   const activeNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const activeEdge = selectedEdgeId ? edges[selectedEdgeId] : null;
 
+  // Handler for shaft range change - MOVED BEFORE EARLY RETURN
+  const handleShaftRangeChange = useCallback((newRange: { fromFloorId: string; toFloorId: string }) => {
+    if (!activeNode || activeNode.componentCategory !== 'SHAFT') return;
+    
+    updateNode(activeNode.id, { shaftRange: newRange });
+    syncShaftProperties(activeNode.id, { shaftRange: newRange });
+    syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge, nodes);
+  }, [activeNode, floors, updateNode, syncShaftProperties, createShaftNodeOnFloor, createVerticalEdge, nodes]);
+
   if (!activeNode && !activeEdge) return null;
 
   const floor = activeNode ? floors[activeNode.floorId] : (activeEdge ? floors[nodes[activeEdge.targetNodeId]?.floorId] : null);
@@ -144,15 +153,6 @@ export function DuctPropertiesPanel() {
   };
   
   const activeZone = activeNode?.zoneId ? zones[activeNode.zoneId] : null;
-  
-  // Handler for shaft range change
-  const handleShaftRangeChange = useCallback((newRange: { fromFloorId: string; toFloorId: string }) => {
-    if (!activeNode || activeNode.componentCategory !== 'SHAFT') return;
-    
-    updateNode(activeNode.id, { shaftRange: newRange });
-    syncShaftProperties(activeNode.id, { shaftRange: newRange });
-    syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge, nodes);
-  }, [activeNode, floors, updateNode, syncShaftProperties, createShaftNodeOnFloor, createVerticalEdge, nodes]);
 
   return (
     <div className="absolute left-4 top-20 bottom-20 w-80 bg-white/95 backdrop-blur-md border border-gray-200 shadow-2xl rounded-2xl flex flex-col z-20 animate-in slide-in-from-left-4 duration-300">

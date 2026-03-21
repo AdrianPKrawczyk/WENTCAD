@@ -731,3 +731,13 @@
     - `shaftShiftX`, `shaftShiftY`: Przesunięcie na innych kondygnacjach (px)
 - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
 
+### Faza 3.3: Testy i Poprawki Urządzeń HVAC oraz Pionów
+- **Data**: 2026-03-21
+- **Znalezione błędy**:
+    - **React Hook Order Error**: Błąd w `DuctPropertiesPanel.tsx` powodujący biały ekran przy wyborze urządzenia. Przyczyną był wczesny powrót (`return null`) przed wszystkimi hookami. Naprawiono przez przesunięcie deklaracji hooków na górę.
+    - **Błąd Centrowania Elementów**: Elementy (AHU, FAN) były wstawiane lewym górnym rogiem w punkcie kliknięcia. Naprawiono przez dodanie `x` i `y` do `Group` w `Workspace2D.tsx`.
+- **Zweryfikowane Funkcjonalności**:
+    - **Urządzenia i Terminale**: AHU, FAN, ANEMOSTAT działają poprawnie, edycja parametrów (wydajność, ciśnienie, wymiary) jest trwała.
+    - **Piony (Shafts)**: Automatyczna propagacja na piętra i modal "Orphaned Shaft" działają bez zarzutu.
+    - **Kondygnacje**: Zarządzanie piętrami (dodawanie, rzędne) działa poprawnie.
+- **Pliki**: [DuctPropertiesPanel.tsx](file:///d:/GitHub/WENTCAD/src/components/DuctPropertiesPanel.tsx), [Workspace2D.tsx](file:///d:/GitHub/WENTCAD/src/components/Workspace2D.tsx)
