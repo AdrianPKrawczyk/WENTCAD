@@ -1237,8 +1237,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
     return lines;
   };
 
-  // Guard against missing floor metadata or uninitialized state (Prevents white screen)
-  if (!activeFloorIdFromZone || !activeFloorMetadata || !activeCanvasFloor) {
+  // Guard against missing floor metadata (Prevents white screen)
+  if (!activeFloorId || !floors[activeFloorId]) {
     return (
       <div ref={containerRef} className={`flex-1 bg-slate-50 flex items-center justify-center ${className || ''}`}>
         <div className="flex flex-col items-center gap-3">

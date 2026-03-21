@@ -203,12 +203,16 @@ interface ZoneStore {
 export const useZoneStore = create<ZoneStore>()(
   temporal(
     persist(
-    (set, get) => ({
-      activeProjectId: null,
-      selectedZoneId: null,
-      activeFloorId: Object.keys(createDefaultFloors())[0],
-      zones: {},
-      floors: createDefaultFloors(),
+    (set, get) => {
+      const initialFloors = createDefaultFloors();
+      const initialFloorId = Object.keys(initialFloors)[0];
+      
+      return {
+        activeProjectId: null,
+        selectedZoneId: null,
+        activeFloorId: initialFloorId,
+        zones: {},
+        floors: initialFloors,
       systems: [
         { id: 'N1', name: 'Nawiew 1', type: 'SUPPLY' },
         { id: 'N2', name: 'Nawiew 2', type: 'SUPPLY' },
@@ -512,8 +516,9 @@ export const useZoneStore = create<ZoneStore>()(
            // Fallback if import is tricky, though it should work in Vite
         });
       }
-    }),
-    {
+    };
+  },
+  {
       name: 'wentcad-zone-storage',
       version: 3,
       migrate: (persistedState: any, version: number) => {
