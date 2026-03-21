@@ -909,9 +909,12 @@ export function Workspace2D({ className }: Workspace2DProps) {
     if (!isDraggingFloorSwitcher) return;
 
     const onMouseMove = (e: MouseEvent) => {
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
+
       setFloorSwitcherPosition({
-        x: e.clientX - floorSwitcherDragOffset.x,
-        y: e.clientY - floorSwitcherDragOffset.y
+        x: e.clientX - containerRect.left - floorSwitcherDragOffset.x,
+        y: e.clientY - containerRect.top - floorSwitcherDragOffset.y
       });
     };
 

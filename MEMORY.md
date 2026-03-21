@@ -740,7 +740,7 @@
     - **Urządzenia i Terminale**: AHU, FAN, ANEMOSTAT działają poprawnie, edycja parametrów (wydajność, ciśnienie, wymiary) jest trwała.
     - **Piony (Shafts)**: Automatyczna propagacja na piętra i modal "Orphaned Shaft" działają bez zarzutu.
     - **Kondygnacje**: Zarządzanie piętrami (dodawanie, rzędne) działa poprawnie.
-- **Pliki**: [DuctPropertiesPanel.tsx](file:///d:/GitHub/WENTCAD/src/components/DuctPropertiesPanel.tsx), [Workspace2D.tsx](file:///d:/GitHub/WENTCAD/src/components/Workspace2D.tsx)
+- **Pliki**: `src/components/DuctPropertiesPanel.tsx`, `src/components/Workspace2D.tsx`
 
 ### Iteracja 3.3.5: Stabilizacja Builda i Poprawki Lintera - 2026-03-21
 - **Naprawa Błędów Kompilacji (`tsc -b`)**:
@@ -753,11 +753,12 @@
 - **Pliki**: `src/components/AirBalanceTable.tsx`, `src/components/Workspace2D.tsx`, `src/lib/importProjectService.ts`, `src/stores/useDuctStore.ts`.
 
 ### Iteration 3.3.8: Pływający Przełącznik Kondygnacji (Draggable Floor Switcher) - 2026-03-21
-- **Problem**: Stała pozycja przełącznika kondygnacji w lewym górnym rogu zasłaniała inne elementy (np. Inspektor, Tabele) i nie pozwalała na dostosowanie widoku.
+- **Problem**: Stała pozycja przełącznika kondygnacji w lewym górnym rogu zasłaniała inne elementy (np. Inspektor, Tabele) i nie pozwalała na dostosowanie widoku. Dodatkowo w widokach dzielonych (Split View) występował błąd dryfu współrzędnych przy przeciąganiu.
 - **Rozwiązanie**: 
     - **Draggable UI**: Wdrożono mechanizm ręcznego przesuwania przełącznika w `Workspace2D.tsx`. Dodano ikonę „uchwytu” (`GripVertical`), pozwalającą na dowolne rozmieszczenie panelu na kanwie.
-    - **Visibility Toggle**: Dodano ikonę Mapy (🗺️) w TopBarze, umożliwiającą całkowite ukrycie/pokazanie przełącznika.
+    - **Visibility Toggle**: Dodano ikonę Mapy (🗺️) w TopBarze, umożliwiającą całkowcie ukrycie/pokazanie przełącznika.
     - **Persystencja Widoku**: Stan widoczności i ostatnia pozycja są zapisywane w `useUIStore.ts`, co gwarantuje ciągłość pracy po przełączaniu etapów budowy.
+    - **Fix (Coordinate Drift)**: Naprawiono błąd przemieszczania się okna w widokach dzielonych poprzez przeliczenie współrzędnych przeciągania relatywnie do kontenera obszaru roboczego (`containerRef.current.getBoundingClientRect()`), co zapewnia stabilność pozycji przy zmianie trybów widoku (Split vs Full).
 - **Pliki**: `src/stores/useUIStore.ts`, `src/components/TopBar.tsx`, `src/components/Workspace2D.tsx`.
 
 ### Iteracja 3.3.6: Naprawa Logiki Tworzenia i Synchronizacji Pionów (SHAFT) - 2026-03-21
