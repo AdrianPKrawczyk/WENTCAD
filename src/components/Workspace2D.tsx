@@ -1333,103 +1333,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         }}
         style={{ background: '#f0f2f5' }}
       >
-        <Layer ref={uiLayerRef} name="ui">
-          {/* === SIATKA === */}
-          {drawGrid()}
-
-          {/* === WSPÓŁRZĘDNE POCZĄTKOWE === */}
-          {referenceOrigin && (
-            <>
-              <Line 
-                points={[referenceOrigin.x - 200/scale, referenceOrigin.y, referenceOrigin.x + 200/scale, referenceOrigin.y]} 
-                stroke="#6366f1" 
-                strokeWidth={1 / scale} 
-                dash={[5 / scale, 5 / scale]}
-                opacity={0.5}
-              />
-              <Line 
-                points={[referenceOrigin.x, referenceOrigin.y - 200/scale, referenceOrigin.x, referenceOrigin.y + 200/scale]} 
-                stroke="#6366f1" 
-                strokeWidth={1 / scale} 
-                dash={[5 / scale, 5 / scale]}
-                opacity={0.5}
-              />
-              <Circle x={referenceOrigin.x} y={referenceOrigin.y} radius={8 / scale} stroke="#6366f1" strokeWidth={2 / scale} />
-              <Text 
-                x={referenceOrigin.x + 10 / scale} 
-                y={referenceOrigin.y + 10 / scale} 
-                text={`PUNKT 0,0${activeFloorMetadata?.originDescription ? `\n(${activeFloorMetadata.originDescription})` : ''}`} 
-                fontSize={10 / scale} 
-                fill="#6366f1" 
-                fontStyle="bold" 
-              />
-            </>
-          )}
-
-          {/* === USTAWIANIE ORIGINU - WIZUALIZACJA === */}
-          {isSettingOrigin && (
-            <>
-              <Line points={[mousePos.x - 10 / scale, mousePos.y, mousePos.x + 10 / scale, mousePos.y]} stroke="#ef4444" strokeWidth={2 / scale} />
-              <Line points={[mousePos.x, mousePos.y - 10 / scale, mousePos.x, mousePos.y + 10 / scale]} stroke="#ef4444" strokeWidth={2 / scale} />
-            </>
-          )}
-
-          {/* === KALIBRACJA - LINIA === */}
-          {isCalibrating && calibrationPoints.length > 0 && (
-            <Line
-              points={[
-                calibrationPoints[0].x,
-                calibrationPoints[0].y,
-                calibrationPoints.length === 2 ? calibrationPoints[1].x : mousePos.x,
-                calibrationPoints.length === 2 ? calibrationPoints[1].y : mousePos.y
-              ]}
-              stroke="#4f46e5"
-              strokeWidth={2 / scale}
-              dash={[5 / scale, 5 / scale]}
-            />
-          )}
-          {isCalibrating && calibrationPoints.map((p, i) => (
-            <Circle key={i} x={p.x} y={p.y} radius={4 / scale} fill="#4f46e5" stroke="white" strokeWidth={1 / scale} />
-          ))}
-
-          {/* === POMIAR - LINIA I ETYKIETA === */}
-          {(isMeasuring || measurePoints.length === 2) && measurePoints.length > 0 && (
-            <>
-              <Line
-                points={[
-                  measurePoints[0].x,
-                  measurePoints[0].y,
-                  measurePoints.length === 2 ? measurePoints[1].x : mousePos.x,
-                  measurePoints.length === 2 ? measurePoints[1].y : mousePos.y
-                ]}
-                stroke="#f97316"
-                strokeWidth={2 / scale}
-                dash={[5 / scale, 5 / scale]}
-              />
-              <Circle x={measurePoints[0].x} y={measurePoints[0].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
-              {measurePoints.length === 2 && (
-                <Circle x={measurePoints[1].x} y={measurePoints[1].y} radius={4 / scale} fill="#f97316" stroke="white" strokeWidth={1 / scale} />
-              )}
-              {(() => {
-                const p1 = measurePoints[0];
-                const p2 = measurePoints.length === 2 ? measurePoints[1] : mousePos;
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const distPx = Math.sqrt(dx * dx + dy * dy);
-                const distM = scaleFactor ? distPx * scaleFactor : 0;
-                
-                return (
-                  <Label x={(p1.x + p2.x) / 2} y={(p1.y + p2.y) / 2} listening={false}>
-                    <Tag fill="rgba(249, 115, 22, 0.9)" pointerDirection="down" pointerWidth={10 / scale} pointerHeight={10 / scale} lineJoin="round" shadowColor="black" shadowBlur={10} shadowOpacity={0.2} cornerRadius={4 / scale} />
-                    <Text text={`${distM.toFixed(2)} m`} fontFamily="monospace" fontSize={14 / scale} padding={5 / scale} fill="white" fontStyle="bold" />
-                  </Label>
-                );
-              })()}
-            </>
-          )}
-        </Layer>
-
-        {/* === WARSTWA ZAWARTOŚCI - EKSportowANA === */}
+        {/* === WARSTWA ZAWARTOŚCI - NA DOLE (podkład, strefy, węzły) === */}
         <Layer ref={contentLayerRef} name="content">
           {/* === PODKŁAD (PDF/IMG) === */}
           {underlayImage && underlaySize && !forceHideUnderlay && (
@@ -2183,6 +2087,81 @@ export function Workspace2D({ className }: Workspace2DProps) {
               </Group>
             );
           })}
+        </Layer>
+
+        {/* === WARSTWA UI (siatka, punkt 0,0) - NAD PODKŁADEM === */}
+        <Layer ref={uiLayerRef} name="ui">
+          {/* === SIATKA === */}
+          {drawGrid()}
+
+          {/* === WSPÓŁRZĘDNE POCZĄTKOWE === */}
+          {referenceOrigin && (
+            <>
+              <Line 
+                points={[referenceOrigin.x - 200/scale, referenceOrigin.y, referenceOrigin.x + 200/scale, referenceOrigin.y]} 
+                stroke="#6366f1" 
+                strokeWidth={1 / scale} 
+                dash={[5 / scale, 5 / scale]}
+                opacity={0.5}
+              />
+              <Line 
+                points={[referenceOrigin.x, referenceOrigin.y - 200/scale, referenceOrigin.x, referenceOrigin.y + 200/scale]} 
+                stroke="#6366f1" 
+                strokeWidth={1 / scale} 
+                dash={[5 / scale, 5 / scale]}
+                opacity={0.5}
+              />
+              <Circle x={referenceOrigin.x} y={referenceOrigin.y} radius={8 / scale} stroke="#6366f1" strokeWidth={2 / scale} />
+              <Text 
+                x={referenceOrigin.x + 10 / scale} 
+                y={referenceOrigin.y + 10 / scale} 
+                text={`PUNKT 0,0${activeFloorMetadata?.originDescription ? `\n(${activeFloorMetadata.originDescription})` : ''}`} 
+                fontSize={10 / scale} 
+                fill="#6366f1" 
+                fontStyle="bold" 
+              />
+            </>
+          )}
+
+          {/* === USTAWIANIE ORIGINU - WIZUALIZACJA === */}
+          {isSettingOrigin && (
+            <>
+              <Line points={[mousePos.x - 10 / scale, mousePos.y, mousePos.x + 10 / scale, mousePos.y]} stroke="#ef4444" strokeWidth={2 / scale} />
+              <Line points={[mousePos.x, mousePos.y - 10 / scale, mousePos.x, mousePos.y + 10 / scale]} stroke="#ef4444" strokeWidth={2 / scale} />
+            </>
+          )}
+
+          {/* === KALIBRACJA - LINIA === */}
+          {isCalibrating && calibrationPoints.length > 0 && (
+            <Line
+              points={[calibrationPoints[0].x, calibrationPoints[0].y, mousePos.x, mousePos.y]}
+              stroke="#ef4444"
+              strokeWidth={2 / scale}
+              dash={[5 / scale, 5 / scale]}
+            />
+          )}
+
+          {/* === POMIAR - LINIA === */}
+          {isMeasuring && measurePoints.length === 1 && (
+            <Line
+              points={[measurePoints[0].x, measurePoints[0].y, mousePos.x, mousePos.y]}
+              stroke="#22c55e"
+              strokeWidth={2 / scale}
+              dash={[5 / scale, 5 / scale]}
+            />
+          )}
+
+          {/* === RYSOWANIE STREFY - POLYGON === */}
+          {isDrawingPolygon && currentPolygonPoints.length > 0 && (
+            <Line
+              points={currentPolygonPoints.flatMap(p => [p.x, p.y])}
+              stroke="#3b82f6"
+              strokeWidth={2 / scale}
+              closed={false}
+              dash={[5 / scale, 5 / scale]}
+            />
+          )}
+
         </Layer>
 
         {/* === WARSTWA UI NAD ZAWARTOŚCIĄ (ramki kadru - UKRYWANA PRZED EKSPORTEM) === */}

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
 import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
 import { OrphanedShaftModal } from './OrphanedShaftModal';
-import type { ComponentCategory, ComponentType } from '../types';
+import type { ComponentCategory, ComponentType, Floor } from '../types';
 
 const COMPONENT_LABELS: Record<ComponentType, string> = {
   AHU: 'Centrala wentylacyjna (AHU)',
@@ -38,6 +38,72 @@ const CATEGORY_COLORS: Record<ComponentCategory, string> = {
   VIRTUAL_ROOT: 'bg-amber-100 text-amber-700 border-amber-200',
 };
 
+// Helper function to sync SHAFT nodes to all floors in range
+function syncShaftToAllFloorsInRange(
+  sourceNodeId: string,
+  allFloors: Record<string, Floor>,
+  createShaftNodeOnFloor: (sourceNode: any, targetFloorId: string, shaftId: string) => any,
+  createVerticalEdge: (sourceNodeId: string, targetNodeId: string, systemId: string, ahuId: string) => void,
+  nodes: Record<string, any>
+) {
+  const sourceNode = nodes[sourceNodeId];
+  if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
+  
+  const shaftRange = sourceNode.shaftRange;
+  if (!shaftRange || !shaftRange.fromFloorId || !shaftRange.toFloorId) return;
+  
+  const fromFloor = allFloors[shaftRange.fromFloorId];
+  const toFloor = allFloors[shaftRange.toFloorId];
+  if (!fromFloor || !toFloor) return;
+  
+  // Pobierz wszystkie kondygnacje posortowane po elevation
+  const sortedFloors = Object.values(allFloors).sort((a, b) => a.elevation - b.elevation);
+  
+  // Filtruj kondygnacje w zakresie
+  const minElevation = Math.min(fromFloor.elevation, toFloor.elevation);
+  const maxElevation = Math.max(fromFloor.elevation, toFloor.elevation);
+  
+  const floorsInRange = sortedFloors.filter(
+    f => f.elevation >= minElevation && f.elevation <= maxElevation
+  );
+  
+  // Utwórz węzły SHAFT na każdej kondygnacji w zakresie
+  const createdNodeIds: string[] = [];
+  
+  for (const floor of floorsInRange) {
+    if (floor.id === sourceNode.floorId) {
+      // To jest węzeł źródłowy
+      createdNodeIds.push(sourceNode.id);
+      continue;
+    }
+    
+    const newNode = createShaftNodeOnFloor(sourceNode, floor.id, sourceNode.shaftId);
+    if (newNode) {
+      createdNodeIds.push(newNode.id);
+    }
+  }
+  
+  // Utwórz krawędzie pionowe między węzłami na sąsiednich kondygnacjach
+  const floorsInRangeSorted = floorsInRange.sort((a, b) => a.elevation - b.elevation);
+  
+  for (let i = 0; i < floorsInRangeSorted.length - 1; i++) {
+    const lowerFloor = floorsInRangeSorted[i];
+    const upperFloor = floorsInRangeSorted[i + 1];
+    
+    // Znajdź węzły SHAFT na tych kondygnacjach
+    const lowerNode = createdNodeIds.length > 0 
+      ? Object.values(nodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === lowerFloor.id)
+      : null;
+    const upperNode = createdNodeIds.length > 0
+      ? Object.values(nodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === upperFloor.id)
+      : null;
+    
+    if (lowerNode && upperNode) {
+      createVerticalEdge(lowerNode.id, upperNode.id, sourceNode.systemId, sourceNode.ahuId);
+    }
+  }
+}
+
 export function DuctPropertiesPanel() {
   const selectedNodeId = useDuctStore((s) => s.selectedNodeId);
   const selectedEdgeId = useDuctStore((s) => s.selectedEdgeId);
@@ -49,9 +115,10 @@ export function DuctPropertiesPanel() {
   const setSelectedEdgeId = useDuctStore((s) => s.setSelectedEdgeId);
   const getTerminalsInZone = useDuctStore((s) => s.getTerminalsInZone);
   const getOrphanedShaftNodes = useDuctStore((s) => s.getOrphanedShaftNodes);
-  const syncShaftToFloors = useDuctStore((s) => s.syncShaftToFloors);
   const syncShaftProperties = useDuctStore((s) => s.syncShaftProperties);
   const resetPositionSync = useDuctStore((s) => s.resetPositionSync);
+  const createShaftNodeOnFloor = useDuctStore((s) => s.createShaftNodeOnFloor);
+  const createVerticalEdge = useDuctStore((s) => s.createVerticalEdge);
   
   const systems = useZoneStore((s) => s.systems);
   const floors = useZoneStore((s) => s.floors);
@@ -77,6 +144,15 @@ export function DuctPropertiesPanel() {
   };
   
   const activeZone = activeNode?.zoneId ? zones[activeNode.zoneId] : null;
+  
+  // Handler for shaft range change
+  const handleShaftRangeChange = useCallback((newRange: { fromFloorId: string; toFloorId: string }) => {
+    if (!activeNode || activeNode.componentCategory !== 'SHAFT') return;
+    
+    updateNode(activeNode.id, { shaftRange: newRange });
+    syncShaftProperties(activeNode.id, { shaftRange: newRange });
+    syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge, nodes);
+  }, [activeNode, floors, updateNode, syncShaftProperties, createShaftNodeOnFloor, createVerticalEdge, nodes]);
 
   return (
     <div className="absolute left-4 top-20 bottom-20 w-80 bg-white/95 backdrop-blur-md border border-gray-200 shadow-2xl rounded-2xl flex flex-col z-20 animate-in slide-in-from-left-4 duration-300">
@@ -425,8 +501,7 @@ export function DuctPropertiesPanel() {
                           fromFloorId: e.target.value, 
                           toFloorId: activeNode.shaftRange?.toFloorId || e.target.value 
                         };
-                        updateNode(activeNode.id, { shaftRange: newRange });
-                        syncShaftToFloors(activeNode.id);
+                        handleShaftRangeChange(newRange);
                         if (orphanedNodes.length > 0) {
                           setShowOrphanedModal(true);
                         }
@@ -448,8 +523,7 @@ export function DuctPropertiesPanel() {
                           fromFloorId: activeNode.shaftRange?.fromFloorId || '', 
                           toFloorId: e.target.value 
                         };
-                        updateNode(activeNode.id, { shaftRange: newRange });
-                        syncShaftToFloors(activeNode.id);
+                        handleShaftRangeChange(newRange);
                         if (orphanedNodes.length > 0) {
                           setShowOrphanedModal(true);
                         }

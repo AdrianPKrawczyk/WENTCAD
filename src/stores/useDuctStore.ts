@@ -49,7 +49,8 @@ interface DuctStore {
   // SHAFT management
   getOrphanedShaftNodes: (shaftId: string, shaftRange: { fromFloorId: string; toFloorId: string } | undefined) => DuctNode[];
   getAllShaftsWithSameId: (shaftId: string) => DuctNode[];
-  syncShaftToFloors: (sourceNodeId: string) => void;
+  createShaftNodeOnFloor: (sourceNode: DuctNode, targetFloorId: string, shaftId: string) => DuctNode | null;
+  createVerticalEdge: (sourceNodeId: string, targetNodeId: string, systemId: string, ahuId: string) => void;
   removeOrphanedShaftNodes: (shaftId: string, nodeIds: string[]) => void;
   reassignShaftNodes: (nodeIds: string[], targetShaftId?: string, extendTargetRange?: boolean) => string | null;
   createShaftNode: (sourceNode: DuctNode, targetFloorId: string, shaftId: string) => DuctNode;
@@ -584,70 +585,64 @@ export const useDuctStore = create<DuctStore>()(
           });
         },
 
-        // Sync SHAFT nodes to all floors in range (create/update nodes and vertical edges)
-        syncShaftToFloors: (sourceNodeId) => {
+        // Create SHAFT node on a specific floor
+        createShaftNodeOnFloor: (sourceNode, targetFloorId, shaftId) => {
           const state = get();
-          const sourceNode = state.nodes[sourceNodeId];
-          if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
-
-          const shaftId = sourceNode.shaftId;
-          const shaftRange = sourceNode.shaftRange;
+          
+          // Sprawdź czy węzeł już istnieje na tej kondygnacji
+          const existingNode = Object.values(state.nodes).find(
+            n => n.componentCategory === 'SHAFT' && n.shaftId === shaftId && n.floorId === targetFloorId
+          );
+          
+          if (existingNode) {
+            return null; // Węzeł już istnieje
+          }
+          
           const shaftShiftX = sourceNode.shaftShiftX || 0;
           const shaftShiftY = sourceNode.shaftShiftY || 0;
+          
+          const newNode = get().createShaftNode(sourceNode, targetFloorId, shaftId);
+          newNode.x = sourceNode.x + shaftShiftX;
+          newNode.y = sourceNode.y + shaftShiftY;
+          
+          set((s) => ({ nodes: { ...s.nodes, [newNode.id]: newNode } }));
+          return newNode;
+        },
 
-          if (!shaftRange || !shaftRange.fromFloorId || !shaftRange.toFloorId) return;
-
-          const sourceFloorId = sourceNode.floorId;
-          const targetFloorIds = [shaftRange.fromFloorId, shaftRange.toFloorId].filter(
-            (id, idx, arr) => arr.indexOf(id) === idx && id !== sourceFloorId
-          );
-
-          const newNodes = { ...state.nodes };
-          const newEdges = { ...state.edges };
-
-          // For each target floor, create or update SHAFT node
-          for (const floorId of targetFloorIds) {
-            // Check if node already exists on this floor
-            const existingNode = Object.values(state.nodes).find(
-              n => n.componentCategory === 'SHAFT' && n.shaftId === shaftId && n.floorId === floorId
+        // Create vertical edge between two SHAFT nodes
+        createVerticalEdge: (sourceNodeId, targetNodeId, systemId, ahuId) => {
+          set((state) => {
+            // Sprawdź czy krawędź już istnieje
+            const existingEdge = Object.values(state.edges).find(
+              e => (e.sourceNodeId === sourceNodeId && e.targetNodeId === targetNodeId) ||
+                   (e.sourceNodeId === targetNodeId && e.targetNodeId === sourceNodeId)
             );
-
-            if (!existingNode) {
-              // Create new node on this floor
-              const newNode = get().createShaftNode(sourceNode, floorId, shaftId);
-              newNode.x = sourceNode.x + shaftShiftX;
-              newNode.y = sourceNode.y + shaftShiftY;
-              newNodes[newNode.id] = newNode;
-
-              // Create vertical edge between source and new node
-              // We don't know the elevation difference here, so we'll set length = 0
-              // The actual length calculation will be done when we have access to Floor metadata
-              const verticalEdgeId = `edge-${crypto.randomUUID()}`;
-              newEdges[verticalEdgeId] = {
-                id: verticalEdgeId,
-                sourceNodeId: sourceFloorId === shaftRange.fromFloorId ? sourceNode.id : newNode.id,
-                targetNodeId: sourceFloorId === shaftRange.fromFloorId ? newNode.id : sourceNode.id,
-                systemId: sourceNode.systemId,
-                ahuId: sourceNode.ahuId,
-                length: 0, // Will be calculated with Floor elevation data
-                shape: 'CIRCULAR',
-                roughness: 0.00015,
-                internalInsulationThickness: 0,
-                externalInsulationThickness: 0,
-                velocity: 0,
-                pressureDropLin: 0,
-              };
-            } else if (!existingNode.isPositionManuallySet) {
-              // Update position only if not manually set
-              newNodes[existingNode.id] = {
-                ...newNodes[existingNode.id],
-                x: sourceNode.x + shaftShiftX,
-                y: sourceNode.y + shaftShiftY,
-              };
+            
+            if (existingEdge) {
+              return state; // Krawędź już istnieje
             }
-          }
-
-          set({ nodes: newNodes, edges: newEdges });
+            
+            const verticalEdgeId = `edge-${crypto.randomUUID()}`;
+            return {
+              edges: {
+                ...state.edges,
+                [verticalEdgeId]: {
+                  id: verticalEdgeId,
+                  sourceNodeId,
+                  targetNodeId,
+                  systemId,
+                  ahuId,
+                  length: 0, // Do obliczenia z elevation
+                  shape: 'CIRCULAR' as const,
+                  roughness: 0.00015,
+                  internalInsulationThickness: 0,
+                  externalInsulationThickness: 0,
+                  velocity: 0,
+                  pressureDropLin: 0,
+                },
+              },
+            };
+          });
         },
 
         // Remove orphaned SHAFT nodes and their vertical edges
