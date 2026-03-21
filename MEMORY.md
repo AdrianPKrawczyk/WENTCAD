@@ -728,6 +728,17 @@
     - Wyświetla skumulowany/sumaryczny wydatek
 
 - **Pliki**: `src/types.ts`, `src/lib/networkEngine.ts`, `src/stores/useDuctStore.ts`, `src/stores/useZoneStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
+
+### FAZA 3.4.1: Przegląd i Optymalizacja Algorytmu DFS (Flow Propagation) - 2026-03-21
+- **Cel**: Wykonanie audytu implementacji Kroku 3.4 pod kątem stabilności, wydajności i odporności na błędne rysunki użytkownika.
+- **Wykryte Słabości (Weaknesses)**:
+    1. **Stale Node Flows (Błąd odłączonych gałęzi)**: Algorytm pozostawiał stare wartości `flow` na węzłach (np. `JUNCTION`, `INLINE`), które zostały fizycznie odcięte od źródła (`EQUIPMENT`). System zerował przepływ tylko w rurach, zapominając o samych węzłach.
+    2. **Zagrożenie Cyklami (Pętle)**: Ochrona przed cyklami opierała się na krawędziach i wycofywała flagę po przejściu ścieżki (`visitedEdges.delete`). W przypadku narysowania pętli kanałów przez użytkownika, mogło to doprowadzić do wykładniczej liczby przejść lub wyczerpania stosu (Stack Overflow).
+- **Naprawa i Optymalizacja**:
+    - W `src/lib/networkEngine.ts` wdrożono **Defensive Initialization**: przed puszczeniem rekurencji każdy węzeł niebędący terminalem (`!== 'TERMINAL'`) jest twardo resetowany do `flow: 0`.
+    - Zastąpiono tablicę odwiedzonych krawędzi stałą tablicą odwiedzonych węzłów (`visitedNodes`), która chroni dany obchód DFS przed wejściem w nieskończoną pętlę w przypadku nielogicznych, cyklicznych połączeń na rzucie CAD.
+- **Weryfikacja**: Usunięcie rury odcinające pokój od centrali natychmiastowo wygasza wartości `m³/h` na wszystkich krawędziach i węzłach pośrednich. System jest kuloodporny na pętle grafowe.
+- **Pliki**: `src/lib/networkEngine.ts`
     - Wyświetla listę osieroconych kondygnacji
     - Opcja "Rozszerz zakres docelowego pionu"
 - **DuctPropertiesPanel.tsx**:

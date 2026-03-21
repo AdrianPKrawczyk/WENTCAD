@@ -50,7 +50,7 @@ function dfs(
   adjacency: AdjacencyMap,
   nodeFlows: Map<string, number>,
   edgeFlows: Map<string, number>,
-  visitedEdges: Set<string>
+  visitedNodes: Set<string>
 ): number {
   const node = nodes[currentNodeId];
   if (!node) return 0;
@@ -66,14 +66,16 @@ function dfs(
   
   for (const edgeId of connectedEdgeIds) {
     if (edgeId === incomingEdgeId) continue;
-    if (visitedEdges.has(edgeId)) continue;
-    
-    visitedEdges.add(edgeId);
     
     const edge = edges[edgeId];
     if (!edge) continue;
     
     const nextNodeId = getConnectedNodeId(edge, currentNodeId);
+    
+    // Prevent cycles
+    if (visitedNodes.has(nextNodeId)) continue;
+    visitedNodes.add(nextNodeId);
+    
     const branchFlow = dfs(
       nextNodeId,
       edgeId,
@@ -82,13 +84,11 @@ function dfs(
       adjacency,
       nodeFlows,
       edgeFlows,
-      visitedEdges
+      visitedNodes
     );
     
     edgeFlows.set(edgeId, branchFlow);
     totalFlow += branchFlow;
-    
-    visitedEdges.delete(edgeId);
   }
   
   nodeFlows.set(currentNodeId, totalFlow);
@@ -103,7 +103,12 @@ export function calculateNetworkFlows(
   const updatedEdges: Record<string, DuctSegment> = {};
   
   Object.values(nodes).forEach(node => {
-    updatedNodes[node.id] = { ...node };
+    updatedNodes[node.id] = { 
+      ...node,
+      // Terminals are flow sources/sinks, their flow is dictated by the zone.
+      // Other nodes should start at 0 so disconnected branches don't retain stale flows.
+      flow: node.componentCategory === 'TERMINAL' ? (node.flow || 0) : 0
+    };
   });
   
   Object.values(edges).forEach(edge => {
@@ -119,7 +124,7 @@ export function calculateNetworkFlows(
   for (const rootNode of rootNodes) {
     const nodeFlows = new Map<string, number>();
     const edgeFlows = new Map<string, number>();
-    const visitedEdges = new Set<string>();
+    const visitedNodes = new Set<string>([rootNode.id]); // Initialize with root
     
     dfs(
       rootNode.id,
@@ -129,7 +134,7 @@ export function calculateNetworkFlows(
       adjacency,
       nodeFlows,
       edgeFlows,
-      visitedEdges
+      visitedNodes
     );
     
     nodeFlows.forEach((flow, nodeId) => {
