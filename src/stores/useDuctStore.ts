@@ -456,7 +456,7 @@ export const useDuctStore = create<DuctStore>()(
           if (!source || !target) return '';
 
           // Determine category based on componentType
-          let componentCategory: DuctNode['componentCategory'] = 'INLINE';
+          const componentCategory: DuctNode['componentCategory'] = 'INLINE';
           
           const newNodeId = `node-${crypto.randomUUID()}`;
           

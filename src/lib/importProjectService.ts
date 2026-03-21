@@ -3,7 +3,7 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import type { WentcadExportData, ImportOptions } from './projectTransfer';
 import type { FloorCanvasState } from '../stores/useCanvasStore';
-import type { Project, Floor, ZoneData, SystemDef } from '../types';
+import type { Floor, ZoneData } from '../types';
 
 export const importProjectService = {
   async execute(data: WentcadExportData, options: ImportOptions): Promise<void> {

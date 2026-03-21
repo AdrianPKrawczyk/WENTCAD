@@ -41,6 +41,7 @@ export function AirBalanceTable() {
   const bulkDeleteZones = useZoneStore((state) => state.bulkDeleteZones);
   const clearZoneGeometry = useZoneStore((state) => state.clearZoneGeometry);
   const isSystemColoringEnabled = useZoneStore((s) => s.isSystemColoringEnabled);
+  const setIsSystemColoringEnabled = useZoneStore((s) => s.setIsSystemColoringEnabled);
   const globalSystemOpacity = useZoneStore((s) => s.globalSystemOpacity);
   const activeProjectId = useProjectStore((s) => s.activeProject?.id);
   const columnState = useZoneStore((s) => s.columnState);

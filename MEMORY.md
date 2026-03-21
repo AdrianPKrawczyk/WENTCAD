@@ -741,3 +741,13 @@
     - **Piony (Shafts)**: Automatyczna propagacja na piętra i modal "Orphaned Shaft" działają bez zarzutu.
     - **Kondygnacje**: Zarządzanie piętrami (dodawanie, rzędne) działa poprawnie.
 - **Pliki**: [DuctPropertiesPanel.tsx](file:///d:/GitHub/WENTCAD/src/components/DuctPropertiesPanel.tsx), [Workspace2D.tsx](file:///d:/GitHub/WENTCAD/src/components/Workspace2D.tsx)
+
+### Iteracja 3.3.5: Stabilizacja Builda i Poprawki Lintera - 2026-03-21
+- **Naprawa Błędów Kompilacji (`tsc -b`)**:
+    - **AirBalanceTable.tsx**: Przywrócono brakującą akcję `setIsSystemColoringEnabled`, której brak uniemożliwiał zbudowanie projektu (błąd TS2552).
+    - **Workspace2D.tsx**: Usunięto nieużywane komponenty `Label` i `Tag` z `react-konva`.
+    - **importProjectService.ts**: Usunięto nieużywane typy `Project` i `SystemDef`.
+- **Poprawki Lintera (`eslint`)**:
+    - **useDuctStore.ts**: Naprawiono błąd `prefer-const` dla zmiennej `componentCategory`.
+- **Weryfikacja**: Pomyślnie wykonano pełny build produkcyjny (`npm run build`). System jest gotowy do dalszego rozwoju algorytmów przepływowych.
+- **Pliki**: `src/components/AirBalanceTable.tsx`, `src/components/Workspace2D.tsx`, `src/lib/importProjectService.ts`, `src/stores/useDuctStore.ts`.
