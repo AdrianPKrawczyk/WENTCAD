@@ -5,6 +5,41 @@ import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, Styl
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
+function syncTerminalsFromZones() {
+  import('./useDuctStore').then(({ useDuctStore }) => {
+    const ductState = useDuctStore.getState();
+    const zoneState = useZoneStore.getState();
+    
+    const terminals = Object.values(ductState.nodes).filter(
+      node => node.componentCategory === 'TERMINAL' && node.zoneId
+    );
+    
+    terminals.forEach(terminal => {
+      const zone = zoneState.zones[terminal.zoneId!];
+      if (zone) {
+        const terminalsInZone = Object.values(ductState.nodes).filter(
+          n => n.componentCategory === 'TERMINAL' && n.zoneId === zone.id && n.systemId === terminal.systemId
+        );
+        const count = terminalsInZone.length;
+        const fraction = terminal.flowFraction ?? 1;
+        
+        let terminalFlow = 0;
+        if (terminal.systemId && zone.systemSupplyId && zone.systemSupplyId === terminal.systemId) {
+          terminalFlow = zone.calculatedVolume / (count || 1);
+        } else if (terminal.systemId && zone.systemExhaustId && zone.systemExhaustId === terminal.systemId) {
+          terminalFlow = zone.calculatedExhaust / (count || 1);
+        }
+        
+        if (Math.abs(terminal.flow - terminalFlow * fraction) > 0.5) {
+          useDuctStore.getState().updateNode(terminal.id, { flow: terminalFlow * fraction });
+        }
+      }
+    });
+    
+    useDuctStore.getState().recalculateFlows();
+  }).catch(() => {});
+}
+
 function createDefaultFloors(): Record<string, Floor> {
   const id = `floor-${crypto.randomUUID()}`;
   return {
@@ -229,7 +264,9 @@ export const useZoneStore = create<ZoneStore>()(
       addZone: (zone) => {
         set((state) => {
           const nextZones = { ...state.zones, [zone.id]: zone };
-          return { zones: resolveZonesState(nextZones) };
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
         });
       },
 
@@ -241,7 +278,9 @@ export const useZoneStore = create<ZoneStore>()(
             ...state.zones,
             [id]: { ...existingZone, ...updates }
           };
-          return { zones: resolveZonesState(nextZones) };
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
         });
       },
 
@@ -249,13 +288,14 @@ export const useZoneStore = create<ZoneStore>()(
         set((state) => {
           const nextZones = { ...state.zones };
           delete nextZones[id];
-          // Sync transfers to remove orphan transferOut references
           Object.keys(nextZones).forEach(zId => {
             if (nextZones[zId]) {
               nextZones[zId].transferOut = nextZones[zId].transferOut.filter(t => t.roomId !== id);
             }
           });
-          return { zones: resolveZonesState(nextZones) };
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
         });
       },
 
@@ -267,7 +307,9 @@ export const useZoneStore = create<ZoneStore>()(
               nextZones[id] = { ...nextZones[id], ...updates };
             }
           });
-          return { zones: resolveZonesState(nextZones) };
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
         });
       },
 
@@ -282,12 +324,18 @@ export const useZoneStore = create<ZoneStore>()(
               nextZones[zId].transferOut = nextZones[zId].transferOut.filter(t => !idsToRemove.has(t.roomId));
             }
           });
-          return { zones: resolveZonesState(nextZones) };
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
         });
       },
 
       recalculateAirBalance: () => {
-        set((state) => ({ zones: resolveZonesState(state.zones) }));
+        set((state) => {
+          const resolved = resolveZonesState(state.zones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
+        });
       },
 
       addSystem: (system) => {

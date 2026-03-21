@@ -1773,6 +1773,41 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   shadowOpacity={0.8}
                   listening={false}
                 />
+                {/* Flow Rate Label */}
+                {edge.flowRate && edge.flowRate > 0 && (
+                  (() => {
+                    const midX = (sPt.x + tPt.x) / 2;
+                    const midY = (sPt.y + tPt.y) / 2;
+                    const angle = Math.atan2(tPt.y - sPt.y, tPt.x - sPt.x) * (180 / Math.PI);
+                    const labelRotation = angle > 90 || angle < -90 ? angle + 180 : angle;
+                    return (
+                      <Group x={midX} y={midY} rotation={labelRotation} offsetY={-8 / scale}>
+                        <Rect
+                          x={-30 / scale}
+                          y={-8 / scale}
+                          width={60 / scale}
+                          height={16 / scale}
+                          fill="#ffffffdd"
+                          cornerRadius={3 / scale}
+                          stroke={edgeColor}
+                          strokeWidth={1 / scale}
+                          listening={false}
+                        />
+                        <Text
+                          text={`${Math.round(edge.flowRate)} m³/h`}
+                          fontSize={10 / scale}
+                          fill="#1e293b"
+                          fontFamily="Segoe UI, Arial, sans-serif"
+                          align="center"
+                          verticalAlign="middle"
+                          width={60 / scale}
+                          height={16 / scale}
+                          listening={false}
+                        />
+                      </Group>
+                    );
+                  })()
+                )}
               </Group>
             );
           })}

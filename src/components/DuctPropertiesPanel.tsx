@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import { X, Hash, Layers, Ruler, Volume2, Activity, AlertTriangle, RefreshCw, Wind } from 'lucide-react';
 import { OrphanedShaftModal } from './OrphanedShaftModal';
 import type { ComponentCategory, ComponentType, Floor } from '../types';
 
@@ -308,6 +308,20 @@ export function DuctPropertiesPanel() {
                     />
                   </div>
                 </div>
+                
+                {/* Flow Summary (Krok 3.4) */}
+                <div className="flex items-center gap-2 text-cyan-600 mt-3">
+                  <Wind className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Przepływ (DFS)</span>
+                </div>
+                <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-cyan-600 font-medium">Sumaryczny wydatek:</span>
+                    <span className="text-sm font-bold text-cyan-700">
+                      {activeNode.flow ? `${Math.round(activeNode.flow)} m³/h` : '0 m³/h'}
+                    </span>
+                  </div>
+                </div>
               </section>
             )}
 
@@ -611,6 +625,20 @@ export function DuctPropertiesPanel() {
                     Użyj go do podsumowania przepływów bez fizycznego urządzenia.
                   </div>
                 </div>
+                
+                {/* Flow Summary (Krok 3.4) */}
+                <div className="flex items-center gap-2 text-cyan-600 mt-3">
+                  <Wind className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Przepływ (DFS)</span>
+                </div>
+                <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-cyan-600 font-medium">Sumaryczny wydatek:</span>
+                    <span className="text-sm font-bold text-cyan-700">
+                      {activeNode.flow ? `${Math.round(activeNode.flow)} m³/h` : '0 m³/h'}
+                    </span>
+                  </div>
+                </div>
               </section>
             )}
 
@@ -671,6 +699,20 @@ export function DuctPropertiesPanel() {
                     <option value="CIRCULAR">Okrągły</option>
                     <option value="RECTANGULAR">Prostokątny</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Flow Rate Section (Krok 3.4) */}
+              <div className="flex items-center gap-2 text-cyan-600">
+                <Wind className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-bold uppercase tracking-wider">Przepływ (DFS)</span>
+              </div>
+              <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-cyan-600 font-medium">Wyliczony wydatek:</span>
+                  <span className="text-sm font-bold text-cyan-700">
+                    {activeEdge.flowRate ? `${Math.round(activeEdge.flowRate)} m³/h` : '0 m³/h'}
+                  </span>
                 </div>
               </div>
             </section>

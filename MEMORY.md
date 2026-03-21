@@ -3,10 +3,10 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 3.3 (Klasy Urządzeń i Elementów)
-* **Active Step:** FAZA 3.3.4 (Auto-tworzenie węzłów SHAFT na wielu kondygnacjach + synchronizacja) - DONE
-* **Test Status:** User testing - check positioning, visibility, synchronization
-* **Pending Task:** FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
+## CURRENT STATE: FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
+* **Active Step:** FAZA 3.4 - Implementacja DFS dla propagacji przepływów
+* **Test Status:** Pending - wymaga testów manualnych
+* **Pending Task:** FAZA 3.5 (Bilansowanie i ścieżka krytyczna)
 
 ## PROGRESS LOG
 * [x] **KROK 0: Multi-Project Management & Time Machine** - Done (Includes Silent Sync & Snapshots)
@@ -17,7 +17,7 @@
 * [x] **KROK 2.0: System Undo/Redo** - Done
 * [x] **KROK 2.3 UI: System Manager Enhancements** - Done
 * [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
-* [x] **FAZA 2.9.2: Relatywne Przesuwanie Stref & Opis 0,0** - Done
+* [x] **FAZA 3.4: Algorytm Propagacji Przepływów DFS** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -690,7 +690,44 @@
     - Tworzy krawędzie pionowe między sąsiednimi węzłami
 - **OrphanedShaftModal** (`src/components/OrphanedShaftModal.tsx`):
     - Modal z opcjami zarządzania osieroconymi węzłami SHAFT
-    - Opcje: USUŃ, POZOSTAW, UTWÓRZ NOWY PION, PRZENIEŚ DO...
+     - Opcje: USUŃ, POZOSTAW, UTWÓRZ NOWY PION, PRZENIEŚ DO...
+
+### FAZA 3.4: Algorytm Propagacji Przepływów DFS - 2026-03-21
+- **Cel**: Algorytm DFS sumujący wydatki powietrza [m³/h] od terminali aż do korzeni (AHU, FAN, VIRTUAL_ROOT)
+
+- **Model Danych (`types.ts`)**:
+    - Dodano `flowRate?: number` do `DuctSegment` (wyliczony wydatek przepływający przez rurę)
+    - Węzły mają pole `flow` (skumulowany wydatek)
+
+- **Silnik NetworkEngine (`src/lib/networkEngine.ts`)**:
+    - Funkcja `calculateNetworkFlows(nodes, edges)` zwraca zaktualizowane węzły i krawędzie
+    - Budowa mapy sąsiedztwa (AdjacencyMap)
+    - Identyfikacja korzeni: EQUIPMENT, VIRTUAL_ROOT
+    - Rekurencja DFS: TERMINAL zwraca `node.flow`, pozostałe sumują `branchFlow` z dzieci
+    - Helper: `getNetworkRoots()`, `getTerminals()`
+
+- **Integracja z useDuctStore**:
+    - Akcja `recalculateFlows()` wywołuje NetworkEngine
+    - Automatyczne wyzwalanie po: `addNode`, `removeNode`, `addEdge`, `removeEdge`, `updateNode`, `updateEdge`, `splitEdge`, `mergeNodeToEdge`, `mergeNodes`, `insertInlineComponent`
+    - `updateNode` i `updateEdge` wywołują recalculateFlows przy każdej zmianie
+
+- **Synchronizacja ze strefami (`useZoneStore.ts`)**:
+    - Funkcja `syncTerminalsFromZones()` - dynamiczny import useDuctStore
+    - Przy zmianie strefy (calculatedVolume, calculatedExhaust) terminale są automatycznie aktualizowane
+    - Wywoływana po: `addZone`, `updateZone`, `removeZone`, `bulkUpdateZones`, `bulkDeleteZones`, `recalculateAirBalance`
+
+- **Wizualizacja Canvas (`Workspace2D.tsx`)**:
+    - Etykiety przepływu na środku każdej krawędzi z `flowRate > 0`
+    - Tło etykiety: białe z ramką w kolorze systemu
+    - Format: `XXX m³/h`
+    - Rotacja zgodna z kątem kanału
+
+- **Panel Właściwości (`DuctPropertiesPanel.tsx`)**:
+    - Sekcja "Przepływ (DFS)" dla węzłów EQUIPMENT i VIRTUAL_ROOT
+    - Sekcja "Przepływ (DFS)" dla krawędzi (edge.flowRate)
+    - Wyświetla skumulowany/sumaryczny wydatek
+
+- **Pliki**: `src/types.ts`, `src/lib/networkEngine.ts`, `src/stores/useDuctStore.ts`, `src/stores/useZoneStore.ts`, `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`
     - Wyświetla listę osieroconych kondygnacji
     - Opcja "Rozszerz zakres docelowego pionu"
 - **DuctPropertiesPanel.tsx**:

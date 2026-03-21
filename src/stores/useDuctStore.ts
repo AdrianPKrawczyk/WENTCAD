@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { temporal } from 'zundo';
 import { persist } from 'zustand/middleware';
 import type { DuctNode, DuctSegment, ComponentType } from '../types';
+import { calculateNetworkFlows } from '../lib/networkEngine';
 
 interface DuctStore {
   nodes: Record<string, DuctNode>;
@@ -20,6 +21,9 @@ interface DuctStore {
   setSelectedEdgeId: (id: string | null) => void;
   setDrawingSystemId: (id: string | null) => void;
   setActiveNodeId: (id: string | null) => void;
+  
+  // Flow recalculation (Krok 3.4)
+  recalculateFlows: () => void;
   
   addNode: (node: DuctNode) => void;
   updateNode: (id: string, updates: Partial<DuctNode>) => void;
@@ -146,7 +150,17 @@ export const useDuctStore = create<DuctStore>()(
         setDrawingSystemId: (id) => set({ drawingSystemId: id }),
         setActiveNodeId: (id) => set({ activeNodeId: id }),
 
-        addNode: (node) => set((state) => ({ nodes: { ...state.nodes, [node.id]: node } })),
+        recalculateFlows: () => {
+          const { nodes, edges } = get();
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(nodes, edges);
+          set({ nodes: updatedNodes, edges: updatedEdges });
+        },
+
+        addNode: (node) => set((state) => {
+          const newState = { nodes: { ...state.nodes, [node.id]: node } };
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newState.nodes, state.edges);
+          return { nodes: updatedNodes, edges: updatedEdges };
+        }),
         
         updateNode: (id, updates) => set((state) => {
           const node = state.nodes[id];
@@ -165,10 +179,15 @@ export const useDuctStore = create<DuctStore>()(
               newEdges[eId] = { ...newEdges[eId], systemId: updates.systemId! };
             });
             
-            return { nodes: newNodes, edges: newEdges };
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
+            return { nodes: updatedNodes, edges: updatedEdges };
           }
 
-          return { nodes: { ...state.nodes, [id]: { ...node, ...updates } } };
+          // Regular update - also recalculate flows as node.flow might have changed
+          const updatedNode = { ...node, ...updates };
+          const newNodes = { ...state.nodes, [id]: updatedNode };
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, state.edges);
+          return { nodes: updatedNodes, edges: updatedEdges };
         }),
 
         removeNode: (id) => set((state) => {
@@ -183,9 +202,10 @@ export const useDuctStore = create<DuctStore>()(
             }
           });
           
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
           return { 
-            nodes: newNodes, 
-            edges: newEdges, 
+            nodes: updatedNodes, 
+            edges: updatedEdges, 
             activeNodeId: state.activeNodeId === id ? null : state.activeNodeId,
             selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId
           };
@@ -213,7 +233,8 @@ export const useDuctStore = create<DuctStore>()(
             }
           });
 
-          return { nodes: newNodes, edges: newEdges };
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
+          return { nodes: updatedNodes, edges: updatedEdges };
         }),
 
         updateEdge: (id, updates) => set((state) => {
@@ -233,17 +254,24 @@ export const useDuctStore = create<DuctStore>()(
               newEdges[eId] = { ...newEdges[eId], systemId: updates.systemId! };
             });
             
-            return { nodes: newNodes, edges: newEdges };
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
+            return { nodes: updatedNodes, edges: updatedEdges };
           }
 
-          return { edges: { ...state.edges, [id]: { ...edge, ...updates } } };
+          // Regular update - recalculate flows
+          const updatedEdge = { ...edge, ...updates };
+          const newEdges = { ...state.edges, [id]: updatedEdge };
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(state.nodes, newEdges);
+          return { nodes: updatedNodes, edges: updatedEdges };
         }),
 
         removeEdge: (id) => set((state) => {
           const newEdges = { ...state.edges };
           delete newEdges[id];
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(state.nodes, newEdges);
           return { 
-            edges: newEdges,
+            nodes: updatedNodes,
+            edges: updatedEdges,
             selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId
           };
         }),
@@ -291,11 +319,15 @@ export const useDuctStore = create<DuctStore>()(
           };
 
           set((s) => {
+            const newNodes = { ...s.nodes, [newNodeId]: newNode };
             const newEdges = { ...s.edges };
             delete newEdges[edgeId];
+            newEdges[edge1Id] = edge1;
+            newEdges[edge2Id] = edge2;
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
             return {
-              nodes: { ...s.nodes, [newNodeId]: newNode },
-              edges: { ...newEdges, [edge1Id]: edge1, [edge2Id]: edge2 },
+              nodes: updatedNodes,
+              edges: updatedEdges,
               selectedEdgeId: s.selectedEdgeId === edgeId ? null : s.selectedEdgeId
             };
           });
@@ -374,9 +406,10 @@ export const useDuctStore = create<DuctStore>()(
             // 4. Remove the old node
             delete newNodes[nodeId];
 
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
             return {
-              nodes: newNodes,
-              edges: newEdges,
+              nodes: updatedNodes,
+              edges: updatedEdges,
               selectedNodeId: s.selectedNodeId === nodeId ? null : s.selectedNodeId,
               selectedEdgeId: s.selectedEdgeId === edgeId ? null : s.selectedEdgeId,
               activeNodeId: s.activeNodeId === nodeId ? null : s.activeNodeId
@@ -436,9 +469,10 @@ export const useDuctStore = create<DuctStore>()(
               }
             });
 
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
             return {
-              nodes: newNodes,
-              edges: newEdges,
+              nodes: updatedNodes,
+              edges: updatedEdges,
               selectedNodeId: s.selectedNodeId === sourceId ? null : s.selectedNodeId,
               activeNodeId: s.activeNodeId === sourceId ? null : s.activeNodeId
             };
@@ -497,11 +531,15 @@ export const useDuctStore = create<DuctStore>()(
           };
 
           set((s) => {
+            const newNodes = { ...s.nodes, [newNodeId]: newNode };
             const newEdges = { ...s.edges };
             delete newEdges[edgeId];
+            newEdges[edge1Id] = edge1;
+            newEdges[edge2Id] = edge2;
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, newEdges);
             return {
-              nodes: { ...s.nodes, [newNodeId]: newNode },
-              edges: { ...newEdges, [edge1Id]: edge1, [edge2Id]: edge2 },
+              nodes: updatedNodes,
+              edges: updatedEdges,
               selectedNodeId: newNodeId,
               selectedEdgeId: null,
             };

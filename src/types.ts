@@ -295,6 +295,9 @@ export interface DuctSegment {
   // Outputs
   velocity: number;        // m/s
   pressureDropLin: number; // Pa (Liniowy spadek ciśnienia)
+  
+  // Flow propagation (Krok 3.4)
+  flowRate?: number; // m³/h - wyliczony wydatek przepływający przez rurę (DFS result)
 }
 
 // ============================================
