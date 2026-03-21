@@ -12,7 +12,7 @@ export interface ColumnFilterProfile {
 export interface ExportProfile {
   id: string;
   name: string;
-  format: 'PDF' | 'XLSX';
+  format: 'PDF' | 'XLSX' | 'IFC';
   scope: 'ALL_FLOORS' | 'ACTIVE_FLOOR';
   includeBalanceTable: boolean;
   includeRoomCards: boolean;

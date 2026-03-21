@@ -534,6 +534,14 @@
   - **Bezpieczeństwo ID**: Implementacja `importProjectService.ts` zawiera algorytm `remapAllIds`, który przy każdym imporcie generuje nowe UUID dla wszystkich kondygnacji, stref i poligonów. Zapobiega to konfliktom danych i "wyciekom" rysunków między różnymi projektami w IndexDB.
   - **Pliki**: `src/lib/projectTransfer.ts`, `src/lib/importProjectService.ts`, `src/components/ProjectImportModal.tsx`, `src/components/TopBar.tsx`, `src/components/ProjectDashboard.tsx`.
 
+### Iteracja 2.12: Moduł eksportu Spatial BIM (IFC2x3)
+- **Implementacja**: Utworzono plik `src/lib/ifcExport.ts` zawierający mechanizm budowania plików IFC (oparty na standardzie STEP, ISO-10303-21). Zaimplementowano generator unikalnych GUID (konwersja UUIDv4 do kompresji 22-znakowej Base64 dla IFC).
+- **Hierarchia przestrzenna**: Tworzony plik mapuje obiekty w następującej strukturze: `IfcProject` -> `IfcSite` -> `IfcBuilding` -> `IfcBuildingStorey` -> `IfcSpace`.
+- **Geometria (Bryły 3D)**: Dla każdej strefy (przypisanej do kondygnacji) generowana jest bryła `IfcExtrudedAreaSolid` poprzez wyciągnięcie jej poligonu narysowanego na Canvas 2D, z uwzględnieniem przypisanej wysokości (domyślnie `3.0 m`). Parametry współrzędnych i rzędnych (`elevation`) pobierane są ze store'a.
+- **Właściwości Termodynamiczne (Pset)**: Do każdej strefy (`IfcSpace`) podpinany jest zestaw właściwości o nazwie `Pset_SpaceThermalDesign`, eksportując kluczowe parametry: `TotalHeatGain`, `TotalHeatLoss`, `SpaceTemperatureWinterMin`, `SpaceTemperatureSummerMax` oraz `SpaceHumiditySummer` bazując na danych wprowadzonych w tabeli bilansowej.
+- **Interfejs Użytkownika**: Zintegrowano obsługę z głównym panelem eksportu (`ExportDashboard.tsx`). Dodano dedykowany przycisk `IFC (3D)`, który blokuje zbędne opcje konfiguracyjne specyficzne dla dokumentów (jak tabele i czcionki) i wykonuje szybki render do przeglądarkowego okna pobierania.
+- **Pliki**: `src/lib/ifcExport.ts`, `src/components/ExportDashboard.tsx`, `src/stores/useSettingsStore.ts`.
+
 ### Iteracja 3.1: Fundamenty Topologii HVAC (Graph-based Routing)
 - **Architektura Grafu (DAG)**: Wprowadzono `useDuctStore.ts` jako centralny magazyn dla sieci przewodów. Sieć oparta jest na węzłach (`DuctNode`) i krawędziach (`DuctSegment`), co pozwala na późniejsze obliczenia spadków ciśnień i przepływów.
 - **Persystencja i Historia**: Store został objęty mechanizmem `zundo` (Undo/Redo) oraz `persist` (zapis w IndexDB), zapewniając bezpieczeństwo pracy inżyniera.

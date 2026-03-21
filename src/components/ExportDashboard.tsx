@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Download, FileText, Table, Save, Trash2, CheckCircle2 } from 'lucide-react';
+import { Download, FileText, Table, Save, Trash2, CheckCircle2, Box } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useSettingsStore, type ExportProfile } from '../stores/useSettingsStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
 import { exportData } from '../lib/exportUtils';
 import { toast } from 'sonner';
 
@@ -17,7 +18,7 @@ export function ExportDashboard() {
 
   // Form State
   const [profileName, setProfileName] = useState('');
-  const [format, setFormat] = useState<'PDF' | 'XLSX'>('PDF');
+  const [format, setFormat] = useState<'PDF' | 'XLSX' | 'IFC'>('PDF');
   const [scope, setScope] = useState<'ALL_FLOORS' | 'ACTIVE_FLOOR'>('ACTIVE_FLOOR');
   
   const [includeBalanceTable, setIncludeBalanceTable] = useState(true);
@@ -31,6 +32,13 @@ export function ExportDashboard() {
   const handleExport = async () => {
     toast.promise(
       (async () => {
+        if (format === 'IFC') {
+          const { exportToIfc } = await import('../lib/ifcExport');
+          const canvasFloors = useCanvasStore.getState().floors;
+          await exportToIfc(zones, floors, canvasFloors);
+          return;
+        }
+
         let selectedColumns;
         if (columnProfileId) {
           const profile = savedColumnProfiles.find(p => p.id === columnProfileId);
@@ -131,6 +139,14 @@ export function ExportDashboard() {
                     >
                       <Table className="w-5 h-5" /> Excel (XLSX)
                     </button>
+                    <button
+                      onClick={() => setFormat('IFC')}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all font-bold ${
+                        format === 'IFC' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <Box className="w-5 h-5" /> IFC (3D)
+                    </button>
                   </div>
                 </div>
 
@@ -146,7 +162,7 @@ export function ExportDashboard() {
                   </select>
                 </div>
 
-                <div>
+                <div className={format === 'IFC' ? 'opacity-50 pointer-events-none' : ''}>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Zawartość Dokumentu</label>
                   <label className="flex items-center gap-3 p-3 border-2 border-slate-100 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mb-2">
                     <input 
@@ -191,7 +207,7 @@ export function ExportDashboard() {
             </div>
 
             {/* CARD 2: Wygląd i Kolumny */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between ${format === 'IFC' ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5 pb-2 border-b border-slate-100">Prezentacja / Czytelność (Dla PDF)</h3>
                 
@@ -245,7 +261,7 @@ export function ExportDashboard() {
               <div className="mt-8">
                 <button
                   onClick={handleExport}
-                  disabled={!includeBalanceTable && !includeRoomCards}
+                  disabled={format !== 'IFC' && !includeBalanceTable && !includeRoomCards}
                   className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-5 h-5" />
