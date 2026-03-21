@@ -1710,10 +1710,11 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 );
               }
               
-              // EQUIPMENT - RoundedRect (AHU, FAN) - STAŁE wymiary
+              // EQUIPMENT - RoundedRect (AHU, FAN) - SKALOWANE wymiary fizyczne
               if (node.componentCategory === 'EQUIPMENT') {
-                const eqWidth = 50;
-                const eqHeight = 30;
+                const floorScale = scaleFactor || 1; // px/cm
+                const eqWidth = (node.widthCm || 50) * floorScale;
+                const eqHeight = (node.heightCm || 30) * floorScale;
                 const isAHU = node.componentType === 'AHU';
                 return (
                   <Group>
