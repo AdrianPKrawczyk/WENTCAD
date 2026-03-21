@@ -102,6 +102,38 @@
 - **Stylizacja Rodzin (Family Styling)**: Systemy powiązane (np. N1, W1, W1.1) otrzymują ten sam kolor bazowy. Wentylatory dodatkowo otrzymują deseń (pattern), co pozwala na wizualną hierarchizację.
 - **Undo/Redo Stability**: Wszystkie systemy generowane w kreatorze są dodawane do store'a za pomocą jednej akcji `addSystems`, co gwarantuje, że cała operacja zajmuje dokładnie JEDEN krok in historii (`zundo`).
 
+## STABILIZACJA I DEBUGOWANIE KROKU 3.4 (Flow Propagation)
+
+### 1. Robustness: Liczenie Terminali i Przepływy
+*   **Problem**: Błąd "+1" w liczniku terminali w panelu właściwości oraz nadpisywanie przepływów w sieciach z wieloma korzeniami.
+*   **Rozwiązanie**: 
+    *   Poprawiono `DuctPropertiesPanel.tsx` (usunięcie offsetu).
+    *   Zaktualizowano `networkEngine.ts`: Przepływy są teraz **akumulowane** (`+=`), co pozwala na poprawną obsługę systemów z wieloma AHU lub pionami.
+*   **Prewencja**: Zawsze zakładać, że sieć może być lasem (wiele drzew/korzeni) i stosować logikę addytywną.
+
+### 2. Spatial Intelligence: Auto-przypisywanie Stref
+*   **Problem**: Konieczność manualnego wybierania strefy dla każdego anemostatu.
+*   **Rozwiązanie**: Wdrożono algorytm `isPointInPolygon` (ray-casting) w `geometryUtils.ts`.
+*   **Automatyzacja**: 
+    *   `useDuctStore.ts`: Akcje `addNode` i `updateNode` automatycznie sprawdzają kolizję punktu z poligonami stref.
+    *   Przy wstawianiu lub przesunięciu terminala, `zoneId` aktualizuje się samoczynnie.
+*   **Prewencja**: Relacje przestrzenne (punkt wewnątrz strefy) powinny być liczone programowo, nie deklaratywnie przez użytkownika.
+
+### 3. Wydajność: Bulk Updates
+*   **Problem**: Pętla w `syncTerminalsFromZones` wywołująca `updateNode` dla każdego terminala, co powodowało setki zbędnych rekursji DFS.
+*   **Rozwiązanie**: Dodano akcję `bulkUpdateNodes()` w `useDuctStore.ts`. Pozwala na aktualizację wielu węzłów w jednej transakcji Zustand i jedno przeliczenie sieci na końcu.
+*   **Prewencja**: **Nigdy** nie wywoływać akcji aktualizujących store wewnątrz pętli `.forEach`. Zawsze zbierać zmiany do obiektu i wysyłać raz (Bulk Pattern).
+
+### 4. Stabilność Canvas (Eliminacja "Białego Ekranu")
+*   **Problem**: `TypeError: getParent of undefined` przy rysowaniu przewodów oraz pusty canvas po F5/odświeżeniu.
+*   **Przyczyny**: 
+    1.  Wywołania `stageRef.current.getStage().container()` przed pełną inicjalizacją Konva.
+    2.  Renderowanie `Workspace2D` przy braku wczytanych metadanych kondygnacji.
+*   **Rozwiązanie**: 
+    1.  Optional chaining i null-checks we wszystkich handlerach zdarzeń Konva.
+    2.  **Rendering Guard** w `Workspace2D.tsx`: Jeśli `activeFloorMetadata` lub `activeCanvasFloor` są nieobecne, komponent zwraca `Loader` zamiast próbować renderować `Stage`.
+*   **Prewencja**: Traktować dostęp do API `Stage` jako operację niepewną (unsafe). Stosować "Initial Loading State" dla kluczowych komponentów CAD.
+
 ## ARCHITEKTURA SILNIKA 2D (FAZA 2.1 & 2.2)
 
 ### Biblioteka renderowania

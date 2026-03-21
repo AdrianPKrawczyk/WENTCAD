@@ -3,6 +3,7 @@ import { temporal } from 'zundo';
 import { persist } from 'zustand/middleware';
 import type { DuctNode, DuctSegment, ComponentType } from '../types';
 import { calculateNetworkFlows } from '../lib/networkEngine';
+import { isPointInPolygon } from '../lib/geometryUtils';
 
 interface DuctStore {
   nodes: Record<string, DuctNode>;
@@ -60,6 +61,7 @@ interface DuctStore {
   createShaftNode: (sourceNode: DuctNode, targetFloorId: string, shaftId: string) => DuctNode;
   syncShaftProperties: (sourceNodeId: string, updates: Partial<DuctNode>) => void;
   resetPositionSync: (sourceNodeId: string) => void;
+  bulkUpdateNodes: (updates: Record<string, Partial<DuctNode>>) => void;
 }
 
 /**
@@ -156,15 +158,57 @@ export const useDuctStore = create<DuctStore>()(
           set({ nodes: updatedNodes, edges: updatedEdges });
         },
 
-        addNode: (node) => set((state) => {
-          const newState = { nodes: { ...state.nodes, [node.id]: node } };
-          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newState.nodes, state.edges);
-          return { nodes: updatedNodes, edges: updatedEdges };
-        }),
+        addNode: (node) => {
+          const newNode = { ...node };
+          
+          // Auto-assign zone for terminals if not provided
+          if (newNode.componentCategory === 'TERMINAL' && !newNode.zoneId) {
+            (async () => {
+              try {
+                const { useCanvasStore } = await import('./useCanvasStore');
+                const floorPolygons = useCanvasStore.getState().floors[newNode.floorId]?.polygons || [];
+                for (const poly of floorPolygons) {
+                  if (isPointInPolygon(newNode.x, newNode.y, poly.points)) {
+                    get().updateNode(newNode.id, { zoneId: poly.zoneId });
+                    break;
+                  }
+                }
+              } catch (e) {}
+            })();
+          }
+
+          set((prev) => {
+            const newState = { nodes: { ...prev.nodes, [newNode.id]: newNode } };
+            const { updatedNodes, updatedEdges } = calculateNetworkFlows(newState.nodes, prev.edges);
+            return { nodes: updatedNodes, edges: updatedEdges };
+          });
+        },
         
         updateNode: (id, updates) => set((state) => {
           const node = state.nodes[id];
           if (!node) return state;
+
+          // Auto-assign zone if moved
+          if (node.componentCategory === 'TERMINAL' && (updates.x !== undefined || updates.y !== undefined)) {
+            const newX = updates.x !== undefined ? updates.x : node.x;
+            const newY = updates.y !== undefined ? updates.y : node.y;
+            (async () => {
+              try {
+                const { useCanvasStore } = await import('./useCanvasStore');
+                const floorPolygons = useCanvasStore.getState().floors[node.floorId]?.polygons || [];
+                let foundZoneId = undefined;
+                for (const poly of floorPolygons) {
+                  if (isPointInPolygon(newX, newY, poly.points)) {
+                    foundZoneId = poly.zoneId;
+                    break;
+                  }
+                }
+                if (foundZoneId !== node.zoneId) {
+                  get().updateNode(id, { zoneId: foundZoneId });
+                }
+              } catch (e) {}
+            })();
+          }
 
           // If systemId is changing, propagate to whole network
           if (updates.systemId && updates.systemId !== node.systemId) {
@@ -183,7 +227,7 @@ export const useDuctStore = create<DuctStore>()(
             return { nodes: updatedNodes, edges: updatedEdges };
           }
 
-          // Regular update - also recalculate flows as node.flow might have changed
+          // Regular update - also recalculate flows as node.flow or zoneId might have changed
           const updatedNode = { ...node, ...updates };
           const newNodes = { ...state.nodes, [id]: updatedNode };
           const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, state.edges);
@@ -809,6 +853,23 @@ export const useDuctStore = create<DuctStore>()(
 
           set({ nodes: newNodes });
         },
+
+        bulkUpdateNodes: (updates) => set((state) => {
+          const newNodes = { ...state.nodes };
+          let changed = false;
+          
+          Object.entries(updates).forEach(([id, nodeUpdates]) => {
+            if (newNodes[id]) {
+              newNodes[id] = { ...newNodes[id], ...nodeUpdates };
+              changed = true;
+            }
+          });
+          
+          if (!changed) return state;
+          
+          const { updatedNodes, updatedEdges } = calculateNetworkFlows(newNodes, state.edges);
+          return { nodes: updatedNodes, edges: updatedEdges };
+        }),
       }),
       {
         name: 'wentcad-duct-storage',

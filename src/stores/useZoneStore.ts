@@ -14,6 +14,8 @@ function syncTerminalsFromZones() {
       node => node.componentCategory === 'TERMINAL' && node.zoneId
     );
     
+    const nodeUpdates: Record<string, Partial<any>> = {};
+    
     terminals.forEach(terminal => {
       const zone = zoneState.zones[terminal.zoneId!];
       if (zone) {
@@ -25,18 +27,21 @@ function syncTerminalsFromZones() {
         
         let terminalFlow = 0;
         if (terminal.systemId && zone.systemSupplyId && zone.systemSupplyId === terminal.systemId) {
-          terminalFlow = zone.calculatedVolume / (count || 1);
+          terminalFlow = (zone.calculatedVolume || 0) / (count || 1);
         } else if (terminal.systemId && zone.systemExhaustId && zone.systemExhaustId === terminal.systemId) {
-          terminalFlow = zone.calculatedExhaust / (count || 1);
+          terminalFlow = (zone.calculatedExhaust || 0) / (count || 1);
         }
         
-        if (Math.abs(terminal.flow - terminalFlow * fraction) > 0.5) {
-          useDuctStore.getState().updateNode(terminal.id, { flow: terminalFlow * fraction });
+        const targetFlow = terminalFlow * fraction;
+        if (Math.abs((terminal.flow || 0) - targetFlow) > 0.1) {
+          nodeUpdates[terminal.id] = { flow: targetFlow };
         }
       }
     });
     
-    useDuctStore.getState().recalculateFlows();
+    if (Object.keys(nodeUpdates).length > 0) {
+      useDuctStore.getState().bulkUpdateNodes(nodeUpdates);
+    }
   }).catch(() => {});
 }
 

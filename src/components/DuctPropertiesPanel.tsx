@@ -357,7 +357,7 @@ export function DuctPropertiesPanel() {
                       <div className="flex justify-between text-xs">
                         <span className="text-green-600 font-medium">Terminali w strefie:</span>
                         <span className="text-green-700 font-bold">
-                          {getTerminalsInZone(activeZone.id, activeNode.systemId).length + 1}
+                          {getTerminalsInZone(activeZone.id, activeNode.systemId).length}
                         </span>
                       </div>
                     </div>

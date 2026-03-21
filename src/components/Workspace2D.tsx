@@ -1237,6 +1237,18 @@ export function Workspace2D({ className }: Workspace2DProps) {
     return lines;
   };
 
+  // Guard against missing floor metadata or uninitialized state (Prevents white screen)
+  if (!activeFloorIdFromZone || !activeFloorMetadata || !activeCanvasFloor) {
+    return (
+      <div ref={containerRef} className={`flex-1 bg-slate-50 flex items-center justify-center ${className || ''}`}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+          <span className="text-xs text-slate-400 font-medium">Inicjalizacja kondygnacji...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className={`relative w-full h-full bg-[#f0f2f5] overflow-hidden select-none ${className ?? ''}`}>
       {/* FLOATING FLOOR SWITCHER */}
@@ -2024,7 +2036,9 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   dragStartNodePos.current = { x: node.x, y: node.y };
                 }}
                 onMouseEnter={(e: any) => {
-                  const container = e.target.getStage()?.container();
+                  const stage = e.target.getStage();
+                  if (!stage) return;
+                  const container = stage.container();
                   if (container) {
                     if (currentTool === 'ERASER') container.style.cursor = 'crosshair';
                     else if (currentTool === 'DRAW_DUCT') container.style.cursor = 'crosshair';

@@ -141,7 +141,7 @@ export function calculateNetworkFlows(
       if (updatedNodes[nodeId]) {
         updatedNodes[nodeId] = {
           ...updatedNodes[nodeId],
-          flow
+          flow: (updatedNodes[nodeId].flow || 0) + flow
         };
       }
     });
@@ -150,7 +150,7 @@ export function calculateNetworkFlows(
       if (updatedEdges[edgeId]) {
         updatedEdges[edgeId] = {
           ...updatedEdges[edgeId],
-          flowRate
+          flowRate: (updatedEdges[edgeId].flowRate || 0) + flowRate
         };
       }
       processedEdges.add(edgeId);
