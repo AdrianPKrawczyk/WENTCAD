@@ -43,10 +43,10 @@ function syncShaftToAllFloorsInRange(
   sourceNodeId: string,
   allFloors: Record<string, Floor>,
   createShaftNodeOnFloor: (sourceNode: any, targetFloorId: string, shaftId: string) => any,
-  createVerticalEdge: (sourceNodeId: string, targetNodeId: string, systemId: string, ahuId: string) => void,
-  nodes: Record<string, any>
+  createVerticalEdge: (sourceNodeId: string, targetNodeId: string, systemId: string, ahuId: string) => void
 ) {
-  const sourceNode = nodes[sourceNodeId];
+  const currentNodes = useDuctStore.getState().nodes;
+  const sourceNode = currentNodes[sourceNodeId];
   if (!sourceNode || sourceNode.componentCategory !== 'SHAFT' || !sourceNode.shaftId) return;
   
   const shaftRange = sourceNode.shaftRange;
@@ -68,20 +68,14 @@ function syncShaftToAllFloorsInRange(
   );
   
   // Utwórz węzły SHAFT na każdej kondygnacji w zakresie
-  const createdNodeIds: string[] = [];
-  
   for (const floor of floorsInRange) {
-    if (floor.id === sourceNode.floorId) {
-      // To jest węzeł źródłowy
-      createdNodeIds.push(sourceNode.id);
-      continue;
-    }
-    
-    const newNode = createShaftNodeOnFloor(sourceNode, floor.id, sourceNode.shaftId);
-    if (newNode) {
-      createdNodeIds.push(newNode.id);
+    if (floor.id !== sourceNode.floorId) {
+      createShaftNodeOnFloor(sourceNode, floor.id, sourceNode.shaftId);
     }
   }
+  
+  // Pobierz aktualny stan nodes, aby wyszukać węzły zarówno stare, jak i nowo utworzone
+  const finalNodes = useDuctStore.getState().nodes;
   
   // Utwórz krawędzie pionowe między węzłami na sąsiednich kondygnacjach
   const floorsInRangeSorted = floorsInRange.sort((a, b) => a.elevation - b.elevation);
@@ -91,12 +85,8 @@ function syncShaftToAllFloorsInRange(
     const upperFloor = floorsInRangeSorted[i + 1];
     
     // Znajdź węzły SHAFT na tych kondygnacjach
-    const lowerNode = createdNodeIds.length > 0 
-      ? Object.values(nodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === lowerFloor.id)
-      : null;
-    const upperNode = createdNodeIds.length > 0
-      ? Object.values(nodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === upperFloor.id)
-      : null;
+    const lowerNode = Object.values(finalNodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === lowerFloor.id);
+    const upperNode = Object.values(finalNodes).find(n => n.componentCategory === 'SHAFT' && n.shaftId === sourceNode.shaftId && n.floorId === upperFloor.id);
     
     if (lowerNode && upperNode) {
       createVerticalEdge(lowerNode.id, upperNode.id, sourceNode.systemId, sourceNode.ahuId);
@@ -135,8 +125,8 @@ export function DuctPropertiesPanel() {
     
     updateNode(activeNode.id, { shaftRange: newRange });
     syncShaftProperties(activeNode.id, { shaftRange: newRange });
-    syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge, nodes);
-  }, [activeNode, floors, updateNode, syncShaftProperties, createShaftNodeOnFloor, createVerticalEdge, nodes]);
+    syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge);
+  }, [activeNode, floors, updateNode, syncShaftProperties, createShaftNodeOnFloor, createVerticalEdge]);
 
   if (!activeNode && !activeEdge) return null;
 
@@ -465,6 +455,7 @@ export function DuctPropertiesPanel() {
                         updateNode(activeNode.id, { shaftId: newShaftId });
                         if (newShaftId) {
                           syncShaftProperties(activeNode.id, { shaftId: newShaftId });
+                          syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge);
                         }
                       }}
                       placeholder="np. P1"
@@ -478,6 +469,7 @@ export function DuctPropertiesPanel() {
                         const newShaftId = `P${nextNum}`;
                         updateNode(activeNode.id, { shaftId: newShaftId, shaftAutoNumber: nextNum });
                         syncShaftProperties(activeNode.id, { shaftId: newShaftId, shaftAutoNumber: nextNum });
+                        syncShaftToAllFloorsInRange(activeNode.id, floors, createShaftNodeOnFloor, createVerticalEdge);
                       }}
                       className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors"
                     >
@@ -548,7 +540,11 @@ export function DuctPropertiesPanel() {
                       type="number"
                       className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
                       value={activeNode.shaftShiftX || 0}
-                      onChange={(e) => updateNode(activeNode.id, { shaftShiftX: Number(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 0;
+                        updateNode(activeNode.id, { shaftShiftX: val });
+                        syncShaftProperties(activeNode.id, { shaftShiftX: val });
+                      }}
                       placeholder="0"
                     />
                   </div>
@@ -558,7 +554,11 @@ export function DuctPropertiesPanel() {
                       type="number"
                       className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
                       value={activeNode.shaftShiftY || 0}
-                      onChange={(e) => updateNode(activeNode.id, { shaftShiftY: Number(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 0;
+                        updateNode(activeNode.id, { shaftShiftY: val });
+                        syncShaftProperties(activeNode.id, { shaftShiftY: val });
+                      }}
                       placeholder="0"
                     />
                   </div>

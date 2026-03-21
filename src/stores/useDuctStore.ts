@@ -714,13 +714,24 @@ export const useDuctStore = create<DuctStore>()(
 
           const newNodes = { ...state.nodes };
           const shaftId = updates.shaftId ?? sourceNode.shaftId;
+          
+          const willSyncPosition = updates.shaftShiftX !== undefined || updates.shaftShiftY !== undefined;
+          const shiftX = updates.shaftShiftX ?? sourceNode.shaftShiftX ?? 0;
+          const shiftY = updates.shaftShiftY ?? sourceNode.shaftShiftY ?? 0;
 
           // Find all SHAFT nodes with the same shaftId
           Object.values(state.nodes).forEach(node => {
             if (node.componentCategory === 'SHAFT' && node.shaftId === shaftId && node.id !== sourceNodeId) {
+              const nodeUpdates: Partial<DuctNode> = { ...updates };
+              
+              if (willSyncPosition && !node.isPositionManuallySet) {
+                 nodeUpdates.x = sourceNode.x + shiftX;
+                 nodeUpdates.y = sourceNode.y + shiftY;
+              }
+              
               newNodes[node.id] = {
                 ...newNodes[node.id],
-                ...updates,
+                ...nodeUpdates,
               };
             }
           });
@@ -739,11 +750,10 @@ export const useDuctStore = create<DuctStore>()(
           const shaftShiftY = sourceNode.shaftShiftY || 0;
           const newNodes = { ...state.nodes };
 
-          // Reset isPositionManuallySet on all nodes with the same shaftId
+          // Reset isPositionManuallySet on all nodes with the same shaftId and align to source center
           Object.values(state.nodes).forEach(node => {
             if (node.componentCategory === 'SHAFT' && node.shaftId === shaftId) {
-              if (node.id !== sourceNodeId && !node.isPositionManuallySet) {
-                // Only sync position if not manually set
+              if (node.id !== sourceNodeId) {
                 newNodes[node.id] = {
                   ...newNodes[node.id],
                   isPositionManuallySet: false,

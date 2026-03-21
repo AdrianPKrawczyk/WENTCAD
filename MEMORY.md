@@ -751,3 +751,14 @@
     - **useDuctStore.ts**: Naprawiono błąd `prefer-const` dla zmiennej `componentCategory`.
 - **Weryfikacja**: Pomyślnie wykonano pełny build produkcyjny (`npm run build`). System jest gotowy do dalszego rozwoju algorytmów przepływowych.
 - **Pliki**: `src/components/AirBalanceTable.tsx`, `src/components/Workspace2D.tsx`, `src/lib/importProjectService.ts`, `src/stores/useDuctStore.ts`.
+
+### Iteracja 3.3.6: Naprawa Logiki Tworzenia i Synchronizacji Pionów (SHAFT) - 2026-03-21
+- **Problem 1 (Tworzenie krawędzi pionowych)**: Węzły SHAFT tworzone na sąsiednich kondygnacjach nie miały wyrysowanych niewidzialnych krawędzi pionowych z powodu użycia starego stanu `nodes` w `syncShaftToAllFloorsInRange` jako zamknięcia ujęcia.
+- **Naprawa 1**: Funkcja została przepisana, aby zawsze pobierać najnowszy stan `nodes` z `useDuctStore.getState()`. Umożliwia to zlokalizowanie nowo wykreowanych węzłów.
+- **Problem 2 (Brakująca synchronizacja ID)**: Wybranie kondygnacji docelowych, a potem wpisanie ID nie powodowało wygenerowania pionu. Tworzenie zachodziło tylko przy zmianach w polach zakresu (Floor).
+- **Naprawa 2**: Zmodyfikowano `onChange` oraz kliknięcie przycisku "Auto" (generowania ID), dodając bezpośrednie wywoływanie `syncShaftToAllFloorsInRange`.
+- **Problem 3 (Relatywny offset Pionów)**: Zmiana parametrów "Przes. X [px]" i "Y" edytowała właściwości, ale nie przesuwała automatycznie podłączonych (nie-zmanualizowanych) pionów na innych kondygnacjach w czasie rzeczywistym.
+- **Naprawa 3**: Przebudowano `syncShaftProperties` w `useDuctStore.ts`. Teraz detekcja zmian offesetu dynamicznie aplikuje kalkulację `source.x + currentShiftX` na docelowe węzły, zapewniając podgląd na żywo podczas edycji z poziomu Inspektora.
+- **Problem 4 (Resetowanie Przesunięcia)**: Przycisk "Włącz synchronizację pozycji" działał błędnie, modyfikując węzły tylko i wyłącznie wtedy kiedy ICH pozycja nie była manualna, a celem przycisku z założenia jest NADPISANIE staniu zmanualizowanego na domyślny scentrowany układ.
+- **Naprawa 4**: Uodporniono funkcję `resetPositionSync` poleceniem bezwarunkowego przeniesienia wszystkich członkowskich węzłów na wspólną pozycję osi XY wektora głównego z wyzerowaniem flagi uciętej `isPositionManuallySet`.
+- **Pliki**: `src/components/DuctPropertiesPanel.tsx`, `src/stores/useDuctStore.ts`.
