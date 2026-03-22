@@ -11,6 +11,7 @@ import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { ExportDashboard } from './components/ExportDashboard';
 import { DuctPropertiesPanel } from './components/DuctPropertiesPanel';
+import { Building3DViewer } from './components/Building3DViewer';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
@@ -26,7 +27,8 @@ import {
   Square, 
   PanelLeft, 
   PanelTop,
-  PanelRight
+  PanelRight,
+  Cuboid
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { customDebounce } from './lib/utils';
@@ -166,6 +168,7 @@ function App() {
           {[
             { id: 1, name: 'Bilans', icon: Calculator, color: 'text-blue-600' },
             { id: 2, name: 'Podkłady', icon: Layers, color: 'text-indigo-600' },
+            { id: 8, name: 'Budynek 3D', icon: Cuboid, color: 'text-sky-600' },
             { id: 3, name: 'Instalacje', icon: GitBranch, color: 'text-orange-600' },
             { id: 4, name: 'Aksonometria', icon: Box, color: 'text-purple-600' },
             { id: 5, name: 'Akustyka', icon: Volume2, color: 'text-red-600' },
@@ -323,7 +326,13 @@ function App() {
             </div>
           )}
 
-          {currentStage > 3 && currentStage !== 7 && (
+          {currentStage === 8 && (
+            <div className="flex-1 overflow-hidden">
+              <Building3DViewer />
+            </div>
+          )}
+
+          {currentStage > 3 && currentStage !== 7 && currentStage !== 8 && (
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
               <Box className="w-16 h-16 mb-4 opacity-20" />
               <h2 className="text-xl font-bold">Moduł w przygotowaniu...</h2>

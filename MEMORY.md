@@ -24,6 +24,7 @@
 * [x] **WATT KROK 4: Analiza Pionowa (Dachy/Nawisy)** - Done
 * [x] **WATT KROK 5: Wizualizacja WATT na Workspace2D** - Done
 * [x] **WATT KROK 6: Biblioteka Materiałów i Typów Przegród (Thermal Catalog)** - Done
+* [x] **WATT DODATKOWY KROK: Moduł Budynek 3D (Three.js)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -91,6 +92,12 @@
     * **Layered Structures**: `WallTypeModal` allows building multi-layer wall structures with dynamic U-value calculation based on material $\lambda$ and layer thickness.
     * **Physics Integration**: Added `thermalUtils.ts` for standardized thermal resistance ($R$) and transmittance ($U$) calculations ($R_{total} = R_{si} + \sum(d_i / \lambda_i) + R_{se}$).
     * **Boundary Linking**: `ZonePropertiesPanel` updated to allow assigning specific wall types to detected topological boundaries, bridging the gap between geometry and thermal analysis.
+
+* **WATT DODATKOWY KROK (Budynek 3D)**:
+    * **Technologia**: Wdrożono biblioteki `three`, `@react-three/fiber` oraz `@react-three/drei` w celu stworzenia deklaratywnego widoku 3D na platformie React.
+    * **Komponent `Building3DViewer`**: Zintegrowano nowy router UI (ID etapu: 8) wyświetlający pełnoekranowy Canvas.
+    * **Algorytm Generacji**: Na podstawie punktów $p_1$ i $p_2$ z `ZoneBoundary` obliczany jest wektor różnicy (dx, dz), środek ciężkości krawędzi oraz azymut dla potrzeb obrócenia BoxGeometry w 3D.
+    * **Zapobieganie Z-Fighting**: Modele okien posiadają grubość zwiększoną o 5 cm względem ściany oraz ustawione parametry przezroczystości (transmission, opacity) w materiale fizycznym, co zapobiega migotaniu na stykach poligonów.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.
