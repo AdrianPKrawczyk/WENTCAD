@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useDuctStore } from '../stores/useDuctStore';
-import { Pencil, Trash2, X } from 'lucide-react';
+import { Pencil, Trash2, X, Ruler } from 'lucide-react';
 
 interface FloorSettingsModalProps {
   floorId: string;

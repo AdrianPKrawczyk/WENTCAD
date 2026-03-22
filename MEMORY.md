@@ -26,6 +26,7 @@
 * [x] **WATT KROK 6: Biblioteka Materiałów i Typów Przegród (Thermal Catalog)** - Done
 * [x] **WATT DODATKOWY KROK: Moduł Budynek 3D (Three.js)** - Done
 * [x] **WATT REWIZJA 1: Poprawki po testach (Skala, Wysokości, Dziedzińce, Północ)** - Done
+* [x] **WATT REWIZJA 2: Stabilizacja Architektury (Circular Deps, Skalowanie, UX)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -109,6 +110,18 @@
     * **Logika L_osi**: Wprowadzono przybliżenie długości osiowej ścian zewnętrznych poprzez automatyczne rozszerzanie krawędzi o ich grubość w algorytmie topologii.
     * **Globalna Analiza**: Dodano przycisk ⚡ (`Zap`) w `TopBar` wyzwalający akcję `analyzeAllZones`, eliminując potrzebę ręcznego analizowania każdej strefy z osobna.
     * **Orientacja**: Dodano parametr `northAzimuth` do projektu, pozwalający na obracanie modelu względem kierunków świata dla celów OZC.
+
+* **WATT REWIZJA 2 (Stabilizacja, Skalowanie i UX)**:
+    * **Circular Dependency Fix**: Refactored `topology.ts` and `verticalAnalysis.ts` to accept `scaleFactor` as a parameter instead of importing `useCanvasStore`. This resolved `ReferenceError` crashes and improved the purity of geometric utilities.
+    * **CAD Scaling Correction**: Fixed a critical bug in `AirBalanceTable.tsx` where building footprints and windows were stored in pixels. They are now correctly scaled to **meters** during import, ensuring parity with the topology engine and real-world dimensions.
+    * **3D Viewer Enhancements**: 
+        *   Implemented **North Arrow** (Iglica Północy) reflecting the project's `northAzimuth`.
+        *   Added **Zone Slab Rendering**: The viewer now renders horizontal floor slabs for all zones based on their 2D polygons, even if topology analysis hasn't been run yet.
+        *   Integrated floor-specific heights ($H_{brutto}$ for exterior, $H_{netto}$ for interior) into the 3D mesh generation.
+    * **UX Optimization**:
+        *   **Smart Auto-Detection**: Sync modal now uses Regex to auto-suggest layers for Rooms, Footprints, and Windows.
+        *   **Reliable Selection**: Layer lists in the sync modal now use buttons with explicit `onClick` handlers, resolving double-click and interaction issues common with native labels.
+    * **Data Robustness**: Added migration logic in `loadState` to ensure default thermal heights exist for all projects, preventing crashes in the 3D rendering pipeline.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.

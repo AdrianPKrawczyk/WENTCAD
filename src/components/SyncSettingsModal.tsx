@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Check, Layers, Ruler, Box, Type } from 'lucide-react';
 
 export interface SyncSettings {
@@ -26,11 +26,28 @@ const DXF_UNITS = [
 ];
 
 export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm, onCancel }: SyncSettingsModalProps) {
-  const [selectedLayer, setSelectedLayer] = useState(availableLayers[0] || '');
+  const [selectedLayer, setSelectedLayer] = useState('');
   const [footprintLayer, setFootprintLayer] = useState('');
   const [courtyardLayers, setCourtyardLayers] = useState<string[]>([]);
   const [windowLayers, setWindowLayers] = useState<string[]>([]);
   const [unit, setUnit] = useState(DXF_UNITS[0]);
+
+  // AUTO-DETECTION LOGIC
+  useEffect(() => {
+    if (isOpen && availableLayers.length > 0) {
+      // 1. Zones (Try to find 'ROOM', 'STREFA', 'ZONE')
+      const zone = availableLayers.find(l => /room|strefa|zone/i.test(l));
+      setSelectedLayer(zone || availableLayers[0]);
+
+      // 2. Footprint (Try to find 'OBRYS', 'FOOTPRINT', 'WALL_EXT', 'ZEWN')
+      const foot = availableLayers.find(l => /obrys_zewn|footprint|wall_ext|zewn/i.test(l));
+      setFootprintLayer(foot || '');
+
+      // 3. Windows (Auto-select layers with '_H' or 'OKNO', 'WINDOW')
+      const wins = availableLayers.filter(l => /_h\d+|okno|window/i.test(l));
+      setWindowLayers(wins);
+    }
+  }, [isOpen, availableLayers]);
 
   if (!isOpen) return null;
 
@@ -134,14 +151,22 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
                 </label>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl max-h-32 overflow-y-auto p-2 space-y-1">
                   {availableLayers.filter(l => l !== selectedLayer && l !== footprintLayer).map(layer => (
-                    <label key={`court-${layer}`} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer group">
+                    <button 
+                      key={`court-${layer}`} 
+                      type="button"
+                      className="w-full flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer group text-left"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleLayer(layer, courtyardLayers, setCourtyardLayers);
+                      }}
+                    >
                       <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
                         courtyardLayers.includes(layer) ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white group-hover:border-amber-400'
                       }`}>
                         {courtyardLayers.includes(layer) && <Check className="w-3 h-3" />}
                       </div>
                       <span className="text-xs text-slate-700 font-medium truncate flex-1">{layer}</span>
-                    </label>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -156,7 +181,15 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
                      // Auto-detect window metadata
                      const hasMeta = layer.match(/_H\d+/i);
                      return (
-                        <label key={`win-${layer}`} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer group">
+                        <button 
+                          key={`win-${layer}`} 
+                          type="button"
+                          className="w-full flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer group text-left"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            toggleLayer(layer, windowLayers, setWindowLayers);
+                          }}
+                        >
                           <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
                             windowLayers.includes(layer) 
                               ? 'bg-indigo-600 border-indigo-600 text-white' 
@@ -166,7 +199,7 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
                           </div>
                           <span className="text-sm text-slate-700 font-medium truncate flex-1">{layer}</span>
                           {hasMeta && <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0">WATT META</span>}
-                        </label>
+                        </button>
                      );
                   })}
                 </div>

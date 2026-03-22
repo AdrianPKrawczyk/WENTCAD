@@ -974,29 +974,28 @@ export function AirBalanceTable() {
              
              const rawWattData = extractWattTopology(syncDxfData, footprintLayers, courtyardLayers, windowLayers);
              
-             // Transform outer footprint
+             // Transform outer footprint and SCALE TO METERS
              const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
                 const t = transformFn(pt.x, pt.y);
-                return { x: t.x, y: t.y };
+                return { x: t.x * syncMultiplier, y: t.y * syncMultiplier };
              });
 
-             // Transform courtyards
+             // Transform courtyards and SCALE TO METERS
              const transformedCourtyards = rawWattData.buildingFootprint.courtyards.map(polygon => {
                 return polygon.map(pt => {
                    const t = transformFn(pt.x, pt.y);
-                   return { x: t.x, y: t.y };
+                   return { x: t.x * syncMultiplier, y: t.y * syncMultiplier };
                 });
              });
 
-             // Transform windows
+             // Transform windows and SCALE TO METERS
              const transformedWindows = rawWattData.windows.map(win => {
                 if (!win.centroid) return win;
                 const tCenter = transformFn(win.centroid.x, win.centroid.y);
-                // Adjust width by multiplier (scale to meters in our app if they were drawn in mm/cm)
                 return {
                    ...win,
                    width: win.width * syncMultiplier,
-                   centroid: { x: tCenter.x, y: tCenter.y }
+                   centroid: { x: tCenter.x * syncMultiplier, y: tCenter.y * syncMultiplier }
                 };
              });
 

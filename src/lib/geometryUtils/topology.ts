@@ -1,6 +1,5 @@
 import type { ZoneData } from '../../types';
 import type { ZoneBoundary, OpeningInstance } from '../wattTypes';
-import { useCanvasStore } from '../../stores/useCanvasStore';
 
 /**
  * Normalizes an angle to 0-180 range to check for parallelism
@@ -39,14 +38,10 @@ function distPointToSegment(p: {x:number, y:number}, v: {x:number, y:number}, w:
 /**
  * Checks if two segments are parallel and close to each other
  */
-export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], maxDist: number = 0.6): ZoneBoundary[] {
+export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: number = 1.0, maxDist: number = 0.6): ZoneBoundary[] {
   const boundaries: ZoneBoundary[] = [];
   const verticesA = (zoneA as any)._vertices || []; 
   
-  // Get scaling factor from current floor
-  const floorState = useCanvasStore.getState().getFloorState(zoneA.floorId);
-  const scale = floorState.scaleFactor || 1.0; 
-
   if (verticesA.length < 2) return [];
 
   for (let i = 0; i < verticesA.length; i++) {

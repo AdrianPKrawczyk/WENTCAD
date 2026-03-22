@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
-import { Trash2, ChevronRight, ChevronLeft, Settings2, Wind, ShieldAlert, Layers, Box, Globe, Square, Maximize } from 'lucide-react';
+import { 
+  Trash2, ChevronRight, ChevronLeft, Settings2, Wind, 
+  ShieldAlert, Layers, Box, Globe, Square, Maximize, Ruler, Check 
+} from 'lucide-react';
 import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
 import type { ZoneBoundary } from '../lib/wattTypes';
 
@@ -13,6 +16,7 @@ const MAX_WIDTH = 800;
 type PanelTab = 'GENERAL' | 'SYSTEMS' | 'WATT';
 
 export function ZonePropertiesPanel() {
+  // Pull everything needed from ZoneStore
   const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
   const zones = useZoneStore((state) => state.zones);
   const floors = useZoneStore((state) => state.floors);
@@ -22,6 +26,8 @@ export function ZonePropertiesPanel() {
   const analyzeAllZones = useZoneStore((state) => state.analyzeAllZones);
   const northAzimuth = useZoneStore((state) => state.northAzimuth);
   const setNorthAzimuth = useZoneStore((state) => state.setNorthAzimuth);
+  const buildingFootprint = useZoneStore((state) => state.buildingFootprint);
+  const wallTypes = useZoneStore((state) => state.wallTypes);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
   const [activeTab, setActiveTab] = useState<PanelTab>('GENERAL');
@@ -68,6 +74,19 @@ export function ZonePropertiesPanel() {
 
   const isWide = width >= 450 && !isCollapsed;
 
+  const handleChange = <K extends keyof ZoneData>(field: K, value: ZoneData[K]) => {
+    if (activeZone) {
+      updateZone(activeZone.id, { [field]: value });
+    }
+  };
+
+  const { pause, resume } = useZoneStore.temporal.getState();
+
+  const calculatedVolRaw = useMemo(() => {
+    if (!activeZone) return 0;
+    return activeZone.area * activeZone.height;
+  }, [activeZone]);
+
   if (!activeZone) {
     return (
       <div 
@@ -102,14 +121,6 @@ export function ZonePropertiesPanel() {
       </div>
     );
   }
-
-  const handleChange = <K extends keyof ZoneData>(field: K, value: ZoneData[K]) => {
-    updateZone(activeZone.id, { [field]: value });
-  };
-
-  const { pause, resume } = useZoneStore.temporal.getState();
-
-  const calculatedVolRaw = activeZone.area * activeZone.height;
 
   const TabButton = ({ tab, icon: Icon, label }: { tab: PanelTab, icon: any, label: string }) => (
     <button
@@ -379,7 +390,6 @@ export function ZonePropertiesPanel() {
 
                 <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
                   <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Transfery</h3>
-                  {/* ... Transfer UI from original file ... */}
                   <div className="space-y-4">
                     <div>
                       <span className="text-[10px] font-bold text-blue-600 mb-1 block uppercase">Dopływ (+): {activeZone.transferInSum} m³/h</span>
@@ -490,7 +500,7 @@ export function ZonePropertiesPanel() {
                     <div className="bg-white/60 p-2 rounded-lg border border-indigo-100">
                       <p className="text-[9px] text-indigo-400 uppercase font-bold">Obrys Budynku</p>
                       <div className="flex items-center gap-1.5 mt-1">
-                        {buildingFootprint && buildingFootprint.length > 0 ? (
+                        {buildingFootprint && buildingFootprint.outer && buildingFootprint.outer.length > 0 ? (
                           <><Check className="w-3 h-3 text-green-600" /><span className="text-xs font-bold text-slate-700">Wczytany</span></>
                         ) : (
                           <><ShieldAlert className="w-3 h-3 text-amber-500" /><span className="text-xs font-medium text-slate-400 italic">Brak danych</span></>
@@ -607,7 +617,3 @@ export function ZonePropertiesPanel() {
     </div>
   );
 }
-
-const Check = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5"/></svg>
-);

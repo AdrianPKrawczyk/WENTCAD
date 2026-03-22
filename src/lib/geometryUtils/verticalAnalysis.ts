@@ -10,14 +10,11 @@ export function calculateHorizontalBoundaries(
   zone: ZoneData,
   allFloors: Record<string, Floor>,
   zonesBelow: any[],
-  zonesAbove: any[]
+  zonesAbove: any[],
+  scale: number = 1.0
 ): HorizontalBoundary[] {
   const vertices = (zone as any)._vertices || [];
   if (vertices.length < 3) return [];
-
-  // Get scaling factor from current floor
-  const floorState = useCanvasStore.getState().getFloorState(zone.floorId);
-  const scale = floorState.scaleFactor || 1.0; 
 
   // Convert vertices to flat array and SCALE TO METERS
   const flatPoints = vertices.flatMap((v: any) => [v.x * scale, v.y * scale]);
@@ -46,7 +43,6 @@ export function calculateHorizontalBoundaries(
   const steps = 20;
   const dx = width / steps;
   const dy = height / steps;
-  const cellArea = dx * dy;
 
   let totalPointsInZone = 0;
   let pointsCoveredAbove = 0;
@@ -55,12 +51,12 @@ export function calculateHorizontalBoundaries(
   // Prepare flat points for other zones to speed up PIP checks
   const preparedAbove = zonesAbove.map(z => ({
     id: z.id,
-    flatPoints: ((z as any)._vertices || []).flatMap((v: any) => [v.x, v.y])
+    flatPoints: ((z as any)._vertices || []).flatMap((v: any) => [v.x * scale, v.y * scale])
   })).filter(z => z.flatPoints.length >= 6);
 
   const preparedBelow = zonesBelow.map(z => ({
     id: z.id,
-    flatPoints: ((z as any)._vertices || []).flatMap((v: any) => [v.x, v.y])
+    flatPoints: ((z as any)._vertices || []).flatMap((v: any) => [v.x * scale, v.y * scale])
   })).filter(z => z.flatPoints.length >= 6);
 
   // Sample grid

@@ -271,12 +271,7 @@ export const useZoneStore = create<ZoneStore>()(
       
       // WATT Initial State
       buildingFootprint: { outer: [], courtyards: [] },
-      materials: {
-        'mat-concrete': { id: 'mat-concrete', name: 'Beton', thermalConductivity: 1.7, massDensity: 2400, specificHeatCapacity: 1000 },
-        'mat-brick': { id: 'mat-brick', name: 'Cegła', thermalConductivity: 0.7, massDensity: 1800, specificHeatCapacity: 880 },
-        'mat-eps': { id: 'mat-eps', name: 'Styropian (EPS)', thermalConductivity: 0.04, massDensity: 20, specificHeatCapacity: 1460 },
-        'mat-wool': { id: 'mat-wool', name: 'Wełna mineralna', thermalConductivity: 0.035, massDensity: 50, specificHeatCapacity: 1030 },
-      },
+      materials: materialsData.reduce((acc, mat) => ({ ...acc, [mat.id]: mat }), {}),
       layerSets: {},
       wallTypes: {},
       windowStyles: {},
@@ -362,10 +357,12 @@ export const useZoneStore = create<ZoneStore>()(
 
         // 1. Detect Interior Adjacency
         const mockedZoneWithVerts = { ...zone, _vertices: vertices };
-        let boundaries = checkAdjacency(mockedZoneWithVerts, otherZonesOnFloor);
+        const scaleFactor = floorCanvas.scaleFactor || 1.0;
+        
+        let boundaries = checkAdjacency(mockedZoneWithVerts, otherZonesOnFloor, scaleFactor);
 
         // 2. Detect Exterior Boundaries (Building Footprint)
-        if (state.buildingFootprint && state.buildingFootprint.length > 0) {
+        if (state.buildingFootprint && state.buildingFootprint.outer && state.buildingFootprint.outer.length > 0) {
           boundaries = checkBoundary(boundaries, state.buildingFootprint);
         }
 
@@ -406,7 +403,8 @@ export const useZoneStore = create<ZoneStore>()(
           mockedZoneWithVerts,
           state.floors,
           zonesBelow,
-          zonesAbove
+          zonesAbove,
+          scaleFactor
         );
 
         set(s => ({
@@ -591,12 +589,14 @@ export const useZoneStore = create<ZoneStore>()(
           globalTagSettings: stateData.globalTagSettings || DEFAULT_TAG_SETTINGS,
           
           // WATT State
-          buildingFootprint: stateData.buildingFootprint || [],
-          materials: stateData.materials || {},
+          buildingFootprint: stateData.buildingFootprint || { outer: [], courtyards: [] },
+          materials: stateData.materials || materialsData.reduce((acc, mat) => ({ ...acc, [mat.id]: mat }), {}),
           layerSets: stateData.layerSets || {},
           wallTypes: stateData.wallTypes || {},
           windowStyles: stateData.windowStyles || {},
-          pendingWindows: stateData.pendingWindows || []
+          wallTypeTemplates: stateData.wallTypeTemplates || [],
+          pendingWindows: stateData.pendingWindows || [],
+          northAzimuth: stateData.northAzimuth || 0
         });
       },
 

@@ -1,25 +1,72 @@
 import React, { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid } from '@react-three/drei';
+import { OrbitControls, Grid, Text } from '@react-three/drei';
 import { useZoneStore } from '../stores/useZoneStore';
+import { useCanvasStore } from '../stores/useCanvasStore';
+import * as THREE from 'three';
+
+function NorthArrow({ azimuth }: { azimuth: number }) {
+  return (
+    <group position={[0, 0.1, -15]} rotation={[0, -azimuth * (Math.PI / 180), 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.5, 2, 4]} />
+        <meshStandardMaterial color="#ef4444" />
+      </mesh>
+      <Text
+        position={[0, 0.5, -1]}
+        fontSize={1}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        N
+      </Text>
+    </group>
+  );
+}
 
 export function Building3DViewer() {
   const zones = useZoneStore((s) => s.zones);
   const floors = useZoneStore((s) => s.floors);
+  const northAzimuth = useZoneStore((s) => s.northAzimuth);
   
   // Przetworzenie danych topologicznych na tablicę obiektów 3D
   const elements = useMemo(() => {
     const walls: any[] = [];
     const windows: any[] = [];
+    const slabs: any[] = [];
 
     Object.values(zones).forEach(zone => {
       const floor = floors[zone.floorId];
       if (!floor) return;
       
       const baseElev = floor.elevation || 0;
-      // Zewnętrzne ściany używają H_brutto (heightTotal)
-      // Wewnętrzne ściany używają H_netto (heightNet)
       
+      // Get scaling factor for fallback polygon rendering
+      const floorCanvas = useCanvasStore.getState().floors[zone.floorId];
+      const sFactor = floorCanvas?.scaleFactor || 1.0;
+      const poly = floorCanvas?.polygons?.find(p => p.zoneId === zone.id);
+
+      // RENDER SLAB (Podłoga strefy)
+      if (poly && poly.points.length >= 6) {
+         const shape = new THREE.Shape();
+         for (let i = 0; i < poly.points.length; i += 2) {
+            const x = poly.points[i] * sFactor;
+            const y = poly.points[i+1] * sFactor;
+            if (i === 0) shape.moveTo(x, y);
+            else shape.lineTo(x, y);
+         }
+         shape.closePath();
+
+         slabs.push({
+            id: `slab-${zone.id}`,
+            geometry: new THREE.ShapeGeometry(shape),
+            position: [0, baseElev, 0],
+            rotation: [-Math.PI / 2, 0, 0], // Flat on XZ
+            color: '#334155'
+         });
+      }
+
       if (zone.boundaries) {
         zone.boundaries.forEach(b => {
            if (!b.geometry || b.geometry.lengthNet === 0) return;
@@ -64,7 +111,7 @@ export function Building3DViewer() {
       }
     });
 
-    return { walls, windows };
+    return { walls, windows, slabs };
   }, [zones, floors]);
 
   return (
@@ -79,29 +126,29 @@ export function Building3DViewer() {
          <div className="space-y-2 text-[10px] uppercase font-bold text-slate-300">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-white/20 border border-slate-400 rounded-sm"></div> 
-              Ściany Wewnętrzne ({elements.walls.filter(w => w.type === 'INTERIOR').length})
+              Ściany Wew. ({elements.walls.filter(w => w.type === 'INTERIOR').length})
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-orange-500/80 border border-orange-400 rounded-sm"></div> 
-              Ściany Zewnętrzne ({elements.walls.filter(w => w.type === 'EXTERIOR').length})
+              Ściany Zew. ({elements.walls.filter(w => w.type === 'EXTERIOR').length})
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-sky-400/80 border border-sky-300 rounded-sm"></div> 
-              Stolarka Okienna ({elements.windows.length})
+              Okna ({elements.windows.length})
             </div>
          </div>
          
          <p className="text-[9px] text-slate-500 mt-4 leading-relaxed max-w-[200px]">
-           Lewy przycisk myszy obraca kamerę. Prawy przesuwa. Scroll przybliża.
+           Model 3D budowany jest na podstawie <b>analizy topologicznej</b>. Jeśli bryła jest niewidoczna, użyj przycisku ⚡ na górnym pasku.
          </p>
       </div>
 
-      <Canvas camera={{ position: [15, 20, 25], fov: 45 }} shadows>
+      <Canvas camera={{ position: [25, 25, 25], fov: 45 }} shadows>
         <color attach="background" args={['#0f172a']} />
         
-        <ambientLight intensity={0.4} />
+        <ambientLight intensity={0.5} />
         <directionalLight 
-          position={[20, 40, 20]} 
+          position={[50, 100, 50]} 
           intensity={1.5} 
           castShadow 
           shadow-mapSize-width={2048} 
@@ -109,6 +156,20 @@ export function Building3DViewer() {
         />
 
         <group>
+          {/* SLABS / FLOORS */}
+          {elements.slabs.map((slab: any) => (
+             <mesh 
+               key={slab.id} 
+               geometry={slab.geometry}
+               position={slab.position} 
+               rotation={slab.rotation}
+               receiveShadow
+             >
+               <meshStandardMaterial color={slab.color} opacity={0.5} transparent />
+             </mesh>
+          ))}
+
+          {/* WALLS */}
           {elements.walls.map((wall: any) => (
              <mesh 
                key={wall.id} 
@@ -120,13 +181,14 @@ export function Building3DViewer() {
                <boxGeometry args={wall.size} />
                <meshStandardMaterial 
                  color={wall.type === 'EXTERIOR' ? '#f97316' : '#f8fafc'} 
-                 opacity={wall.type === 'INTERIOR' ? 0.7 : 0.9} 
+                 opacity={wall.type === 'INTERIOR' ? 0.6 : 0.9} 
                  transparent
                  roughness={0.8}
                />
              </mesh>
           ))}
 
+          {/* WINDOWS */}
           {elements.windows.map((win: any) => (
              <mesh 
                key={win.id} 
@@ -146,7 +208,9 @@ export function Building3DViewer() {
           ))}
         </group>
 
-        <Grid infiniteGrid fadeDistance={100} sectionColor="#334155" cellColor="#1e293b" />
+        <NorthArrow azimuth={northAzimuth} />
+        
+        <Grid infiniteGrid fadeDistance={150} sectionColor="#334155" cellColor="#1e293b" />
         <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 - 0.05} />
       </Canvas>
     </div>
