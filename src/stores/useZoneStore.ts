@@ -564,10 +564,22 @@ export const useZoneStore = create<ZoneStore>()(
       },
 
       loadState: (projectId, stateData) => {
+        // Sanitize floors to ensure new height properties exist
+        const loadedFloors = stateData.floors || {};
+        const sanitizedFloors: Record<string, Floor> = {};
+        Object.entries(loadedFloors).forEach(([id, floor]) => {
+          sanitizedFloors[id] = {
+            ...floor,
+            heightTotal: floor.heightTotal ?? 3.5,
+            heightNet: floor.heightNet ?? 3.0,
+            heightSuspended: floor.heightSuspended ?? 2.7
+          };
+        });
+
         set({
           activeProjectId: projectId,
           zones: resolveZonesState(stateData.zones || {}),
-          floors: stateData.floors || {},
+          floors: sanitizedFloors,
           systems: stateData.systems || [],
           analysisPresets: stateData.analysisPresets || [],
           stylePresets: stateData.stylePresets || [],

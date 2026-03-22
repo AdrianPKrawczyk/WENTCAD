@@ -1652,7 +1652,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
             if (!zone || !zone.boundaries) return null;
 
             // Get scaling factor to convert METERS back to PIXELS for rendering
-            const floorState = floorsCanvas[activeFloorId];
+            const floorState = canvasFloors[activeFloorId];
             const sFactor = floorState?.scaleFactor || 1.0;
 
             return (
