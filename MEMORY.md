@@ -144,6 +144,13 @@
     * **Wizualizacja Obrysu CAD**: Dodano renderowanie obrysu budynku (`footprint.outer`) i dziedzińców jako linii przerywanych, co pozwala na wizualną weryfikację "domknięcia" modelu analitycznego względem rzutu architektonicznego.
     * **Poprawka Skali 3D**: Wszystkie importowane obrysy i okna są teraz skalowane do metrów podczas procesu synchronizacji, co zapewnia pełną spójność wymiarową bryły budynku.
 
+* **WATT REWIZJA 4 (Przegrody Poziome i Zaawansowana Interakcja)**:
+    * **Interaktywne Symbole 2D**: Wdrożono inteligentne etykiety (R, G, O, C) w widoku "Budynek 2D". Symbole te zastąpiły pełne wypełnienia płaszczyzn, zapewniając czytelność rzutu przy zachowaniu pełnej klikalności przegród poziomych.
+    * **Rendering 3D Stropów i Dachów**: Przegrody poziome są teraz fizycznie renderowane w widoku 3D na właściwych rzędnych ($elevation$ dla podłóg, $elevation + heightTotal$ dla dachów).
+    * **Konstrukcje Poziome**: Umożliwiono przypisywanie typów `WallType` (materiałów) do przegród poziomych w panelu właściwości, domykając relacyjny model energetyczny strefy.
+    * **Synchronizacja Selekcji**: Implementacja `selectedHorizontalBoundaryId` w `useZoneStore` zapewnia spójne podświetlanie (fioletowa poświata w 3D / aktywny stan w 2D) wybranego stropu we wszystkich oknach aplikacji.
+    * **FIX (JSX Nesting)**: Naprawiono krytyczny błąd składni w `Building3DViewer.tsx` (brakujące zamknięcie tagu `<group>`), który uniemożliwiał uruchomienie strony.
+
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.
     * **Import Optimization**: Converted all WATT type imports to `import type` to prevent Vite from attempting to resolve them as runtime exports, fixing the "does not provide an export named 'OpeningInstance'" crash.

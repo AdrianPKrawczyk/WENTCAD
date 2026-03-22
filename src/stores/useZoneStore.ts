@@ -237,6 +237,8 @@ interface ZoneStore {
   // WATT UI State
   selectedBoundaryId: string | null;
   setSelectedBoundaryId: (id: string | null) => void;
+  selectedHorizontalBoundaryId: string | null;
+  setSelectedHorizontalBoundaryId: (id: string | null) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -283,11 +285,14 @@ export const useZoneStore = create<ZoneStore>()(
       pendingWindows: [],
       northAzimuth: 0,
       selectedBoundaryId: null,
+      selectedHorizontalBoundaryId: null,
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
       setPendingWindows: (windows) => set({ pendingWindows: windows }),
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
       setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
+      setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
+      setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
 
       addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
       updateMaterial: (id, updates) => set(s => ({ 

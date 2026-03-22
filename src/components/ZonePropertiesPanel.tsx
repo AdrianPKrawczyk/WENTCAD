@@ -30,16 +30,18 @@ export function ZonePropertiesPanel() {
   const wallTypes = useZoneStore((state) => state.wallTypes);
   const selectedBoundaryId = useZoneStore((state) => state.selectedBoundaryId);
   const setSelectedBoundaryId = useZoneStore((state) => state.setSelectedBoundaryId);
+  const selectedHorizontalBoundaryId = useZoneStore((state) => state.selectedHorizontalBoundaryId);
+  const setSelectedHorizontalBoundaryId = useZoneStore((state) => state.setSelectedHorizontalBoundaryId);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
   const [activeTab, setActiveTab] = useState<PanelTab>('GENERAL');
 
   // Auto-switch to WATT tab if a boundary is selected
   useEffect(() => {
-    if (selectedBoundaryId) {
+    if (selectedBoundaryId || selectedHorizontalBoundaryId) {
       setActiveTab('WATT');
     }
-  }, [selectedBoundaryId]);
+  }, [selectedBoundaryId, selectedHorizontalBoundaryId]);
 
   const [newTransferTarget, setNewTransferTarget] = useState('');
   const [newTransferVol, setNewTransferVol] = useState('');
@@ -607,22 +609,50 @@ export function ZonePropertiesPanel() {
                           <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
                             <tr>
                               <th className="p-2 border-b border-indigo-100">Typ Przegrody</th>
+                              <th className="p-2 border-b border-indigo-100">Konstrukcja</th>
                               <th className="p-2 border-b border-indigo-100 text-right">Pow. [m²]</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
-                            {activeZone.horizontalBoundaries.map((hb, idx) => (
-                              <tr key={idx} className="hover:bg-indigo-50/30 transition-colors">
-                                <td className="p-2 font-medium flex items-center gap-1.5">
+                            {activeZone.horizontalBoundaries.map((hb, idx) => {
+                              const isSelected = hb.id === selectedHorizontalBoundaryId;
+                              return (
+                              <tr 
+                                key={idx} 
+                                onClick={() => setSelectedHorizontalBoundaryId(isSelected ? null : hb.id)}
+                                className={`cursor-pointer transition-colors ${
+                                  isSelected 
+                                    ? 'bg-indigo-100/80 ring-2 ring-indigo-500 ring-inset z-10 relative' 
+                                    : 'hover:bg-indigo-50/30'
+                                }`}
+                              >
+                                <td className="p-2 font-medium flex items-center gap-1.5 whitespace-nowrap">
                                   {hb.type === 'ROOF' && <span className="w-2 h-2 rounded-full bg-orange-400" />}
                                   {hb.type === 'FLOOR_GROUND' && <span className="w-2 h-2 rounded-full bg-green-600" />}
                                   {hb.type === 'CEILING_INTERIOR' && <span className="w-2 h-2 rounded-full bg-slate-300" />}
                                   {hb.type === 'FLOOR_EXTERIOR' && <span className="w-2 h-2 rounded-full bg-blue-400" />}
                                   {hb.type}
                                 </td>
+                                <td className="p-2">
+                                   <select 
+                                     value={hb.uValueRef || ''}
+                                     onClick={(e) => e.stopPropagation()}
+                                     onChange={(e) => {
+                                        const nextH = [...activeZone.horizontalBoundaries!];
+                                        nextH[idx] = { ...hb, uValueRef: e.target.value };
+                                        updateZone(activeZone.id, { horizontalBoundaries: nextH });
+                                     }}
+                                     className="w-full text-[10px] bg-transparent border-b border-gray-200 outline-none focus:border-indigo-500"
+                                   >
+                                      <option value="">Wybierz...</option>
+                                      {Object.values(wallTypes).map(wt => (
+                                         <option key={wt.id} value={wt.id}>{wt.name}</option>
+                                      ))}
+                                   </select>
+                                </td>
                                 <td className="p-2 font-mono text-right font-bold">{hb.area.toFixed(2)}</td>
                               </tr>
-                            ))}
+                            )})}
                           </tbody>
                         </table>
                       </div>

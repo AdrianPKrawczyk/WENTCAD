@@ -1774,22 +1774,53 @@ export function Workspace2D({ className }: Workspace2DProps) {
                      {/* 3. Roof / Vertical indicators */}
                      {(() => {
                         if (!zone.horizontalBoundaries) return null;
-                        const hasRoof = zone.horizontalBoundaries.some(hb => hb.type === 'ROOF');
-                        const hasOverhang = zone.horizontalBoundaries.some(hb => hb.type === 'FLOOR_EXTERIOR');
-                        if (!hasRoof && !hasOverhang) return null;
-
+                        
                         const centroid = calculatePolygonCentroid(poly.points);
+                        
                         return (
-                          <Group x={centroid.x} y={centroid.y} listening={false}>
-                             <Circle radius={15 / scale} fill="#4f46e5" opacity={0.8} />
-                             <Text 
-                               text={hasRoof ? "R" : "O"} 
-                               fontSize={14 / scale} 
-                               fill="white" 
-                               fontStyle="bold" 
-                               offsetX={5 / scale} 
-                               offsetY={7 / scale} 
-                             />
+                          <Group x={centroid.x} y={centroid.y} listening={true}>
+                             {zone.horizontalBoundaries.map((hb, hbIdx) => {
+                                const isSelected = hb.id === selectedHorizontalBoundaryId;
+                                const isRoofType = hb.type === 'ROOF' || hb.type === 'CEILING_INTERIOR';
+                                
+                                return (
+                                  <Group 
+                                    key={hb.id} 
+                                    x={(hbIdx - (zone.horizontalBoundaries!.length - 1) / 2) * (40 / scale)}
+                                    onClick={(e) => {
+                                      e.cancelBubble = true;
+                                      setSelectedHorizontalBoundaryId(hb.id);
+                                      setSelectedBoundaryId(null);
+                                      useZoneStore.getState().setSelectedZone(poly.zoneId);
+                                    }}
+                                    onMouseEnter={(e: any) => {
+                                      const container = e.target.getStage()?.container();
+                                      if (container) container.style.cursor = 'pointer';
+                                    }}
+                                    onMouseLeave={(e: any) => {
+                                      const container = e.target.getStage()?.container();
+                                      if (container) container.style.cursor = 'default';
+                                    }}
+                                  >
+                                    <Circle 
+                                      radius={18 / scale} 
+                                      fill={isSelected ? '#4f46e5' : (isRoofType ? '#fb923c' : '#16a34a')} 
+                                      opacity={isSelected ? 1 : 0.8}
+                                      shadowBlur={isSelected ? 10 / scale : 0}
+                                      shadowColor="#4f46e5"
+                                    />
+                                    <Text 
+                                      text={hb.type === 'ROOF' ? "R" : (hb.type === 'FLOOR_GROUND' ? "G" : (hb.type === 'FLOOR_EXTERIOR' ? "O" : "C"))} 
+                                      fontSize={14 / scale} 
+                                      fill="white" 
+                                      fontStyle="bold" 
+                                      offsetX={5 / scale} 
+                                      offsetY={7 / scale} 
+                                      listening={false}
+                                    />
+                                  </Group>
+                                );
+                             })}
                           </Group>
                         );
                      })()}
