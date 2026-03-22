@@ -1715,11 +1715,12 @@ export function Workspace2D({ className }: Workspace2DProps) {
                              b.geometry.p2.x / sFactor, b.geometry.p2.y / sFactor
                            ]}
                            stroke={strokeColor}
-                           strokeWidth={(isSelected ? 10 : 6) / scale}
+                           strokeWidth={(isSelected ? 12 : 6) / scale}
+                           hitStrokeWidth={25 / scale} // Very large hit area for easier selection
                            lineCap="round"
                            shadowColor={strokeColor}
-                           shadowBlur={10 / scale}
-                           shadowOpacity={isSelected ? 0.8 : (b.type === 'EXTERIOR' ? 0.6 : 0.3)}
+                           shadowBlur={isSelected ? 15 / scale : 10 / scale}
+                           shadowOpacity={isSelected ? 1.0 : (b.type === 'EXTERIOR' ? 0.6 : 0.3)}
                            listening={true}
                            onClick={(e: any) => {
                              e.cancelBubble = true;

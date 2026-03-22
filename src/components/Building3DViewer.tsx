@@ -30,6 +30,11 @@ export function Building3DViewer() {
   const floors = useZoneStore((s) => s.floors);
   const northAzimuth = useZoneStore((s) => s.northAzimuth);
   
+  const buildingFootprint = useZoneStore((s) => s.buildingFootprint);
+  const wallTypes = useZoneStore((s) => s.wallTypes);
+  const selectedBoundaryId = useZoneStore((s) => s.selectedBoundaryId);
+  const setSelectedBoundaryId = useZoneStore((s) => s.setSelectedBoundaryId);
+  
   // Przetworzenie danych topologicznych na tablicę obiektów 3D
   const elements = useMemo(() => {
     const walls: any[] = [];
@@ -83,13 +88,16 @@ export function Building3DViewer() {
            const cy = baseElev + wallHeight / 2;
 
            const thickness = b.geometry.thickness > 0.05 ? b.geometry.thickness : 0.1;
+           const isSelected = b.id === selectedBoundaryId;
 
            walls.push({
              id: b.id,
+             zoneId: zone.id,
              type: b.type,
              position: [cx, cy, cz],
              rotation: [0, -angle, 0],
-             size: [len, wallHeight, thickness]
+             size: [len, wallHeight, isSelected ? thickness * 1.5 : thickness],
+             isSelected
            });
 
            if (b.openings) {
@@ -112,7 +120,7 @@ export function Building3DViewer() {
     });
 
     return { walls, windows, slabs };
-  }, [zones, floors]);
+  }, [zones, floors, selectedBoundaryId]);
 
   return (
     <div className="w-full h-full bg-slate-900 relative flex">
@@ -134,8 +142,14 @@ export function Building3DViewer() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-sky-400/80 border border-sky-300 rounded-sm"></div> 
-              Okna ({elements.windows.length})
+              Stolarka Okienna ({elements.windows.length})
             </div>
+            {selectedBoundaryId && (
+              <div className="flex items-center gap-2 text-indigo-400 pt-2 border-t border-white/10 mt-2">
+                <div className="w-4 h-4 bg-indigo-500 rounded-sm"></div> 
+                Wybrano przegrodę
+              </div>
+            )}
          </div>
          
          <p className="text-[9px] text-slate-500 mt-4 leading-relaxed max-w-[200px]">
@@ -177,13 +191,22 @@ export function Building3DViewer() {
                rotation={wall.rotation}
                castShadow 
                receiveShadow
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setSelectedBoundaryId(wall.id);
+                 useZoneStore.getState().setSelectedZone(wall.zoneId);
+               }}
+               onPointerOver={(e) => (document.body.style.cursor = 'pointer')}
+               onPointerOut={(e) => (document.body.style.cursor = 'default')}
              >
                <boxGeometry args={wall.size} />
                <meshStandardMaterial 
-                 color={wall.type === 'EXTERIOR' ? '#f97316' : '#f8fafc'} 
-                 opacity={wall.type === 'INTERIOR' ? 0.6 : 0.9} 
-                 transparent
+                 color={wall.isSelected ? '#4f46e5' : (wall.type === 'EXTERIOR' ? '#f97316' : '#f8fafc')} 
+                 opacity={wall.isSelected ? 1 : (wall.type === 'INTERIOR' ? 0.6 : 0.9)} 
+                 transparent={!wall.isSelected}
                  roughness={0.8}
+                 emissive={wall.isSelected ? '#4f46e5' : '#000000'}
+                 emissiveIntensity={wall.isSelected ? 0.5 : 0}
                />
              </mesh>
           ))}

@@ -29,6 +29,7 @@
 * [x] **WATT REWIZJA 2: Stabilizacja Architektury (Circular Deps, Skalowanie, UX)** - Done
 * [x] **WATT REWIZJA 3: Algorytmy Gross Area, Synchronizacja Skali i Poprawki Importu** - Done
 * [x] **WATT DODATKOWY KROK: Moduł Budynek 2D (Interaktywny Widok Architektoniczny)** - Done
+* [x] **WATT DODATKOWY KROK: Moduł Budynek 3D (Zintegrowana Wizualizacja i North Arrow)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -136,6 +137,12 @@
     * **Topology Scaling Synchronization**: Resolved critical bug where imported walls had lengths like 566m instead of 5.66m. The `AirBalanceTable` now automatically writes the `syncMultiplier` back to the floor's `scaleFactor` after CAD extraction, ensuring the topology engine calculates lengths in meters.
     * **Gross Area Algorithm (Roofs & Floors)**: Overhauled `verticalAnalysis.ts` to compute gross areas (instead of net interior areas). Points outside the zone but within the `buildingFootprint` are now correctly credited to the nearest zone, yielding accurate external boundary dimensions (e.g. 21.09m² instead of 14.8m²).
     * **Robust State Initialization**: Fixed `ReferenceError` crashes occurring on empty/new projects by enforcing `{ outer: [], courtyards: [] }` as the default structure for `buildingFootprint` during `loadState` and component evaluation.
+
+* **WATT INTERAKCJA I SYNCHRONIZACJA (Budynek 2D/3D)**:
+    * **Interaktywne Przegrody**: Wdrożono `hitStrokeWidth` (25px) dla krawędzi ścian w 2D, znacząco ułatwiając ich zaznaczanie myszą. Kliknięcie krawędzi automatycznie synchronizuje `selectedBoundaryId`, centruje tabelę i przełącza panel na zakładkę Topologia.
+    * **Dwukierunkowe Podświetlanie**: Wybór przegrody w tabeli WATT natychmiastowo aktywuje fioletowe wyróżnienie (emissive glow) na odpowiednim segmencie w widoku 2D oraz na bryle 3D (3D-to-UI binding).
+    * **Wizualizacja Obrysu CAD**: Dodano renderowanie obrysu budynku (`footprint.outer`) i dziedzińców jako linii przerywanych, co pozwala na wizualną weryfikację "domknięcia" modelu analitycznego względem rzutu architektonicznego.
+    * **Poprawka Skali 3D**: Wszystkie importowane obrysy i okna są teraz skalowane do metrów podczas procesu synchronizacji, co zapewnia pełną spójność wymiarową bryły budynku.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.

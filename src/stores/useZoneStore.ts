@@ -282,10 +282,12 @@ export const useZoneStore = create<ZoneStore>()(
       wallTypeTemplates: [],
       pendingWindows: [],
       northAzimuth: 0,
+      selectedBoundaryId: null,
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
       setPendingWindows: (windows) => set({ pendingWindows: windows }),
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
+      setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
 
       addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
       updateMaterial: (id, updates) => set(s => ({ 
