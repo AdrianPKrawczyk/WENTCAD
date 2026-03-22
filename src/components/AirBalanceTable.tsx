@@ -111,10 +111,8 @@ export function AirBalanceTable() {
       field: 'nr', 
       headerName: 'Nr', 
       editable: true, 
-      width: 100,
       pinned: 'left',
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
+      width: 100,
       },    { field: 'name', headerName: 'Nazwa', editable: true, minWidth: 250 },
     { 
       field: 'activityType', 
@@ -843,8 +841,8 @@ export function AirBalanceTable() {
             mode: 'multiRow',
             headerCheckbox: true,
             checkboxes: true,
+            enableClickSelection: false,
           }}
-          suppressRowClickSelection={true}
           headerHeight={80}
           defaultColDef={defaultColDef}
         />

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings, OpeningInstance } from '../types';
 import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../lib/wattTypes';
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
@@ -52,7 +52,15 @@ function syncTerminalsFromZones() {
 function createDefaultFloors(): Record<string, Floor> {
   const id = `floor-${crypto.randomUUID()}`;
   return {
-    [id]: { id, name: 'Parter', elevation: 0.0, order: 0 }
+    [id]: { 
+      id, 
+      name: 'Parter', 
+      elevation: 0.0, 
+      order: 0,
+      heightTotal: 3.5,
+      heightNet: 3.0,
+      heightSuspended: 2.7
+    }
   };
 }
 
@@ -292,7 +300,6 @@ export const useZoneStore = create<ZoneStore>()(
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
       setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
       setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
-      setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
 
       addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
       updateMaterial: (id, updates) => set(s => ({ 
@@ -331,7 +338,7 @@ export const useZoneStore = create<ZoneStore>()(
         wallTypeTemplates: s.wallTypeTemplates.filter(t => t.id !== id) 
       })),
 
-      setPendingWindows: (windows) => set({ pendingWindows: windows }),
+
 
       updateZoneTopology: (zoneId) => {
         const state = get();
@@ -383,7 +390,6 @@ export const useZoneStore = create<ZoneStore>()(
         }
 
         // 4. Vertical Analysis (Horizontal Boundaries)
-        const currentFloor = state.floors[zone.floorId];
         const allFloorArray = Object.values(state.floors).sort((a, b) => a.order - b.order);
         const currentIndex = allFloorArray.findIndex(f => f.id === zone.floorId);
         

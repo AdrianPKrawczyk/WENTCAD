@@ -222,6 +222,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const buildingFootprint = useZoneStore((s) => s.buildingFootprint);
   const selectedBoundaryId = useZoneStore((s) => s.selectedBoundaryId);
   const setSelectedBoundaryId = useZoneStore((s) => s.setSelectedBoundaryId);
+  const selectedHorizontalBoundaryId = useZoneStore((s) => s.selectedHorizontalBoundaryId);
+  const setSelectedHorizontalBoundaryId = useZoneStore((s) => s.setSelectedHorizontalBoundaryId);
 
   // Duct store
   const ductNodes = useDuctStore((s) => s.nodes || {});

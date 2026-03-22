@@ -389,6 +389,7 @@ export interface ProjectStateData {
   windowStyles?: Record<string, IfcWindowStyle>;
   pendingWindows?: OpeningInstance[];
   northAzimuth?: number; // 0 is North, clockwise degrees
+  wallTypeTemplates?: IfcWallType[];
 }
 
 // Rekord Projektu

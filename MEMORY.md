@@ -977,3 +977,15 @@
 - **Problem 2 (Brak parametru Mocy Elektrycznej)**: Mimo definicji w specyfikacji `03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`, we właściwościach wizualnych i w modelach typów `types.ts` brakowało zmiennej definiującej moc (urządzenia elektrycznego).
 - **Naprawa 2**: Zaktualizowano interfejs `DuctNode` o `powerConsumption?: number`. Ujawniono pole input "Pobór mocy [W]" z obsługą dla obu komponentów AHU i FAN w `DuctPropertiesPanel.tsx` pod kategorią "Parametry Urządzenia". Pomyślnie skompilowano.
 - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`, `src/types.ts`, `docs/03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`.
+### Iteracja 3.6.0: Naprawa Błędów Konsoli i Stabilizacja WATT - 2026-03-22
+- **Problem 1 (ReferenceError)**: Aplikacja wywalała błąd `ReferenceError: selectedHorizontalBoundaryId is not defined` przy próbie renderowania wskaźników przegród poziomych (Dach/Podłoga) na kanwie 2D.
+- **Naprawa 1**: Do komponentu `Workspace2D.tsx` dodano brakujące ujęcia ze store'a: `selectedHorizontalBoundaryId` i `setSelectedHorizontalBoundaryId`.
+- **Problem 2 (Deprecacje AG Grid)**: Konsola była zaśmiecana ostrzeżeniami o przestarzałych właściwościach w `AirBalanceTable.tsx` (v32.2+).
+- **Naprawa 2**: Zaktualizowano konfigurację `AgGridReact`. Usunięto przestarzałe klucze (`checkboxSelection`, `headerCheckboxSelection`) z `ColDef` i przeniesiono logikę zaznaczania do nowego obiektu `rowSelection` (z `enableClickSelection: false`).
+- **Problem 3 (Linter i Spójność Typów)**: W `useZoneStore.ts` występowały błędy lintera (duplikaty metod jak `setPendingWindows`) oraz błąd typu `Floor` (brakujące pola wysokości wymagane przez interfejs).
+- **Naprawa 3**: 
+    - Usunięto duplikaty metod w store.
+    - Zaktualizowano `createDefaultFloors`, aby uwzględniał pola `heightTotal`, `heightNet`, `heightSuspended`.
+    - Zaktualizowano `ProjectStateData` o brakujące pole `wallTypeTemplates`.
+- **Weryfikacja**: Brak błędów `ReferenceError` na kanwie. Konsola czysta od deprecacji AG Grid (pozostały tylko licencje).
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/AirBalanceTable.tsx`, `src/stores/useZoneStore.ts`, `src/types.ts`.
