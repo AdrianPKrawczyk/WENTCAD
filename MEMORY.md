@@ -20,9 +20,9 @@
 * [x] **FAZA 3.4: Algorytm Propagacji Przepływów DFS** - Done
 * [x] **WATT KROK 1: Definicja Typów i Rozbudowa Stanu (IFC Data Structures)** - Done
 * [x] **WATT KROK 2: Rozbudowa Parsera DXF i Ekstrakcja Metadanych (Inteligentna Stolarka)** - Done
-* [x] **WATT KROK 3: Wdrożenie Silnika Topologicznego 2D (Hybrid Adjacency Engine & Window Snapping)** - Done
-* [x] **WATT KROK 4: Wdrożenie Analizy Pionowej (Vertical Boolean Logic - Roofs/Floors)** - Done
-* [x] **WATT KROK 5: Wizualizacja i UI (Workspace2D Integration)** - Pending Integration
+* [x] **WATT KROK 3: Silnik Topologiczny 2D & Snapping Okien** - Done
+* [x] **WATT KROK 4: Analiza Pionowa (Dachy/Nawisy)** - Done
+* [x] **WATT KROK 5: Wizualizacja WATT na Workspace2D** - Done
 * [x] **WATT KROK 6: Biblioteka Materiałów i Typów Przegród (Thermal Catalog)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
