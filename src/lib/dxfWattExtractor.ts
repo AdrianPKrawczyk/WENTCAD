@@ -48,6 +48,12 @@ export function extractWattTopology(
   const footprint: ExtractedWattData['buildingFootprint'] = { outer: [], courtyards: [] };
   const windows: OpeningInstance[] = [];
 
+  console.log('[WATT] extractWattTopology starting...', {
+    entities: dxf?.entities?.length,
+    footprintLayers,
+    windowLayers
+  });
+
   if (!dxf || !dxf.entities) return { buildingFootprint: footprint, windows };
 
   let windowIdCounter = 1;
@@ -56,8 +62,10 @@ export function extractWattTopology(
     // OUTER FOOTPRINT
     if (footprintLayers.includes(ent.layer)) {
       if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
-        if (ent.closed || ent.shape) {
+        // Obrys budynku nie musi być zamknięty de jure, ale de facto powinien tworzyć pętlę
+        if (ent.vertices.length >= 3) {
            if (footprint.outer.length === 0) {
+              console.log(`[WATT] Detected Footprint on layer: ${ent.layer}, points: ${ent.vertices.length}`);
               footprint.outer = ent.vertices.map((v: any) => ({ x: v.x, y: v.y }));
            }
         }
@@ -67,7 +75,7 @@ export function extractWattTopology(
     // COURTYARDS (Inner holes)
     if (courtyardLayers.includes(ent.layer)) {
       if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
-        if (ent.closed || ent.shape) {
+        if (ent.vertices.length >= 3) {
            footprint.courtyards.push(ent.vertices.map((v: any) => ({ x: v.x, y: v.y })));
         }
       }
@@ -75,17 +83,28 @@ export function extractWattTopology(
 
     // WINDOWS
     if (windowLayers.includes(ent.layer)) {
-      if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices && (ent.closed || ent.shape)) {
-        if (ent.vertices.length === 4) {
+      // Relaxed vertex check: 4 (unclosed rect) or 5 (closed rect explicitly)
+      // or even more if drawn poorly but still rectangular
+      if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
+        const vCount = ent.vertices.length;
+        if (vCount >= 3) {
           const v = ent.vertices;
+          
+          // Calculate bounding box or simple distance
+          // For windows we usually expect 4 vertices forming a rectangle
+          // but we take first 4 to avoid issues with 5th point = 1st point
           const d1 = Math.hypot(v[1].x - v[0].x, v[1].y - v[0].y);
-          const d2 = Math.hypot(v[2].x - v[1].x, v[2].y - v[1].y);
+          const d2 = vCount >= 3 ? Math.hypot(v[2].x - v[1].x, v[2].y - v[1].y) : 0;
           const width = Math.max(d1, d2); 
 
-          const cx = (v[0].x + v[1].x + v[2].x + v[3].x) / 4;
-          const cy = (v[0].y + v[1].y + v[2].y + v[3].y) / 4;
+          // Centroid
+          let sumX = 0, sumY = 0;
+          ent.vertices.forEach((p: any) => { sumX += p.x; sumY += p.y; });
+          const cx = sumX / vCount;
+          const cy = sumY / vCount;
 
           const meta = parseWindowMetadata(ent.layer);
+          console.log(`[WATT] Detected Window: ${ent.layer}, w=${width.toFixed(2)}, h=${meta.height}`);
 
           windows.push({
             id: `win-${windowIdCounter++}`,

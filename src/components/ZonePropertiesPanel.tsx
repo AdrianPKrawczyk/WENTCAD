@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
 import { 
-  Trash2, ChevronRight, ChevronLeft, Settings2, Wind, 
-  ShieldAlert, Layers, Box, Globe, Square, Maximize, Ruler, Check 
+  ChevronRight, ChevronLeft, Settings2, Wind, 
+  ShieldAlert, Layers, Box, Globe, Square, Maximize, Check,
+  Edit2, Plus, X
 } from 'lucide-react';
-import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
-import type { ZoneBoundary } from '../lib/wattTypes';
+import type { ActivityType, ZoneData, AcousticAbsorptionIndicator } from '../types';
+import type { ZoneBoundary, IfcWindowStyle, OpeningInstance } from '../lib/wattTypes';
+import { getCompassDirection } from '../lib/geometryHelpers';
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
@@ -28,6 +30,9 @@ export function ZonePropertiesPanel() {
   const setNorthAzimuth = useZoneStore((state) => state.setNorthAzimuth);
   const buildingFootprint = useZoneStore((state) => state.buildingFootprint);
   const wallTypes = useZoneStore((state) => state.wallTypes);
+  const windowStyles = useZoneStore((state) => state.windowStyles);
+  const addWindowStyle = useZoneStore((state) => state.addWindowStyle);
+  const updateWindowStyle = useZoneStore((state) => state.updateWindowStyle);
   const selectedBoundaryId = useZoneStore((state) => state.selectedBoundaryId);
   const setSelectedBoundaryId = useZoneStore((state) => state.setSelectedBoundaryId);
   const selectedHorizontalBoundaryId = useZoneStore((state) => state.selectedHorizontalBoundaryId);
@@ -45,6 +50,8 @@ export function ZonePropertiesPanel() {
 
   const [newTransferTarget, setNewTransferTarget] = useState('');
   const [newTransferVol, setNewTransferVol] = useState('');
+  
+  const [editingWindowStyleId, setEditingWindowStyleId] = useState<string | null>(null);
 
   const [width, setWidth] = useState(320);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -93,10 +100,10 @@ export function ZonePropertiesPanel() {
 
   const { pause, resume } = useZoneStore.temporal.getState();
 
-  const calculatedVolRaw = useMemo(() => {
-    if (!activeZone) return 0;
-    return activeZone.area * activeZone.height;
-  }, [activeZone]);
+  // const calculatedVolRaw = useMemo(() => {
+  //   if (!activeZone) return 0;
+  //   return activeZone.area * activeZone.height;
+  // }, [activeZone]);
 
   if (!activeZone) {
     return (
@@ -530,131 +537,255 @@ export function ZonePropertiesPanel() {
                     </div>
                   </div>
 
-                  {!activeZone.boundaries || activeZone.boundaries.length === 0 ? (
+                  {!((activeZone.boundaries && activeZone.boundaries.length > 0) || (activeZone.horizontalBoundaries && activeZone.horizontalBoundaries.length > 0)) ? (
                     <div className="text-center py-8 bg-white/40 rounded-lg border border-dashed border-indigo-200">
                       <Maximize className="w-8 h-8 text-indigo-200 mx-auto mb-2" />
                       <p className="text-xs text-indigo-400 font-medium">Brak wyliczonej topologii.<br/>Kliknij przycisk Analizuj powyżej.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
-                        <Box className="w-3 h-3" /> Wykryte Przegrody ({activeZone.boundaries.length})
+                        <Box className="w-3 h-3" /> Zestawienie Przegród (OZC Style)
                       </h4>
-                      <div className="overflow-hidden rounded-lg border border-indigo-100 bg-white">
-                        <table className="w-full text-[11px] text-left">
-                          <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
-                            <tr>
-                              <th className="p-2 border-b border-indigo-100">Typ</th>
-                              <th className="p-2 border-b border-indigo-100">Konstrukcja (Typ Przegrody)</th>
-                              <th className="p-2 border-b border-indigo-100">L [m]</th>
-                              <th className="p-2 border-b border-indigo-100">d [cm]</th>
+                      
+                      <div className="overflow-x-auto rounded-lg border border-indigo-100 bg-white shadow-sm">
+                        <table className="w-full text-[10px] text-left border-collapse">
+                          <thead className="bg-slate-800 text-slate-200 font-bold uppercase tracking-tighter">
+                            <tr className="divide-x divide-slate-700">
+                              <th className="p-1 px-2 w-8 text-center shrink-0">Lp.</th>
+                              <th className="p-1 px-2 w-10 text-center">3D</th>
+                              <th className="p-1 px-2 min-w-[120px]">Przegroda / Konstrukcja</th>
+                              <th className="p-1 px-2 w-12 text-center text-[9px]">Orient.</th>
+                              <th className="p-1 px-2 w-12 text-center text-[9px]">H [m]</th>
+                              <th className="p-1 px-2 w-12 text-center text-[9px]">W/L [m]</th>
+                              <th className="p-1 px-2 w-16 text-right text-[9px]">A [m²]</th>
+                              <th className="p-1 px-2 w-16 text-right text-[9px]">Aobl [m²]</th>
+                              <th className="p-1 px-2 w-16 text-right text-[9px]">U [W/m²K]</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {activeZone.boundaries.map((b, idx) => {
+                          <tbody className="divide-y divide-gray-100">
+                            {/* VERTICAL BOUNDARIES (WALLS) */}
+                            {activeZone.boundaries?.map((b, bIdx) => {
                               const isSelected = b.id === selectedBoundaryId;
+                              const currentFloor = floors[activeZone.floorId];
+                              const wallHeight = b.type === 'EXTERIOR' ? (currentFloor?.heightTotal || 3.0) : (currentFloor?.heightNet || 2.7);
+                              const grossArea = b.geometry.lengthNet * wallHeight;
+                              const openingsArea = b.openings.reduce((sum, op) => sum + (op.width * op.height), 0);
+                              const netArea = grossArea - openingsArea;
+
                               return (
-                              <tr 
-                                key={idx} 
-                                onClick={() => setSelectedBoundaryId(isSelected ? null : b.id)}
-                                className={`cursor-pointer transition-colors ${
-                                  isSelected 
-                                    ? 'bg-indigo-100/80 ring-2 ring-indigo-500 ring-inset z-10 relative' 
-                                    : (b.type === 'EXTERIOR' ? 'bg-orange-50/20 hover:bg-orange-50/60' : 'hover:bg-slate-50')
-                                }`}
-                              >
-                                <td className="p-2 font-medium flex items-center gap-1.5 whitespace-nowrap">
-                                  {b.type === 'EXTERIOR' ? <Globe className="w-3 h-3 text-orange-500" /> : <Square className="w-3 h-3 text-slate-400" />}
-                                  {b.type === 'EXTERIOR' ? 'Zewn.' : 'Wewn.'}
-                                </td>
-                                <td className="p-2">
-                                   <select 
-                                     value={b.relatedWallTypeId || ''}
-                                     onClick={(e) => e.stopPropagation()} // Prevent row click when selecting dropdown
-                                     onChange={(e) => {
-                                        const nextBoundaries = [...activeZone.boundaries!];
-                                        nextBoundaries[idx] = { ...b, relatedWallTypeId: e.target.value };
-                                        updateZone(activeZone.id, { boundaries: nextBoundaries });
-                                     }}
-                                     className="w-full text-[10px] bg-transparent border-b border-gray-200 outline-none focus:border-indigo-500"
-                                   >
-                                      <option value="">Wybierz typ...</option>
-                                      {Object.values(wallTypes).filter(wt => wt.isExternal === (b.type === 'EXTERIOR')).map(wt => (
-                                         <option key={wt.id} value={wt.id}>{wt.name}</option>
-                                      ))}
-                                   </select>
-                                </td>
-                                <td className="p-2 font-mono">{b.geometry.lengthNet.toFixed(2)}</td>
-                                <td className="p-2 font-mono text-indigo-600 font-bold">{Math.round(b.geometry.thickness * 100)}</td>
-                              </tr>
-                            )})}
+                                <React.Fragment key={`wall-${b.id}`}>
+                                  {/* WALL ROW */}
+                                  <tr 
+                                    onClick={() => setSelectedBoundaryId(isSelected ? null : b.id)}
+                                    className={`divide-x divide-gray-50 cursor-pointer transition-colors group ${
+                                      isSelected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <td className="p-1 px-2 text-center font-bold text-gray-400">{bIdx + 1}</td>
+                                    <td className="p-1 text-center">
+                                      {b.type === 'EXTERIOR' ? <Globe className="w-3 h-3 text-orange-500 mx-auto" /> : <Square className="w-3 h-3 text-slate-400 mx-auto" />}
+                                    </td>
+                                    <td className="p-1 px-2">
+                                      <div className="flex flex-col">
+                                        <span className="font-bold text-slate-700 truncate max-w-[160px]">
+                                          {b.type === 'EXTERIOR' ? 'ŚCIANA ZEWN.' : 'ŚCIANA WEWN.'}
+                                        </span>
+                                        <select 
+                                          value={b.relatedWallTypeId || ''}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onChange={(e) => {
+                                             const nextBoundaries = [...activeZone.boundaries!];
+                                             nextBoundaries[bIdx] = { ...b, relatedWallTypeId: e.target.value };
+                                             updateZone(activeZone.id, { boundaries: nextBoundaries });
+                                          }}
+                                          className="w-full text-[9px] bg-transparent border-none text-indigo-600 font-medium focus:ring-0 p-0 hover:underline"
+                                        >
+                                           <option value="">Wybierz konstrukcję...</option>
+                                           {Object.values(wallTypes).filter(wt => wt.isExternal === (b.type === 'EXTERIOR')).map(wt => (
+                                              <option key={wt.id} value={wt.id}>{wt.name}</option>
+                                           ))}
+                                        </select>
+                                      </div>
+                                    </td>
+                                    <td className="p-1 text-center font-bold text-slate-600">
+                                      {getCompassDirection(b.geometry.azimuth)}
+                                    </td>
+                                    <td className="p-1 text-center text-gray-500">{wallHeight.toFixed(2)}</td>
+                                    <td className="p-1 text-center text-gray-500 font-mono">{b.geometry.lengthNet.toFixed(2)}</td>
+                                    <td className="p-1 text-right text-slate-400 font-mono">{grossArea.toFixed(2)}</td>
+                                    <td className="p-1 text-right text-indigo-700 font-black font-mono">{netArea.toFixed( netArea < 0 ? 0 : 2)}</td>
+                                    <td className="p-1 text-right text-indigo-600 font-bold">1.25</td> {/* To be calculated from U-ref */}
+                                  </tr>
+
+                                  {/* OPENINGS ROWS (Sub-rows) */}
+                                  {b.openings.map((op, opIdx) => {
+                                    const style = op.windowStyleId ? windowStyles[op.windowStyleId] : null;
+                                    const isEditing = editingWindowStyleId === op.windowStyleId && op.windowStyleId;
+
+                                    return (
+                                    <React.Fragment key={`op-${op.id}`}>
+                                    <tr className={`divide-x divide-gray-50 transition-all ${isEditing ? 'bg-indigo-50/50' : 'bg-sky-50/30'}`}>
+                                      <td className="p-1 text-center text-[8px] text-gray-300 italic">{bIdx + 1}.{opIdx + 1}</td>
+                                      <td className="p-1 text-center opacity-40">
+                                        <div className="w-2 h-2 border border-sky-400 bg-sky-100 mx-auto rounded-sm" />
+                                      </td>
+                                      <td className="p-1 px-2 pl-4">
+                                        <div className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1">
+                                            <div className="w-2 h-2 border-l border-b border-gray-400 rounded-bl" />
+                                            <select 
+                                              value={op.windowStyleId || ''}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === 'NEW') {
+                                                  const id = `ws-${Date.now()}`;
+                                                  addWindowStyle({ id, name: `Okna Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5 });
+                                                  const nextB = [...activeZone.boundaries!];
+                                                  nextB[bIdx].openings[opIdx].windowStyleId = id;
+                                                  updateZone(activeZone.id, { boundaries: nextB });
+                                                  setEditingWindowStyleId(id);
+                                                } else {
+                                                  const nextB = [...activeZone.boundaries!];
+                                                  nextB[bIdx].openings[opIdx].windowStyleId = val || undefined;
+                                                  updateZone(activeZone.id, { boundaries: nextB });
+                                                }
+                                              }}
+                                              className="bg-transparent border-none text-[9px] font-bold text-sky-800 p-0 focus:ring-0 w-full"
+                                            >
+                                              <option value="">Wybierz styl okna...</option>
+                                              <option value="NEW" className="text-indigo-600 font-bold">+ NOWY TYP OKNA</option>
+                                              {Object.values(windowStyles).map(ws => (
+                                                <option key={ws.id} value={ws.id}>{ws.name}</option>
+                                              ))}
+                                            </select>
+                                            {op.windowStyleId && (
+                                              <button 
+                                                onClick={() => setEditingWindowStyleId(isEditing ? null : op.windowStyleId!)}
+                                                className={`p-0.5 rounded ${isEditing ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                                              >
+                                                <Edit2 className="w-2.5 h-2.5" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="p-1 text-center text-sky-600 font-bold opacity-50">
+                                        {getCompassDirection(b.geometry.azimuth)}
+                                      </td>
+                                      <td className="p-1 text-center text-sky-700">{op.height.toFixed(2)}</td>
+                                      <td className="p-1 text-center text-sky-700">{op.width.toFixed(2)}</td>
+                                      <td className="p-1 text-right text-sky-800 font-bold">{(op.width * op.height).toFixed(2)}</td>
+                                      <td className="p-1 text-right text-gray-300">-</td>
+                                      <td className="p-1 text-right text-sky-600 font-bold">
+                                        {style ? style.overallUValue.toFixed(2) : '-'}
+                                      </td>
+                                    </tr>
+                                    
+                                    {isEditing && (
+                                      <tr className="bg-white border-t border-b border-indigo-200 shadow-inner">
+                                        <td colSpan={3} className="p-2 border-r-0">
+                                          <div className="flex flex-col gap-2 p-1">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-[8px] font-black uppercase text-indigo-400 tracking-widest">Edycja Typu Okna</span>
+                                              <button onClick={() => setEditingWindowStyleId(null)} className="text-gray-400 hover:text-red-500"><X className="w-3 h-3"/></button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                              <div>
+                                                <label className="block text-[8px] text-gray-400 mb-0.5 uppercase">Nazwa Typu</label>
+                                                <input 
+                                                  type="text" 
+                                                  className="w-full text-[9px] border-b border-gray-200 focus:border-indigo-500 outline-none py-0.5"
+                                                  value={style?.name || ''}
+                                                  onChange={(e) => updateWindowStyle(style!.id, { name: e.target.value })}
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[8px] text-gray-400 mb-0.5 uppercase">U [W/m²K]</label>
+                                                <input 
+                                                  type="number" step="0.01"
+                                                  className="w-full text-[9px] border-b border-gray-200 focus:border-indigo-500 outline-none py-0.5 font-bold"
+                                                  value={style?.overallUValue}
+                                                  onChange={(e) => updateWindowStyle(style!.id, { overallUValue: parseFloat(e.target.value) || 0 })}
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[8px] text-gray-400 mb-0.5 uppercase">Wsp. g (solarny)</label>
+                                                <input 
+                                                  type="number" step="0.01" max="1" min="0"
+                                                  className="w-full text-[9px] border-b border-gray-200 focus:border-indigo-500 outline-none py-0.5"
+                                                  value={style?.solarHeatGainCoefficient}
+                                                  onChange={(e) => updateWindowStyle(style!.id, { solarHeatGainCoefficient: parseFloat(e.target.value) || 0 })}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td colSpan={6} className="bg-indigo-50/20" />
+                                      </tr>
+                                    )}
+                                    </React.Fragment>
+                                  );})}
+                                </React.Fragment>
+                              );
+                            })}
+
+                            {/* HORIZONTAL BOUNDARIES (ROOF, FLOOR) */}
+                            {activeZone.horizontalBoundaries?.map((hb, hIdx) => {
+                              const isSelected = hb.id === selectedHorizontalBoundaryId;
+                              return (
+                                <tr 
+                                  key={`hb-${hb.id}`}
+                                  onClick={() => setSelectedHorizontalBoundaryId(isSelected ? null : hb.id)}
+                                  className={`divide-x divide-gray-50 cursor-pointer transition-colors ${
+                                    isSelected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <td className="p-1 px-2 text-center font-bold text-gray-400">{ (activeZone.boundaries?.length || 0) + hIdx + 1}</td>
+                                  <td className="p-1 text-center">
+                                    {hb.type === 'ROOF' ? <Box className="w-3 h-3 text-amber-500 mx-auto" /> : <Layers className="w-3 h-3 text-green-600 mx-auto" />}
+                                  </td>
+                                  <td className="p-1 px-2">
+                                     <div className="flex flex-col">
+                                        <span className="font-bold text-slate-700 truncate max-w-[160px]">
+                                          {hb.type === 'ROOF' ? 'DACH' : (hb.type === 'FLOOR_GROUND' ? 'PODŁOGA NA GRUNCIE' : hb.type)}
+                                        </span>
+                                        <select 
+                                          value={hb.uValueRef || ''}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onChange={(e) => {
+                                             const nextH = [...activeZone.horizontalBoundaries!];
+                                             nextH[hIdx] = { ...hb, uValueRef: e.target.value };
+                                             updateZone(activeZone.id, { horizontalBoundaries: nextH });
+                                          }}
+                                          className="w-full text-[9px] bg-transparent border-none text-indigo-600 font-medium focus:ring-0 p-0 hover:underline"
+                                        >
+                                           <option value="">Wybierz...</option>
+                                           {Object.values(wallTypes).map(wt => (
+                                              <option key={wt.id} value={wt.id}>{wt.name}</option>
+                                           ))}
+                                        </select>
+                                     </div>
+                                  </td>
+                                  <td className="p-1 text-center font-bold text-slate-300">-</td>
+                                  <td className="p-1 text-center text-gray-300">-</td>
+                                  <td className="p-1 text-center text-gray-300">-</td>
+                                  <td className="p-1 text-right text-slate-400 font-mono">{hb.area.toFixed(2)}</td>
+                                  <td className="p-1 text-right text-indigo-700 font-black font-mono">{hb.area.toFixed(2)}</td>
+                                  <td className="p-1 text-right text-indigo-600 font-bold">0.30</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
-                      
-                      <p className="text-[10px] text-slate-400 italic bg-white p-2 rounded border border-slate-100 leading-relaxed">
-                        <b>Wskazówka:</b> System automatycznie wyliczył azymut oraz grubość przegród na podstawie odległości między poligonami CAD.
-                      </p>
-                    </div>
-                  )}
 
-                  {/* Horizontal Boundaries Section */}
-                  {activeZone.horizontalBoundaries && activeZone.horizontalBoundaries.length > 0 && (
-                    <div className="mt-6 space-y-3">
-                      <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
-                        <Globe className="w-3 h-3" /> Przegrody Poziome ({activeZone.horizontalBoundaries.length})
-                      </h4>
-                      <div className="overflow-hidden rounded-lg border border-indigo-100 bg-white">
-                        <table className="w-full text-[11px] text-left">
-                          <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
-                            <tr>
-                              <th className="p-2 border-b border-indigo-100">Typ Przegrody</th>
-                              <th className="p-2 border-b border-indigo-100">Konstrukcja</th>
-                              <th className="p-2 border-b border-indigo-100 text-right">Pow. [m²]</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {activeZone.horizontalBoundaries.map((hb, idx) => {
-                              const isSelected = hb.id === selectedHorizontalBoundaryId;
-                              return (
-                              <tr 
-                                key={idx} 
-                                onClick={() => setSelectedHorizontalBoundaryId(isSelected ? null : hb.id)}
-                                className={`cursor-pointer transition-colors ${
-                                  isSelected 
-                                    ? 'bg-indigo-100/80 ring-2 ring-indigo-500 ring-inset z-10 relative' 
-                                    : 'hover:bg-indigo-50/30'
-                                }`}
-                              >
-                                <td className="p-2 font-medium flex items-center gap-1.5 whitespace-nowrap">
-                                  {hb.type === 'ROOF' && <span className="w-2 h-2 rounded-full bg-orange-400" />}
-                                  {hb.type === 'FLOOR_GROUND' && <span className="w-2 h-2 rounded-full bg-green-600" />}
-                                  {hb.type === 'CEILING_INTERIOR' && <span className="w-2 h-2 rounded-full bg-slate-300" />}
-                                  {hb.type === 'FLOOR_EXTERIOR' && <span className="w-2 h-2 rounded-full bg-blue-400" />}
-                                  {hb.type}
-                                </td>
-                                <td className="p-2">
-                                   <select 
-                                     value={hb.uValueRef || ''}
-                                     onClick={(e) => e.stopPropagation()}
-                                     onChange={(e) => {
-                                        const nextH = [...activeZone.horizontalBoundaries!];
-                                        nextH[idx] = { ...hb, uValueRef: e.target.value };
-                                        updateZone(activeZone.id, { horizontalBoundaries: nextH });
-                                     }}
-                                     className="w-full text-[10px] bg-transparent border-b border-gray-200 outline-none focus:border-indigo-500"
-                                   >
-                                      <option value="">Wybierz...</option>
-                                      {Object.values(wallTypes).map(wt => (
-                                         <option key={wt.id} value={wt.id}>{wt.name}</option>
-                                      ))}
-                                   </select>
-                                </td>
-                                <td className="p-2 font-mono text-right font-bold">{hb.area.toFixed(2)}</td>
-                              </tr>
-                            )})}
-                          </tbody>
-                        </table>
+                      <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                         <h5 className="text-[10px] font-bold text-amber-800 uppercase mb-1">Uwagi do zestawienia</h5>
+                         <p className="text-[9px] text-amber-700 leading-relaxed italic">
+                           Aobl (powierzchnia obliczeniowa) jest wyliczana automatycznie poprzez odjęcie powierzchni okien i drzwi od powierzchni brutto przegrody. 
+                           Kierunki świata są ustalane na podstawie azymutu ściany względem północy projektu.
+                         </p>
                       </div>
                     </div>
                   )}

@@ -971,7 +971,9 @@ export function AirBalanceTable() {
              const courtyardLayers = wattSettings.courtyardLayers || [];
              const windowLayers = wattSettings.windowLayers || [];
              
+             console.log('[WATT] Starting extraction with layers:', { footprintLayer: wattSettings.footprintLayer, windowLayers });
              const rawWattData = extractWattTopology(syncDxfData, footprintLayers, courtyardLayers, windowLayers);
+             console.log('[WATT] Extracted:', { footprint: rawWattData.buildingFootprint.outer.length, windows: rawWattData.windows.length });
              
              // Transform outer footprint and SCALE TO METERS
              const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {

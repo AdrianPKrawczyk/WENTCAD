@@ -242,6 +242,10 @@ interface ZoneStore {
   addWallTypeTemplate: (template: IfcWallType) => void;
   removeWallTypeTemplate: (id: string) => void;
   
+  addWindowStyle: (style: IfcWindowStyle) => void;
+  updateWindowStyle: (id: string, updates: Partial<IfcWindowStyle>) => void;
+  removeWindowStyle: (id: string) => void;
+  
   // WATT UI State
   selectedBoundaryId: string | null;
   setSelectedBoundaryId: (id: string | null) => void;
@@ -329,6 +333,16 @@ export const useZoneStore = create<ZoneStore>()(
         const next = { ...s.wallTypes };
         delete next[id];
         return { wallTypes: next };
+      }),
+      
+      addWindowStyle: (style: IfcWindowStyle) => set(s => ({ windowStyles: { ...s.windowStyles, [style.id]: style } })),
+      updateWindowStyle: (id: string, updates: Partial<IfcWindowStyle>) => set(s => ({ 
+        windowStyles: { ...s.windowStyles, [id]: { ...s.windowStyles[id], ...updates } } 
+      })),
+      removeWindowStyle: (id: string) => set(s => {
+        const next = { ...s.windowStyles };
+        delete next[id];
+        return { windowStyles: next };
       }),
 
       addWallTypeTemplate: (template) => set(s => ({ 
@@ -436,7 +450,14 @@ export const useZoneStore = create<ZoneStore>()(
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
       setSelectedZone: (zoneId) => set({ selectedZoneId: zoneId }),
-      setActiveFloor: (floorId) => set({ activeFloorId: floorId }),
+      setActiveFloor: (floorId) => set((state) => {
+        if (!state.floors[floorId]) {
+          console.warn(`Floor ${floorId} not found, choosing first available.`);
+          const firstFloor = Object.keys(state.floors)[0];
+          return { activeFloorId: firstFloor || floorId };
+        }
+        return { activeFloorId: floorId };
+      }),
       setCheckedZoneIds: (ids) => set({ checkedZoneIds: ids }),
       toggleShowZonesOnCanvas: () => set((s) => ({ showZonesOnCanvas: !s.showZonesOnCanvas })),
       toggleSystemVisibility: (systemId) => set((s) => {
