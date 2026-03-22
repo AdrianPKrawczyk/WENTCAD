@@ -918,17 +918,19 @@ export function AirBalanceTable() {
         underlayUrl={underlayUrl}
         zones={Object.values(zones).filter(z => z.floorId === activeFloorId)}
         onCancel={() => setIsSyncAlignmentOpen(false)}
-        onConfirm={(transformFn) => {
+        onConfirm={(alignment) => {
           setIsSyncAlignmentOpen(false);
           
           if (!syncDxfData || !selectedSyncLayer) return;
 
           // 1. OBRYSY POMIESZCZEŃ
-          const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, transformFn);
+          const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, alignment.transformFn);
           if (extracted.length === 0) {
             toast.error(`Nie znaleziono zamkniętych polilinii na warstwie: ${selectedSyncLayer}`);
             return;
           }
+
+          const metersPerPixel = syncMultiplier / alignment.pxPerUnit;
 
           const currentCanvasFloor = useCanvasStore.getState().getFloorState(activeFloorId);
           const floorPolygons = currentCanvasFloor.polygons || [];
@@ -955,7 +957,7 @@ export function AirBalanceTable() {
                 p.id === overlapping.id ? { ...p, points: ext.points } : p
               );
               
-              const area = calculatePolygonArea(ext.points) * (syncMultiplier ** 2);
+              const area = calculatePolygonArea(ext.points) * (metersPerPixel ** 2);
               updateZone(overlapping.zoneId, { 
                 geometryArea: area,
                 isAreaManual: false 
@@ -965,7 +967,7 @@ export function AirBalanceTable() {
               newDxfOutlines.push({
                 id: crypto.randomUUID(),
                 points: ext.points,
-                area: calculatePolygonArea(ext.points) * (syncMultiplier ** 2)
+                area: calculatePolygonArea(ext.points) * (metersPerPixel ** 2)
               });
             }
           });
@@ -974,7 +976,7 @@ export function AirBalanceTable() {
           useCanvasStore.getState().updateFloorState(activeFloorId, {
             polygons: updatedPolygons,
             dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines],
-            scaleFactor: syncMultiplier // AUTO-CALIBRATE scale from CAD multiplier
+            scaleFactor: metersPerPixel // AUTO-CALIBRATE scale from CAD multiplier and alignment
           });
 
           // 2. WATT TOPOLOGY EXTRACTION (Opcjonalne)
@@ -988,30 +990,30 @@ export function AirBalanceTable() {
              const rawWattData = extractWattTopology(syncDxfData, footprintLayers, courtyardLayers, windowLayers);
              console.log('[WATT] Extracted:', { footprint: rawWattData.buildingFootprint.outer.length, windows: rawWattData.windows.length });
              
-             // Transform outer footprint and SCALE TO METERS
-             const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
-                const t = transformFn(pt.x, pt.y);
-                return { x: t.x * syncMultiplier, y: t.y * syncMultiplier };
-             });
+              // Transform outer footprint and SCALE TO METERS
+              const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
+                 const t = alignment.transformFn(pt.x, pt.y);
+                 return { x: t.x * metersPerPixel, y: t.y * metersPerPixel };
+              });
 
              // Transform courtyards and SCALE TO METERS
              const transformedCourtyards = rawWattData.buildingFootprint.courtyards.map(polygon => {
                 return polygon.map(pt => {
-                   const t = transformFn(pt.x, pt.y);
-                   return { x: t.x * syncMultiplier, y: t.y * syncMultiplier };
+                   const t = alignment.transformFn(pt.x, pt.y);
+                   return { x: t.x * metersPerPixel, y: t.y * metersPerPixel };
                 });
              });
 
-             // Transform windows and SCALE TO METERS
-             const transformedWindows = rawWattData.windows.map(win => {
-                if (!win.centroid) return win;
-                const tCenter = transformFn(win.centroid.x, win.centroid.y);
-                return {
-                   ...win,
-                   width: win.width * syncMultiplier,
-                   centroid: { x: tCenter.x * syncMultiplier, y: tCenter.y * syncMultiplier }
-                };
-             });
+              // Transform windows and SCALE TO METERS
+              const transformedWindows = rawWattData.windows.map(win => {
+                 if (!win.centroid) return win;
+                 const tCenter = alignment.transformFn(win.centroid.x, win.centroid.y);
+                 return {
+                    ...win,
+                    width: win.width * syncMultiplier, // Width is relative to DXF so multiply by DXF factor
+                    centroid: { x: tCenter.x * metersPerPixel, y: tCenter.y * metersPerPixel }
+                 };
+              });
 
              // Zapisz do głownego stanu projektu WATT
              useZoneStore.getState().setBuildingFootprint({

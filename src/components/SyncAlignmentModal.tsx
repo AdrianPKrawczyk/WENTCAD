@@ -13,7 +13,7 @@ interface SyncAlignmentModalProps {
   selectedLayer: string; // Filter geometry to this layer
   underlayUrl: string | null;
   zones: any[]; // Existing zones to display on the project side
-  onConfirm: (transformFn: (x: number, y: number) => Point) => void;
+  onConfirm: (alignment: { transformFn: (x: number, y: number) => Point, pxPerUnit: number }) => void;
   onCancel: () => void;
 }
 
@@ -68,14 +68,17 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
   }, [mode]);
 
   // Transformation logic
-  const transformFn = useMemo(() => {
+  const alignment = useMemo(() => {
     if (mode === '1-point') {
       const p1Dxf = dxfPoints[0];
       const p1Canvas = canvasPoints[0];
       if (!p1Dxf || !p1Canvas) return null;
       const dx = p1Canvas.x - p1Dxf.x;
       const dy = p1Canvas.y - p1Dxf.y;
-      return (x: number, y: number) => ({ x: x + dx, y: y + dy });
+      return {
+        transformFn: (x: number, y: number) => ({ x: x + dx, y: y + dy }),
+        pxPerUnit: 1.0
+      };
     } 
 
     if (mode === '3-point') {
@@ -86,14 +89,17 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       
       // Obliczanie wyznacznika głównego macierzy (Det)
       const det = p1Dxf.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y);
-      
+
       if (Math.abs(det) < 1e-6) {
         console.warn("Punkty są współliniowe - transformacja niemożliwa.");
-        return (x: number, y: number) => ({ x, y }); // Fallback
+        return {
+          transformFn: (x: number, y: number) => ({ x, y }),
+          pxPerUnit: 1.0
+        };
       }
 
       // Wyliczanie współczynników macierzy afinicznej
-      const a = (p1Canvas.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.x - p3Canvas.x) + (p2Canvas.x * p3Dxf.y - p3Canvas.x * p2Dxf.y)) / det;
+      const a = (p1Canvas.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.x - p3Canvas.x) + (p2Canvas.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
       const b = (p1Dxf.x * (p2Canvas.x - p3Canvas.x) - p1Canvas.x * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x)) / det;
       const c = (p1Dxf.x * (p2Dxf.y * p3Canvas.x - p3Dxf.y * p2Canvas.x) - p1Dxf.y * (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x) + p1Canvas.x * (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
 
@@ -101,10 +107,13 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       const e = (p1Dxf.x * (p2Canvas.y - p3Canvas.y) - p1Canvas.y * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Canvas.y - p3Dxf.x * p2Canvas.y)) / det;
       const f = (p1Dxf.x * (p2Dxf.y * p3Canvas.y - p3Dxf.y * p2Canvas.y) - p1Dxf.y * (p2Dxf.x * p3Canvas.y - p3Dxf.x * p2Canvas.y) + p1Canvas.y * (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
 
-      return (x: number, y: number) => ({
-        x: a * x + b * y + c,
-        y: d * x + e * y + f
-      });
+      return {
+        transformFn: (x: number, y: number) => ({
+          x: a * x + b * y + c,
+          y: d * x + e * y + f
+        }),
+        pxPerUnit: Math.sqrt(a * a + d * d)
+      };
     }
     return null;
   }, [mode, dxfPoints, canvasPoints]);
@@ -188,10 +197,10 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       const color = isGhost ? 'rgba(99, 102, 241, 0.4)' : '#64748b';
       const strokeWidth = isGhost ? 2 : 1;
 
-      if (isGhost && transformFn) {
+      if (isGhost && alignment) {
         const transformedPoints = [];
         for (let i = 0; i < points.length; i += 2) {
-          const p = transformFn(points[i], points[i+1]);
+          const p = alignment.transformFn(points[i], points[i+1]);
           if (p) transformedPoints.push(p.x, p.y);
         }
         return <Line key={`ghost-${idx}`} points={transformedPoints} stroke={color} strokeWidth={strokeWidth} />;
@@ -338,7 +347,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
               ))}
 
               {/* Ghost Layer Preview */}
-              {transformFn && dxfData && dxfData.entities && renderDxfEntities(dxfData.entities, true)}
+              {alignment && dxfData && dxfData.entities && renderDxfEntities(dxfData.entities, true)}
 
               {canvasPoints.map((p: Point, i: number) => (
                 <Group key={`p-can-${i}`} x={p.x} y={p.y} scaleX={1/canvasView.scale} scaleY={1/canvasView.scale}>
@@ -392,7 +401,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
             Anuluj
           </button>
           <button 
-            onClick={() => transformFn && onConfirm(transformFn)}
+            onClick={() => alignment && onConfirm(alignment)}
             disabled={!canConfirm}
             className="px-10 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:bg-indigo-500 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed flex items-center gap-3"
           >
