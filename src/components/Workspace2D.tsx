@@ -1786,7 +1786,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   listening={false}
                 />
                 {/* Flow Rate Label */}
-                {edge.flowRate && edge.flowRate > 0 && (
+                {(edge.flowRate !== undefined && edge.flowRate > 0) ? (
                   (() => {
                     const midX = (sPt.x + tPt.x) / 2;
                     const midY = (sPt.y + tPt.y) / 2;
@@ -1819,7 +1819,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                       </Group>
                     );
                   })()
-                )}
+                ) : null}
               </Group>
             );
           })}

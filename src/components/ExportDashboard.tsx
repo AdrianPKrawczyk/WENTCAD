@@ -207,8 +207,8 @@ export function ExportDashboard() {
             </div>
 
             {/* CARD 2: Wygląd i Kolumny */}
-            <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between ${format === 'IFC' ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+              <div className={format === 'IFC' ? 'opacity-50 pointer-events-none' : ''}>
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-5 pb-2 border-b border-slate-100">Prezentacja / Czytelność (Dla PDF)</h3>
                 
                 <div className="space-y-4">
@@ -261,7 +261,7 @@ export function ExportDashboard() {
               <div className="mt-8">
                 <button
                   onClick={handleExport}
-                  disabled={format !== 'IFC' && !includeBalanceTable && !includeRoomCards}
+                  disabled={format === 'IFC' ? false : (!includeBalanceTable && !includeRoomCards)}
                   className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-5 h-5" />

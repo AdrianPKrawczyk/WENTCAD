@@ -779,6 +779,13 @@
     - Zastąpiono tablicę odwiedzonych krawędzi stałą tablicą odwiedzonych węzłów (`visitedNodes`), która chroni dany obchód DFS przed wejściem w nieskończoną pętlę w przypadku nielogicznych, cyklicznych połączeń na rzucie CAD.
 - **Weryfikacja**: Usunięcie rury odcinające pokój od centrali natychmiastowo wygasza wartości `m³/h` na wszystkich krawędziach i węzłach pośrednich. System jest kuloodporny na pętle grafowe.
 - **Pliki**: `src/lib/networkEngine.ts`
+
+### FAZA 3.4.2: Naprawa Renderowania Konva (Crash "Text components are not supported") - 2026-03-21
+- **Problem**: Zidentyfikowano krytyczny błąd powodujący zniknięcie płótna ("White Screen") po narysowaniu drugiego odcinka rury lub przeliczeniu przepływu.
+- **Przyczyna**: Błędna logika warunkowa w JSX: `{edge.flowRate && edge.flowRate > 0 && (...)}`. Jeśli `flowRate` wynosiło `0`, React-Konva otrzymywał surową cyfrę `0` zamiast wartości logicznej, co powodowało próbę wyrenderowania natywnego tekstu DOM wewnątrz Canvasa (operacja niedozwolona).
+- **Naprawa**: Wprowadzono bezpieczny wzorzec renderowania z jawnym zwracaniem `null` dla wartości zerowych: `{(condition) ? (<Group>...</Group>) : null}`.
+- **Zasięg**: Poprawiono etykiety przepływu (`flowRate`) we wszystkich rzędach rur w `Workspace2D.tsx`.
+- **Pliki**: `src/components/Workspace2D.tsx`.
     - Wyświetla listę osieroconych kondygnacji
     - Opcja "Rozszerz zakres docelowego pionu"
 - **DuctPropertiesPanel.tsx**:
