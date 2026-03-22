@@ -218,6 +218,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const globalTagSettings = useZoneStore((s) => s.globalTagSettings);
   const dxfExportSettings = useZoneStore((s) => s.dxfExportSettings);
   const setGlobalPatternScale = useZoneStore((s) => s.setGlobalPatternScale);
+  
+  const buildingFootprint = useZoneStore((s) => s.buildingFootprint);
+  const selectedBoundaryId = useZoneStore((s) => s.selectedBoundaryId);
+  const setSelectedBoundaryId = useZoneStore((s) => s.setSelectedBoundaryId);
 
   // Duct store
   const ductNodes = useDuctStore((s) => s.nodes || {});
@@ -1399,6 +1403,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onClick={() => {
           setSelectedDxfOutlineId(null);
           
+          if (!activeDuctTool && !currentTool) {
+             setSelectedBoundaryId(null); // Clicked on empty space clears wall selection
+          }
+
           // Wstawianie komponentów HVAC
           if (activeDuctTool && currentTool === null) {
             const stage = stageRef.current;
@@ -1649,89 +1657,146 @@ export function Workspace2D({ className }: Workspace2DProps) {
           })}
 
           {/* === WATT TOPOLOGY VISUALIZATION === */}
-          {showZonesOnCanvas && polygons.map((poly) => {
-            const zone = zones[poly.zoneId];
-            if (!zone || !zone.boundaries) return null;
+          {showZonesOnCanvas && (
+             <Group key="watt-visualization" listening={currentStage === 9 || currentStage === 2}>
+               {/* 0. Building Footprint */}
+               {buildingFootprint && buildingFootprint.outer && buildingFootprint.outer.length > 0 && (
+                 <Line
+                   points={buildingFootprint.outer.flatMap(p => [
+                     p.x / (canvasFloors[activeFloorId]?.scaleFactor || 1.0), 
+                     p.y / (canvasFloors[activeFloorId]?.scaleFactor || 1.0)
+                   ])}
+                   closed={true}
+                   stroke="#334155"
+                   strokeWidth={2 / scale}
+                   dash={[5 / scale, 5 / scale]}
+                   listening={false}
+                   opacity={0.5}
+                 />
+               )}
+               {buildingFootprint && buildingFootprint.courtyards && buildingFootprint.courtyards.map((court, cIdx) => (
+                 <Line
+                   key={`court-${cIdx}`}
+                   points={court.flatMap(p => [
+                     p.x / (canvasFloors[activeFloorId]?.scaleFactor || 1.0), 
+                     p.y / (canvasFloors[activeFloorId]?.scaleFactor || 1.0)
+                   ])}
+                   closed={true}
+                   stroke="#334155"
+                   strokeWidth={2 / scale}
+                   dash={[5 / scale, 5 / scale]}
+                   listening={false}
+                   opacity={0.5}
+                 />
+               ))}
 
-            // Get scaling factor to convert METERS back to PIXELS for rendering
-            const floorState = canvasFloors[activeFloorId];
-            const sFactor = floorState?.scaleFactor || 1.0;
+               {/* Zones Topology */}
+               {polygons.map((poly) => {
+                 const zone = zones[poly.zoneId];
+                 if (!zone || !zone.boundaries) return null;
 
-            return (
-              <Group key={`watt-${poly.id}`} listening={false}>
-                {/* 1. Exterior Walls Highlighting */}
-                {zone.boundaries.filter(b => b.type === 'EXTERIOR').map((b, bIdx) => (
-                  <Line
-                    key={`ext-wall-${poly.id}-${bIdx}`}
-                    points={[
-                      b.geometry.p1.x / sFactor, b.geometry.p1.y / sFactor, 
-                      b.geometry.p2.x / sFactor, b.geometry.p2.y / sFactor
-                    ]}
-                    stroke="#f59e0b"
-                    strokeWidth={6 / scale}
-                    lineCap="round"
-                    shadowColor="#f59e0b"
-                    shadowBlur={10 / scale}
-                    shadowOpacity={0.6}
-                  />
-                ))}
+                 // Get scaling factor to convert METERS back to PIXELS for rendering
+                 const floorState = canvasFloors[activeFloorId];
+                 const sFactor = floorState?.scaleFactor || 1.0;
 
-                {/* 2. Windows / Openings */}
-                {zone.boundaries.flatMap(b => b.openings.map(op => ({ op, b }))).map(({ op, b }, opIdx) => {
-                   const dx = (b.geometry.p2.x - b.geometry.p1.x) / sFactor;
-                   const dy = (b.geometry.p2.y - b.geometry.p1.y) / sFactor;
-                   const len = Math.hypot(dx, dy);
-                   if (len === 0) return null;
+                 return (
+                   <Group key={`watt-${poly.id}`} listening={currentStage === 9 || currentStage === 2}>
+                     {/* 1. Walls Highlighting (All walls) */}
+                     {zone.boundaries.map((b, bIdx) => {
+                       const isSelected = b.id === selectedBoundaryId;
+                       let strokeColor = b.type === 'EXTERIOR' ? '#f59e0b' : (b.type === 'INTERIOR' ? '#94a3b8' : '#ef4444');
+                       if (isSelected) strokeColor = '#4f46e5';
 
-                   const ratio = op.placement / b.geometry.lengthNet;
-                   const wx = (b.geometry.p1.x / sFactor) + dx * ratio;
-                   const wy = (b.geometry.p1.y / sFactor) + dy * ratio;
-                   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                       return (
+                         <Line
+                           key={`wall-${poly.id}-${bIdx}`}
+                           points={[
+                             b.geometry.p1.x / sFactor, b.geometry.p1.y / sFactor, 
+                             b.geometry.p2.x / sFactor, b.geometry.p2.y / sFactor
+                           ]}
+                           stroke={strokeColor}
+                           strokeWidth={(isSelected ? 10 : 6) / scale}
+                           lineCap="round"
+                           shadowColor={strokeColor}
+                           shadowBlur={10 / scale}
+                           shadowOpacity={isSelected ? 0.8 : (b.type === 'EXTERIOR' ? 0.6 : 0.3)}
+                           listening={true}
+                           onClick={(e: any) => {
+                             e.cancelBubble = true;
+                             setSelectedBoundaryId(b.id);
+                             useZoneStore.getState().setSelectedZone(poly.zoneId);
+                           }}
+                           onMouseEnter={(e: any) => {
+                             const container = e.target.getStage()?.container();
+                             if (container) container.style.cursor = 'pointer';
+                           }}
+                           onMouseLeave={(e: any) => {
+                             const container = e.target.getStage()?.container();
+                             if (container) container.style.cursor = 'default';
+                           }}
+                         />
+                       );
+                     })}
 
-                   return (
-                     <Rect
-                       key={`win-${poly.id}-${opIdx}`}
-                       x={wx}
-                       y={wy}
-                       width={op.width / sFactor}
-                       height={8 / scale}
-                       fill="#38bdf8"
-                       stroke="#0369a1"
-                       strokeWidth={1 / scale}
-                       rotation={angle}
-                       offsetX={(op.width / sFactor) / 2}
-                       offsetY={4 / scale}
-                       shadowColor="#0ea5e9"
-                       shadowBlur={10 / scale}
-                     />
-                   );
-                })}
+                     {/* 2. Windows / Openings */}
+                     {zone.boundaries.flatMap(b => b.openings.map(op => ({ op, b }))).map(({ op, b }, opIdx) => {
+                        const dx = (b.geometry.p2.x - b.geometry.p1.x) / sFactor;
+                        const dy = (b.geometry.p2.y - b.geometry.p1.y) / sFactor;
+                        const len = Math.hypot(dx, dy);
+                        if (len === 0) return null;
 
-                {/* 3. Roof / Vertical indicators */}
-                {(() => {
-                   if (!zone.horizontalBoundaries) return null;
-                   const hasRoof = zone.horizontalBoundaries.some(hb => hb.type === 'ROOF');
-                   const hasOverhang = zone.horizontalBoundaries.some(hb => hb.type === 'FLOOR_EXTERIOR');
-                   if (!hasRoof && !hasOverhang) return null;
+                        const ratio = op.placement / b.geometry.lengthNet;
+                        const wx = (b.geometry.p1.x / sFactor) + dx * ratio;
+                        const wy = (b.geometry.p1.y / sFactor) + dy * ratio;
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-                   const centroid = calculatePolygonCentroid(poly.points);
-                   return (
-                     <Group x={centroid.x} y={centroid.y}>
-                        <Circle radius={15 / scale} fill="#4f46e5" opacity={0.8} />
-                        <Text 
-                          text={hasRoof ? "R" : "O"} 
-                          fontSize={14 / scale} 
-                          fill="white" 
-                          fontStyle="bold" 
-                          offsetX={5 / scale} 
-                          offsetY={7 / scale} 
-                        />
-                     </Group>
-                   );
-                })()}
-              </Group>
-            );
-          })}
+                        return (
+                          <Rect
+                            key={`win-${poly.id}-${opIdx}`}
+                            x={wx}
+                            y={wy}
+                            width={op.width / sFactor}
+                            height={8 / scale}
+                            fill="#38bdf8"
+                            stroke="#0369a1"
+                            strokeWidth={1 / scale}
+                            rotation={angle}
+                            offsetX={(op.width / sFactor) / 2}
+                            offsetY={4 / scale}
+                            shadowColor="#0ea5e9"
+                            shadowBlur={10 / scale}
+                            listening={false}
+                          />
+                        );
+                     })}
+
+                     {/* 3. Roof / Vertical indicators */}
+                     {(() => {
+                        if (!zone.horizontalBoundaries) return null;
+                        const hasRoof = zone.horizontalBoundaries.some(hb => hb.type === 'ROOF');
+                        const hasOverhang = zone.horizontalBoundaries.some(hb => hb.type === 'FLOOR_EXTERIOR');
+                        if (!hasRoof && !hasOverhang) return null;
+
+                        const centroid = calculatePolygonCentroid(poly.points);
+                        return (
+                          <Group x={centroid.x} y={centroid.y} listening={false}>
+                             <Circle radius={15 / scale} fill="#4f46e5" opacity={0.8} />
+                             <Text 
+                               text={hasRoof ? "R" : "O"} 
+                               fontSize={14 / scale} 
+                               fill="white" 
+                               fontStyle="bold" 
+                               offsetX={5 / scale} 
+                               offsetY={7 / scale} 
+                             />
+                          </Group>
+                        );
+                     })()}
+                   </Group>
+                 );
+               })}
+             </Group>
+          )}
 
           {/* === PRZEWODY (DUCT EDGES) === */}
           {currentStage === 3 && Object.values(ductEdges).map(edge => {

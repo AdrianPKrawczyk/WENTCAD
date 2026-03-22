@@ -233,6 +233,10 @@ interface ZoneStore {
   removeWallType: (id: string) => void;
   addWallTypeTemplate: (template: IfcWallType) => void;
   removeWallTypeTemplate: (id: string) => void;
+  
+  // WATT UI State
+  selectedBoundaryId: string | null;
+  setSelectedBoundaryId: (id: string | null) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(

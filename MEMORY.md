@@ -28,7 +28,7 @@
 * [x] **WATT REWIZJA 1: Poprawki po testach (Skala, Wysokości, Dziedzińce, Północ)** - Done
 * [x] **WATT REWIZJA 2: Stabilizacja Architektury (Circular Deps, Skalowanie, UX)** - Done
 * [x] **WATT REWIZJA 3: Algorytmy Gross Area, Synchronizacja Skali i Poprawki Importu** - Done
-* [x] **WATT DODATKOWY KROK: Moduł Budynek 2D (Widok Architektoniczny)** - Done
+* [x] **WATT DODATKOWY KROK: Moduł Budynek 2D (Interaktywny Widok Architektoniczny)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -100,6 +100,8 @@
 * **WATT DODATKOWY KROK (Budynek 2D)**:
     * **Widok Architektoniczny**: Wdrożono nowy moduł `Building2DViewer` (ID etapu: 9), który służy jako dedykowany obszar roboczy dla modelu HVAC/BIM bez wizualnego szumu podkładów.
     * **Sterowanie Podkładem**: Dodano globalny stan `isUnderlayVisible` do `useUIStore`, co pozwala na niezależne przełączanie widoczności tła (PDF/DXF) w różnych widokach. W widoku "Budynek 2D" podkład jest domyślnie wyłączony.
+    * **Interaktywność i Selekcja**: Wdrożono mechanizm wyboru poszczególnych krawędzi ścian (`ZoneBoundary`) bezpośrednio na rzucie 2D. Kliknięcie krawędzi automatycznie ustawia `selectedBoundaryId`, podświetla ją na fioletowo, centruje tabelę przegród i przełącza panel właściwości na zakładkę WATT.
+    * **Wizualizacja Obrysu**: Dodano rysowanie głównego obrysu budynku (`outer`) oraz dziedzińców (`courtyards`) jako szarych linii przerywanych, ułatwiając weryfikację poprawności importu z CAD.
     * **Reużywalność**: Moduł wykorzystuje silnik `Workspace2D`, zapewniając pełną spójność wizualną stref, metek i wyników analizy WATT między etapami projektu.
 
 * **WATT DODATKOWY KROK (Budynek 3D)**:
