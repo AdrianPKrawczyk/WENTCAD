@@ -988,4 +988,7 @@
     - Zaktualizowano `createDefaultFloors`, aby uwzględniał pola `heightTotal`, `heightNet`, `heightSuspended`.
     - Zaktualizowano `ProjectStateData` o brakujące pole `wallTypeTemplates`.
 - **Weryfikacja**: Brak błędów `ReferenceError` na kanwie. Konsola czysta od deprecacji AG Grid (pozostały tylko licencje).
-- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/AirBalanceTable.tsx`, `src/stores/useZoneStore.ts`, `src/types.ts`.
+- **Problem 4 (3D Misalignment)**: Przegrody poziome (dach/podłoga) były przesunięte/odbite względem ścian w widoku 3D.
+- **Naprawa 4**: W `Building3DViewer.tsx` zanegowano współrzędną Y przy budowaniu kształtu slabów, co skorygowało mapowanie układu współrzędnych Canvas -> THREE.js.
+- **Weryfikacja**: Potwierdzono poprawne osadzenie dachu na ścianach w widoku 3D.
+- **Pliki**: `src/components/Workspace2D.tsx`, `src/components/AirBalanceTable.tsx`, `src/stores/useZoneStore.ts`, `src/types.ts`, `src/components/Building3DViewer.tsx`.

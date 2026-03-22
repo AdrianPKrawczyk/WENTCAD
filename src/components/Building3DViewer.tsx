@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Text } from '@react-three/drei';
 import { useZoneStore } from '../stores/useZoneStore';
@@ -57,7 +57,7 @@ export function Building3DViewer() {
          const shape = new THREE.Shape();
          for (let i = 0; i < poly.points.length; i += 2) {
             const x = poly.points[i] * sFactor;
-            const y = poly.points[i+1] * sFactor;
+            const y = -poly.points[i+1] * sFactor;
             if (i === 0) shape.moveTo(x, y);
             else shape.lineTo(x, y);
          }
@@ -211,8 +211,8 @@ export function Building3DViewer() {
                    setSelectedBoundaryId(null);
                    useZoneStore.getState().setSelectedZone(slab.zoneId);
                  }}
-                 onPointerOver={(e) => (document.body.style.cursor = 'pointer')}
-                 onPointerOut={(e) => (document.body.style.cursor = 'default')}
+                 onPointerOver={(_e) => (document.body.style.cursor = 'pointer')}
+                 onPointerOut={(_e) => (document.body.style.cursor = 'default')}
                >
                  <meshStandardMaterial 
                    color={slab.isSelected ? '#4f46e5' : slab.color} 
@@ -238,8 +238,8 @@ export function Building3DViewer() {
                    setSelectedHorizontalBoundaryId(null);
                    useZoneStore.getState().setSelectedZone(wall.zoneId);
                  }}
-                 onPointerOver={(e) => (document.body.style.cursor = 'pointer')}
-                 onPointerOut={(e) => (document.body.style.cursor = 'default')}
+                 onPointerOver={(_e) => (document.body.style.cursor = 'pointer')}
+                 onPointerOut={(_e) => (document.body.style.cursor = 'default')}
                >
                  <boxGeometry args={wall.size} />
                  <meshStandardMaterial 
