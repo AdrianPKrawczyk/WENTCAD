@@ -79,6 +79,10 @@ interface CanvasState {
   activeDuctTool: DuctComponentTool | null;
   activeDuctCategory: 'EQUIPMENT' | 'TERMINAL' | 'INLINE' | 'JUNCTION' | 'SHAFT' | 'VIRTUAL_ROOT' | null;
 
+  // Pending settings for WATT extraction during CAD Sync
+  pendingWattSettings: { footprintLayer?: string; windowLayers: string[] } | null;
+  setPendingWattSettings: (settings: { footprintLayer?: string; windowLayers: string[] } | null) => void;
+
   // Actions
   getFloorState: (floorId: string) => FloorCanvasState;
   updateFloorState: (floorId: string, updates: Partial<FloorCanvasState>) => void;
@@ -128,6 +132,12 @@ export const useCanvasStore = create<CanvasState>()(
       isSettingOrigin: false,
       isDrawingPolygon: false,
       currentPolygonPoints: [],
+      
+      activeDuctTool: null,
+      activeDuctCategory: null,
+      pendingWattSettings: null,
+
+      setPendingWattSettings: (settings) => set({ pendingWattSettings: settings }),
 
       getFloorState: (floorId: string) => {
         return get().floors[floorId] || DEFAULT_FLOOR_STATE;

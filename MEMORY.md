@@ -19,6 +19,7 @@
 * [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
 * [x] **FAZA 3.4: Algorytm Propagacji Przepływów DFS** - Done
 * [x] **WATT KROK 1: Definicja Typów i Rozbudowa Stanu (IFC Data Structures)** - Done
+* [x] **WATT KROK 2: Rozbudowa Parsera DXF i Ekstrakcja Metadanych (Inteligentna Stolarka)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -57,6 +58,10 @@
     * **IFC Standard**: Data structures for materials (`IfcMaterial`), layer sets (`IfcMaterialLayerSet`), and walls (`IfcWallType`) follow IFC logic to ensure future BIM compatibility.
     * **Zone Boundaries**: `ZoneData` extended with `boundaries` (vertical) and `horizontalBoundaries` (slabs/roofs).
     * **Persistence**: `useZoneStore` and `useProjectStore` updated to persist IFC dictionaries and `buildingFootprint` in Supabase and Zundo history.
+* **WATT Module (Architecture & Thermal Topology) - Iteration 2**:
+    * **DXF Extraction Engine**: Created `dxfWattExtractor.ts` with dedicated logic to extract WATT structures independently from UI rendering.
+    * **Regex Parsing**: Implemented dynamic extraction of window dimensions (Height $H$, Sill $H_o$) directly from CAD layer names (e.g. `OKNA_H1500_Ho900`) using RegExp.
+    * **Smart Geometry**: Algorithm accurately detects 4-vertex rectangles as windows, computing correct real-world Width $B$ (by comparing hypotenuses) and mapping Centroids to the global coordinate space.
 
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.

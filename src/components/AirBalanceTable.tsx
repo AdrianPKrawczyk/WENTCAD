@@ -27,6 +27,8 @@ import { toast } from 'sonner';
 import { SavedFiltersToolPanel } from './SavedFiltersToolPanel';
 import { useSettingsStore } from '../stores/useSettingsStore';
 
+import { extractWattTopology } from '../lib/dxfWattExtractor';
+
 // Register ALL enterprise modules to avoid version mismatches
 ModuleRegistry.registerModules([ClientSideRowModelModule, ValidationModule, RowSelectionModule, AllEnterpriseModule]);
 
@@ -883,9 +885,17 @@ export function AirBalanceTable() {
           setIsSyncSettingsOpen(false);
           setPendingDxfFile(null);
         }}
-        onConfirm={(layer, mult) => {
-          setSelectedSyncLayer(layer);
-          setSyncMultiplier(mult);
+        onConfirm={(settings) => {
+          // Temporary save settings to use after alignment
+          setSelectedSyncLayer(settings.zoneLayer);
+          setSyncMultiplier(settings.multiplier);
+          
+          // Store WATT settings globally or pass them through state to use after alignment
+          useCanvasStore.getState().setPendingWattSettings({
+             footprintLayer: settings.footprintLayer,
+             windowLayers: settings.windowLayers
+          });
+
           setIsSyncSettingsOpen(false);
           setIsSyncAlignmentOpen(true);
         }}
@@ -903,6 +913,7 @@ export function AirBalanceTable() {
           
           if (!syncDxfData || !selectedSyncLayer) return;
 
+          // 1. OBRYSY POMIESZCZEŃ
           const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, transformFn);
           if (extracted.length === 0) {
             toast.error(`Nie znaleziono zamkniętych polilinii na warstwie: ${selectedSyncLayer}`);
@@ -914,9 +925,6 @@ export function AirBalanceTable() {
           
           let updatedPolygons = [...floorPolygons];
           const newDxfOutlines: { id: string, points: number[], area: number }[] = [];
-          
-          let updatedCount = 0;
-          let addedCount = 0;
 
           extracted.forEach((ext) => {
             // Overlap check
@@ -942,7 +950,6 @@ export function AirBalanceTable() {
                 geometryArea: area,
                 isAreaManual: false 
               });
-              updatedCount++;
             } else {
               // Add to DXF drawer instead of creating zone
               newDxfOutlines.push({
@@ -950,7 +957,6 @@ export function AirBalanceTable() {
                 points: ext.points,
                 area: calculatePolygonArea(ext.points) * (syncMultiplier ** 2)
               });
-              addedCount++;
             }
           });
 
@@ -959,6 +965,44 @@ export function AirBalanceTable() {
             polygons: updatedPolygons,
             dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines]
           });
+
+          // 2. WATT TOPOLOGY EXTRACTION (Opcjonalne)
+          const wattSettings = useCanvasStore.getState().pendingWattSettings;
+          if (wattSettings && (wattSettings.footprintLayer || (wattSettings.windowLayers && wattSettings.windowLayers.length > 0))) {
+             const footprintLayers = wattSettings.footprintLayer ? [wattSettings.footprintLayer] : [];
+             const windowLayers = wattSettings.windowLayers || [];
+             
+             const rawWattData = extractWattTopology(syncDxfData, footprintLayers, windowLayers);
+             
+             // Transform footprint
+             const transformedFootprint = rawWattData.buildingFootprint.map(polygon => {
+                return polygon.map(pt => {
+                   const t = transformFn(pt.x, pt.y);
+                   return { x: t.x, y: t.y };
+                });
+             });
+
+             // Transform windows
+             const transformedWindows = rawWattData.windows.map(win => {
+                if (!win.centroid) return win;
+                const tCenter = transformFn(win.centroid.x, win.centroid.y);
+                // Adjust width by multiplier (scale to meters in our app if they were drawn in mm/cm)
+                return {
+                   ...win,
+                   width: win.width * syncMultiplier,
+                   centroid: { x: tCenter.x, y: tCenter.y }
+                };
+             });
+
+             // Zapisz do głownego stanu projektu WATT
+             useZoneStore.getState().setBuildingFootprint(transformedFootprint);
+             
+             // TODO: Windows should be stored temporarily and then assigned to boundaries in Topology Engine (Step 3).
+             // For now we will keep them in memory or console log them, as the Topology engine will match them by coordinate.
+             console.log("WATT Extracted Windows:", transformedWindows);
+
+             useCanvasStore.getState().setPendingWattSettings(null); // Clear pending settings
+          }
 
           toast.success(`Zakończono analizę CAD. Znaleziono i dodano do szuflady ${newDxfOutlines.length} nowych obrysów.`);
         }}
