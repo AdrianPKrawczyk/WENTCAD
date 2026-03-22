@@ -39,11 +39,11 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     ? (zone.manualTargetACH ?? 0) 
     : (ROOM_TYPE_ACH_MAPPING[zone.activityType] ?? ROOM_TYPE_ACH_MAPPING[DEFAULT_ACTIVITY_TYPE]);
 
-  const volume = (zone.manualVolume !== null && zone.manualVolume !== undefined && zone.manualVolume > 0) 
-    ? zone.manualVolume 
+  const volumeM3 = zone.isVolumeManual 
+    ? (zone.manualVolume || 0) 
     : (zone.area * zone.height);
     
-  const vKrotnosc = computedACH * volume;
+  const vKrotnosc = computedACH * volumeM3;
 
   // 3. Normatywne
   const vNorm = zone.normativeVolume || 0;
@@ -112,9 +112,9 @@ export function calculateZoneAirBalance(zone: ZoneData) {
 
   // Rzeczywista krotność wymian (największa z dostarczonego lub wyciąganego dla krotności)
   let realACH = 0;
-  if (volume > 0) {
+  if (volumeM3 > 0) {
     const dominantFlow = Math.max(calculatedVolume + transferInSum, calculatedExhaust + transferOutSum);
-    realACH = dominantFlow / volume;
+    realACH = dominantFlow / volumeM3;
   }
 
   return {
@@ -123,6 +123,7 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     transferInSum,
     transferOutSum,
     netBalance,
+    volume: volumeM3, // Return the final m3 volume for storage
     realACH: parseFloat(realACH.toFixed(2)),
     targetACH: computedACH,
     thermodynamicError

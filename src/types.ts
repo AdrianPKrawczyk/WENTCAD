@@ -118,7 +118,10 @@ export interface ZoneData {
   geometryArea: number | null; // Powierzchnia wyliczona z poligonu CAD [m²]
   isAreaManual: boolean; // Flaga sterująca (domyślnie: true)
   height: number; // m
-  manualVolume?: number | null; // kubatura podana ręcznie
+  volume: number; // Wartość ostateczna [m³]
+  manualVolume: number; // Kubatura podana ręcznie [m³]
+  geometryVolume: number | null; // Kubatura wyliczona (Area * Height) [m³]
+  isVolumeManual: boolean; // Flaga sterująca kubaturą
   tagPosition?: { x: number; y: number } | null;
   
   // Air Volume Inputs

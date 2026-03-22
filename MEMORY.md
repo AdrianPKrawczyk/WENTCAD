@@ -977,7 +977,8 @@
 - **Problem 2 (Brak parametru Mocy Elektrycznej)**: Mimo definicji w specyfikacji `03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`, we właściwościach wizualnych i w modelach typów `types.ts` brakowało zmiennej definiującej moc (urządzenia elektrycznego).
 - **Naprawa 2**: Zaktualizowano interfejs `DuctNode` o `powerConsumption?: number`. Ujawniono pole input "Pobór mocy [W]" z obsługą dla obu komponentów AHU i FAN w `DuctPropertiesPanel.tsx` pod kategorią "Parametry Urządzenia". Pomyślnie skompilowano.
 - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/DuctPropertiesPanel.tsx`, `src/types.ts`, `docs/03.5-AHU_FAN-Urzadzenia_HVAC_Spec.md`.
-### Iteracja 3.6.0: Naprawa Błędów Konsoli i Stabilizacja WATT - 2026-03-22
+
+### Iteracyja 3.6.0: Naprawa Błędów Konsoli i Stabilizacja WATT - 2026-03-22
 - **Problem 1 (ReferenceError)**: Aplikacja wywalała błąd `ReferenceError: selectedHorizontalBoundaryId is not defined` przy próbie renderowania wskaźników przegród poziomych (Dach/Podłoga) na kanwie 2D.
 - **Naprawa 1**: Do komponentu `Workspace2D.tsx` dodano brakujące ujęcia ze store'a: `selectedHorizontalBoundaryId` i `setSelectedHorizontalBoundaryId`.
 - **Problem 2 (Deprecacje AG Grid)**: Konsola była zaśmiecana ostrzeżeniami o przestarzałych właściwościach w `AirBalanceTable.tsx` (v32.2+).
@@ -992,3 +993,16 @@
 - **Naprawa 4**: W `Building3DViewer.tsx` zanegowano współrzędną Y przy budowaniu kształtu slabów, co skorygowało mapowanie układu współrzędnych Canvas -> THREE.js.
 - **Weryfikacja**: Potwierdzono poprawne osadzenie dachu na ścianach w widoku 3D.
 - **Pliki**: `src/components/Workspace2D.tsx`, `src/components/AirBalanceTable.tsx`, `src/stores/useZoneStore.ts`, `src/types.ts`, `src/components/Building3DViewer.tsx`.
+
+### Iteracja 3.6.1: Przywrócenie Parametrów Wentylacji i Kubatury - 2026-03-22
+- **Przywrócenie Pól w Inspektorze**: Do panelu `ZonePropertiesPanel.tsx` (zakładka "Ogólne") dodano brakujące parametry niezbędne dla modułu Bilans:
+    - **Metoda Obliczeń**: Tryb (Auto/Manual), Liczba osób, Normatyw [m³/h/os], Własna krotność [h-1].
+    - **Termodynamika**: Temperatura i wilgotność w pomieszczeniu oraz nawiewu, Zyski ciepła [W].
+    - **Akustyka**: Możliwość manualnego nadpisania limitu dB(A) z presetu.
+- **Implementacja Kubatury (Volume)**:
+    - Rozszerzono `ZoneData` o pola: `volume`, `manualVolume`, `geometryVolume`, `isVolumeManual`.
+    - **Logika**: `volume` jest wyliczane w `resolveZonesState` jako `Area * Height` lub brane z `manualVolume` (zależnie od flagi `isVolumeManual`).
+    - **UI**: Dodano sekcję "Kubatura" w Inspektorze z przełącznikiem trybu manualnego.
+    - **Tabela**: W `AirBalanceTable.tsx` dodano kolumny "Manual Kub." oraz "Kubatura [m³]" dla masowej edycji i podglądu.
+- **Synchronizacja**: Zaktualizowano `RoomWizardModal.tsx`, `Workspace2D.tsx` (import DXF) oraz `AirBalanceTable.tsx` (dodawanie wierszy), aby nowe pola były inicjalizowane domyślnie.
+- **Pliki**: `src/types.ts`, `src/stores/useZoneStore.ts`, `src/components/ZonePropertiesPanel.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/RoomWizardModal.tsx`, `src/components/Workspace2D.tsx`, `src/lib/PhysicsEngine.ts`.

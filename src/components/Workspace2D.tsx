@@ -2683,6 +2683,10 @@ export function Workspace2D({ className }: Workspace2DProps) {
                 transferOutSum: 0,
                 netBalance: 0,
                 realACH: 0,
+                volume: 0,
+                manualVolume: 0,
+                geometryVolume: null,
+                isVolumeManual: false,
                 floorId: activeFloorId,
               });
 

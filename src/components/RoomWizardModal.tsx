@@ -127,7 +127,11 @@ export function RoomWizardModal({ isOpen, onClose, onSave }: RoomWizardModalProp
       transferInSum: 0,
       transferOutSum: 0,
       netBalance: 0,
-      realACH: 0
+      realACH: 0,
+      volume: 0,
+      manualVolume: 0,
+      geometryVolume: null,
+      isVolumeManual: false
     };
 
     onSave(newZone);

@@ -171,17 +171,27 @@ export function AirBalanceTable() {
       width: 110,
       valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
     },
-    {
-      headerName: 'Kubatura [m³]',
-      valueGetter: (params) => {
-        if (!params.data) return 0;
-        return params.data.manualVolume !== null && params.data.manualVolume !== undefined 
-            ? params.data.manualVolume 
-            : params.data.area * params.data.height;
-      },
-      editable: false,
-      width: 130,
-      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00'
+    { 
+      field: 'isVolumeManual', 
+      headerName: 'Manual Kub.', 
+      editable: true, 
+      width: 100,
+      cellRenderer: 'agCheckboxCellRenderer',
+      cellEditor: 'agCheckboxCellEditor',
+    },
+    { 
+      field: 'volume', 
+      headerName: 'Kubatura [m³]', 
+      editable: (params) => !!params.data?.isVolumeManual,
+      type: 'numericColumn', 
+      width: 120,
+      valueFormatter: params => params.value ? parseFloat(params.value).toFixed(2) : '0.00',
+      cellStyle: (params) => {
+        if (params.data?.isVolumeManual) {
+          return { backgroundColor: '#fefcbf', color: '#744210', fontWeight: 'bold' };
+        }
+        return { backgroundColor: '#fff7ed', color: '#c2410c', fontWeight: 'bold' };
+      }
     },
     {
       field: 'manualTargetACH',
@@ -549,6 +559,10 @@ export function AirBalanceTable() {
       transferOutSum: 0,
       netBalance: 0,
       realACH: 0,
+      volume: 0,
+      manualVolume: 0,
+      geometryVolume: null,
+      isVolumeManual: false,
       floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
     });
   };
@@ -614,6 +628,10 @@ export function AirBalanceTable() {
         transferOutSum: 0,
         netBalance: 0,
         realACH: 0,
+        volume: 0,
+        manualVolume: 0,
+        geometryVolume: null,
+        isVolumeManual: false,
         floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
       });
     });

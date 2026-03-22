@@ -125,10 +125,22 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
     finalArea = Math.round(finalArea * 100) / 100;
     const roundedManualArea = Math.round((zone.manualArea || 0) * 100) / 100;
 
+    // Sync Volume based on Manual Flag
+    const geometryVolume = finalArea * (zone.height || 0);
+    let finalVolume = zone.isVolumeManual
+      ? (zone.manualVolume || 0)
+      : geometryVolume;
+    
+    finalVolume = Math.round(finalVolume * 100) / 100;
+    const roundedManualVolume = Math.round((zone.manualVolume || 0) * 100) / 100;
+
     const updatedZone = { 
       ...zone, 
       area: finalArea, 
-      manualArea: roundedManualArea 
+      manualArea: roundedManualArea,
+      volume: finalVolume,
+      manualVolume: roundedManualVolume,
+      geometryVolume: Math.round(geometryVolume * 100) / 100
     };
     
     const results = calculateZoneAirBalance(updatedZone);
@@ -142,7 +154,8 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
       updatedZone.netBalance !== results.netBalance ||
       updatedZone.realACH !== results.realACH ||
       updatedZone.targetACH !== results.targetACH ||
-      updatedZone.area !== finalArea // Ensure area change triggers update
+      updatedZone.area !== finalArea ||
+      updatedZone.volume !== results.volume // Check if volume changed
     ) {
       newZones[id] = { ...updatedZone, ...results };
     }

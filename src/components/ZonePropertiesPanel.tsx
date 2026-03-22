@@ -1,15 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
 import { 
   ChevronRight, ChevronLeft, Settings2, Wind, 
   ShieldAlert, Layers, Box, Globe, Square, Maximize, Check,
-  Edit2, Plus, X
+  Edit2, X
 } from 'lucide-react';
 import type { ActivityType, ZoneData, AcousticAbsorptionIndicator } from '../types';
-import type { ZoneBoundary, IfcWindowStyle, OpeningInstance } from '../lib/wattTypes';
 import { getCompassDirection } from '../lib/geometryHelpers';
 
 const MIN_WIDTH = 320;
@@ -202,7 +200,9 @@ export function ZonePropertiesPanel() {
           {/* CONTENT */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20">
             {activeTab === 'GENERAL' && (
-              <div className={`${isWide ? 'grid grid-cols-2 gap-4' : 'space-y-6'}`}>
+              <div className="flex flex-col gap-6">
+                <div className={`${isWide ? 'grid grid-cols-2 gap-4 items-start' : 'space-y-6'}`}>
+                  <div className="space-y-6">
                 {/* SEKCJA: GEOMETRIA */}
                 <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
                   <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Dane Podstawowe</h3>
@@ -318,22 +318,69 @@ export function ZonePropertiesPanel() {
                         onChange={(e) => handleChange('height', Number(e.target.value))}
                       />
                     </div>
+
+                    <div className="space-y-3 bg-amber-50/30 p-2 rounded-md border border-amber-100/50">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold text-orange-600 uppercase tracking-tight">Kubatura Obliczeniowa (Finalna)</label>
+                        </div>
+                        <input 
+                          type="text" 
+                          disabled
+                          className="w-full text-sm border-b border-orange-200 py-1 bg-orange-50/30 text-orange-900 font-bold focus:outline-none cursor-not-allowed"
+                          value={`${(activeZone.volume || 0).toFixed(2)} m³`}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Kubatura Manualna</label>
+                          <label className="flex items-center space-x-1 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={activeZone.isVolumeManual} 
+                              onChange={(e) => handleChange('isVolumeManual', e.target.checked)}
+                              className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                            />
+                            <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                          </label>
+                        </div>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          disabled={!activeZone.isVolumeManual}
+                          className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isVolumeManual ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-gray-200 bg-transparent text-gray-400'}`}
+                          value={activeZone.manualVolume}
+                          onChange={(e) => handleChange('manualVolume', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </section>
 
+                {/* SEKCJA: AKUSTYKA */}
                 <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
                   <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Akustyka</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Maks. poziom hałasu [dB(A)]</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs text-gray-500">Maks. poziom hałasu [dB(A)]</label>
+                        <label className="flex items-center space-x-1 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={activeZone.isMaxDbAManual} 
+                            onChange={(e) => handleChange('isMaxDbAManual', e.target.checked)}
+                            className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                          />
+                          <span className="text-[10px] text-gray-600 tracking-wider font-bold uppercase">Manual</span>
+                        </label>
+                      </div>
                       <input 
                         type="number" 
-                        className={`w-full text-sm border-b py-1 ${activeZone.isMaxDbAManual ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                        disabled={!activeZone.isMaxDbAManual}
+                        className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isMaxDbAManual ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-gray-200 bg-transparent text-gray-400'}`}
                         value={activeZone.isMaxDbAManual ? (activeZone.manualMaxAllowedDbA ?? activeZone.maxAllowedDbA) : activeZone.maxAllowedDbA}
-                        onChange={(e) => {
-                          handleChange('manualMaxAllowedDbA', Number(e.target.value));
-                          handleChange('isMaxDbAManual', true);
-                        }}
+                        onChange={(e) => handleChange('manualMaxAllowedDbA', Number(e.target.value))}
                       />
                     </div>
                     <div>
@@ -351,7 +398,139 @@ export function ZonePropertiesPanel() {
                   </div>
                 </section>
               </div>
-            )}
+
+              <div className="space-y-6">
+                {/* SEKCJA: PARAMETRY POWIETRZA (V_HIG) */}
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Metoda Obliczeń i Cele</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Tryb Obliczeń</label>
+                      <select 
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800 font-bold"
+                        value={activeZone.calculationMode}
+                        onChange={(e) => handleChange('calculationMode', e.target.value as any)}
+                      >
+                        <option value="AUTO_MAX">AUTOMATYCZNY (MAX)</option>
+                        <option value="MANUAL">RĘCZNY (NADPROŻE)</option>
+                        <option value="HYGIENIC_ONLY">WYŁĄCZNIE HIGIENICZNY</option>
+                        <option value="ACH_ONLY">WYŁĄCZNIE KROTNOŚCI</option>
+                        <option value="THERMAL_ONLY">WYŁĄCZNIE TERMICZNY</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Liczba Osób</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.occupants}
+                          onChange={(e) => handleChange('occupants', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">m³/h / osobę</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.dosePerOccupant}
+                          onChange={(e) => handleChange('dosePerOccupant', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50/50 p-2 rounded border border-amber-100">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] font-bold text-amber-700 uppercase tracking-tight">Krotność Wymian [1/h]</label>
+                        <label className="flex items-center space-x-1 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={activeZone.isTargetACHManual} 
+                            onChange={(e) => handleChange('isTargetACHManual', e.target.checked)}
+                            className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                          />
+                          <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                        </label>
+                      </div>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        disabled={!activeZone.isTargetACHManual}
+                        className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isTargetACHManual ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-gray-200 bg-transparent text-gray-400 italic'}`}
+                        value={activeZone.isTargetACHManual ? (activeZone.manualTargetACH ?? activeZone.targetACH) : activeZone.targetACH}
+                        onChange={(e) => handleChange('manualTargetACH', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* SEKCJA: TERMODYNAMIKA (V_TERM) */}
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Termodynamika</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Temp. Pomieszczenia [°C]</label>
+                        <input 
+                          type="number" step="0.5"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.roomTemp}
+                          onChange={(e) => handleChange('roomTemp', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Wilgotność [%]</label>
+                        <input 
+                          type="number" step="1" max="100" min="0"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.roomRH}
+                          onChange={(e) => handleChange('roomRH', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Temp. Nawiewu [°C]</label>
+                        <input 
+                          type="number" step="0.5"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.supplyTemp}
+                          onChange={(e) => handleChange('supplyTemp', Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Wilgotność Naw. [%]</label>
+                        <input 
+                          type="number" step="1" max="100" min="0"
+                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                          value={activeZone.supplyRH}
+                          onChange={(e) => handleChange('supplyRH', Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1 uppercase">Zyski Ciepła Jawne + Utajone [W]</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="number" 
+                          className="flex-1 text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent font-bold text-orange-700"
+                          value={activeZone.totalHeatGain}
+                          onChange={(e) => handleChange('totalHeatGain', Number(e.target.value))}
+                        />
+                        <span className="text-[10px] text-gray-400 font-bold">WATTY</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        )}
 
             {activeTab === 'SYSTEMS' && (
               <div className="space-y-6">
