@@ -20,6 +20,8 @@ import { useProjectStore } from '../stores/useProjectStore';
 import { exportCurrentProjectData, downloadProjectFile } from '../lib/projectTransfer';
 import { ProjectImportModal } from './ProjectImportModal';
 import { importProjectService } from '../lib/importProjectService';
+import { WATTManagerModal } from './WATTManagerModal';
+import { Database } from 'lucide-react';
 
 const STAGE_NAMES: Record<number, string> = {
   1: 'Krok 1 (Bilans)',
@@ -42,6 +44,7 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
   const currentStage = useUIStore((s) => s.currentStage);
   
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
+  const [isWattModalOpen, setIsWattModalOpen] = React.useState(false);
   
   // Temporal store for Undo/Redo
   const zoneTemporalStore = useZoneStore.temporal;
@@ -167,6 +170,20 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
           >
             <Map className="w-5 h-5" />
           </button>
+
+          <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+          <button
+            onClick={() => setIsWattModalOpen(true)}
+            title="Katalog Przegród i Materiałów (WATT)"
+            className={`p-1.5 rounded-md transition-all ${
+              isWattModalOpen 
+                ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' 
+                : 'text-gray-400 hover:bg-gray-100 hover:text-orange-500'
+            }`}
+          >
+            <Database className="w-5 h-5" />
+          </button>
         </div>
       </div>
       
@@ -226,6 +243,10 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
              alert('Błąd importu: ' + e.message);
           }
         }}
+      />
+      <WATTManagerModal
+        isOpen={isWattModalOpen}
+        onClose={() => setIsWattModalOpen(false)}
       />
     </header>
   );

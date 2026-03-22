@@ -209,8 +209,21 @@ interface ZoneStore {
   layerSets: Record<string, IfcMaterialLayerSet>;
   wallTypes: Record<string, IfcWallType>;
   windowStyles: Record<string, IfcWindowStyle>;
+  pendingWindows: OpeningInstance[]; // Loose windows from DXF awaiting topology assignment
   setBuildingFootprint: (footprint: { x: number; y: number }[][]) => void;
+  setPendingWindows: (windows: OpeningInstance[]) => void;
   updateZoneTopology: (zoneId: string) => void;
+  
+  // WATT Actions
+  addMaterial: (material: IfcMaterial) => void;
+  updateMaterial: (id: string, updates: Partial<IfcMaterial>) => void;
+  removeMaterial: (id: string) => void;
+  addLayerSet: (layerSet: IfcMaterialLayerSet) => void;
+  updateLayerSet: (id: string, updates: Partial<IfcMaterialLayerSet>) => void;
+  removeLayerSet: (id: string) => void;
+  addWallType: (wallType: IfcWallType) => void;
+  updateWallType: (id: string, updates: Partial<IfcWallType>) => void;
+  removeWallType: (id: string) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -249,12 +262,47 @@ export const useZoneStore = create<ZoneStore>()(
       
       // WATT Initial State
       buildingFootprint: [],
-      materials: {},
+      materials: {
+        'mat-concrete': { id: 'mat-concrete', name: 'Beton', thermalConductivity: 1.7, massDensity: 2400, specificHeatCapacity: 1000 },
+        'mat-brick': { id: 'mat-brick', name: 'Cegła', thermalConductivity: 0.7, massDensity: 1800, specificHeatCapacity: 880 },
+        'mat-eps': { id: 'mat-eps', name: 'Styropian (EPS)', thermalConductivity: 0.04, massDensity: 20, specificHeatCapacity: 1460 },
+        'mat-wool': { id: 'mat-wool', name: 'Wełna mineralna', thermalConductivity: 0.035, massDensity: 50, specificHeatCapacity: 1030 },
+      },
       layerSets: {},
       wallTypes: {},
       windowStyles: {},
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
+
+      addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
+      updateMaterial: (id, updates) => set(s => ({ 
+        materials: { ...s.materials, [id]: { ...s.materials[id], ...updates } } 
+      })),
+      removeMaterial: (id) => set(s => {
+        const next = { ...s.materials };
+        delete next[id];
+        return { materials: next };
+      }),
+
+      addLayerSet: (layerSet) => set(s => ({ layerSets: { ...s.layerSets, [layerSet.id]: layerSet } })),
+      updateLayerSet: (id, updates) => set(s => ({ 
+        layerSets: { ...s.layerSets, [id]: { ...s.layerSets[id], ...updates } } 
+      })),
+      removeLayerSet: (id) => set(s => {
+        const next = { ...s.layerSets };
+        delete next[id];
+        return { layerSets: next };
+      }),
+
+      addWallType: (wallType) => set(s => ({ wallTypes: { ...s.wallTypes, [wallType.id]: wallType } })),
+      updateWallType: (id, updates) => set(s => ({ 
+        wallTypes: { ...s.wallTypes, [id]: { ...s.wallTypes[id], ...updates } } 
+      })),
+      removeWallType: (id) => set(s => {
+        const next = { ...s.wallTypes };
+        delete next[id];
+        return { wallTypes: next };
+      }),
 
       updateZoneTopology: (zoneId) => {
         const state = get();

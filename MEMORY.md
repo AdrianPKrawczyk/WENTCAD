@@ -22,6 +22,8 @@
 * [x] **WATT KROK 2: Rozbudowa Parsera DXF i Ekstrakcja Metadanych (Inteligentna Stolarka)** - Done
 * [x] **WATT KROK 3: Wdrożenie Silnika Topologicznego 2D (Hybrid Adjacency Engine)** - Done
 * [x] **WATT KROK 4: Wdrożenie Analizy Pionowej (Vertical Boolean Logic - Roofs/Floors)** - Done
+* [x] **WATT KROK 5: Wizualizacja i UI (Workspace2D Integration)** - Done
+* [x] **WATT KROK 6: Biblioteka Materiałów i Typów Przegród (Thermal Catalog)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -83,6 +85,12 @@
     * **Smart Windows**: Window instances are projected onto walls as dynamic rectangles, respecting CAD-derived widths and positions.
     * **3D Context Indicators**: Implemented centroid-based badges for `ROOF` and `OVERHANG` status, enabling quick identification of multi-level exposure.
     * **UI/UX Consistency**: Integrated all WATT actions into the tabbed properties panel, ensuring a seamless flow between mechanical design and architectural analysis.
+
+* **WATT Module (Architecture & Thermal Topology) - Iteration 6**:
+    * **Thermal Catalog**: Implemented `WATTManagerModal` for managing `IfcMaterial` library and `IfcWallType` definitions.
+    * **Layered Structures**: `WallTypeModal` allows building multi-layer wall structures with dynamic U-value calculation based on material $\lambda$ and layer thickness.
+    * **Physics Integration**: Added `thermalUtils.ts` for standardized thermal resistance ($R$) and transmittance ($U$) calculations ($R_{total} = R_{si} + \sum(d_i / \lambda_i) + R_{se}$).
+    * **Boundary Linking**: `ZonePropertiesPanel` updated to allow assigning specific wall types to detected topological boundaries, bridging the gap between geometry and thermal analysis.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.

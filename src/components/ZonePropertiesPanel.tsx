@@ -20,6 +20,7 @@ export function ZonePropertiesPanel() {
   const updateZone = useZoneStore((state) => state.updateZone);
   const updateZoneTopology = useZoneStore((state) => state.updateZoneTopology);
   const buildingFootprint = useZoneStore((state) => state.buildingFootprint);
+  const wallTypes = useZoneStore((state) => state.wallTypes);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
   const [activeTab, setActiveTab] = useState<PanelTab>('GENERAL');
@@ -493,20 +494,35 @@ export function ZonePropertiesPanel() {
                           <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
                             <tr>
                               <th className="p-2 border-b border-indigo-100">Typ</th>
+                              <th className="p-2 border-b border-indigo-100">Konstrukcja (Typ Przegrody)</th>
                               <th className="p-2 border-b border-indigo-100">L [m]</th>
-                              <th className="p-2 border-b border-indigo-100">Azymut</th>
                               <th className="p-2 border-b border-indigo-100">d [cm]</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {activeZone.boundaries.map((b, idx) => (
                               <tr key={idx} className={`hover:bg-indigo-50/30 transition-colors ${b.type === 'EXTERIOR' ? 'bg-orange-50/20' : ''}`}>
-                                <td className="p-2 font-medium flex items-center gap-1.5">
+                                <td className="p-2 font-medium flex items-center gap-1.5 whitespace-nowrap">
                                   {b.type === 'EXTERIOR' ? <Globe className="w-3 h-3 text-orange-500" /> : <Square className="w-3 h-3 text-slate-400" />}
                                   {b.type === 'EXTERIOR' ? 'Zewn.' : 'Wewn.'}
                                 </td>
+                                <td className="p-2">
+                                   <select 
+                                     value={b.relatedWallTypeId || ''}
+                                     onChange={(e) => {
+                                        const nextBoundaries = [...activeZone.boundaries!];
+                                        nextBoundaries[idx] = { ...b, relatedWallTypeId: e.target.value };
+                                        updateZone(activeZone.id, { boundaries: nextBoundaries });
+                                     }}
+                                     className="w-full text-[10px] bg-transparent border-b border-gray-200 outline-none focus:border-indigo-500"
+                                   >
+                                      <option value="">Wybierz typ...</option>
+                                      {Object.values(wallTypes).filter(wt => wt.isExternal === (b.type === 'EXTERIOR')).map(wt => (
+                                         <option key={wt.id} value={wt.id}>{wt.name}</option>
+                                      ))}
+                                   </select>
+                                </td>
                                 <td className="p-2 font-mono">{b.geometry.lengthNet.toFixed(2)}</td>
-                                <td className="p-2 font-mono">{Math.round(b.geometry.azimuth)}°</td>
                                 <td className="p-2 font-mono text-indigo-600 font-bold">{Math.round(b.geometry.thickness * 100)}</td>
                               </tr>
                             ))}
