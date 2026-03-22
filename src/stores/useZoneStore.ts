@@ -4,6 +4,9 @@ import { temporal } from 'zundo';
 import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings, IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../types';
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
+import { checkAdjacency, checkBoundary, snapOpeningsToEdges } from '../lib/geometryUtils/topology';
+import { calculateHorizontalBoundaries } from '../lib/geometryUtils/verticalAnalysis';
+import { useCanvasStore } from './useCanvasStore';
 
 function syncTerminalsFromZones() {
   import('./useDuctStore').then(({ useDuctStore }) => {
@@ -210,6 +213,7 @@ interface ZoneStore {
   wallTypes: Record<string, IfcWallType>;
   windowStyles: Record<string, IfcWindowStyle>;
   setBuildingFootprint: (footprint: { x: number; y: number }[][]) => void;
+  updateZoneTopology: (zoneId: string) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -254,6 +258,91 @@ export const useZoneStore = create<ZoneStore>()(
       windowStyles: {},
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
+
+      updateZoneTopology: (zoneId) => {
+        const state = get();
+        const zone = state.zones[zoneId];
+        if (!zone) return;
+
+        const canvasState = useCanvasStore.getState();
+        const floorCanvas = canvasState.floors[zone.floorId];
+        if (!floorCanvas || !floorCanvas.polygons) return;
+
+        // Find polygon points for this zone
+        const poly = floorCanvas.polygons.find(p => p.zoneId === zoneId);
+        if (!poly) return;
+
+        // Convert flat points [x1,y1, x2,y2] to vertices [{x,y}]
+        const vertices: {x:number, y:number}[] = [];
+        for (let i = 0; i < poly.points.length; i += 2) {
+          vertices.push({ x: poly.points[i], y: poly.points[i+1] });
+        }
+
+        // Prepare other zones on same floor for adjacency check
+        const otherZonesOnFloor = Object.values(state.zones)
+          .filter(z => z.id !== zoneId && z.floorId === zone.floorId)
+          .map(z => {
+            const otherPoly = floorCanvas.polygons.find(p => p.zoneId === z.id);
+            if (!otherPoly) return null;
+            const otherVerts: {x:number, y:number}[] = [];
+            for (let i = 0; i < otherPoly.points.length; i += 2) {
+              otherVerts.push({ x: otherPoly.points[i], y: otherPoly.points[i+1] });
+            }
+            return { ...z, _vertices: otherVerts };
+          })
+          .filter(Boolean) as any[];
+
+        // 1. Detect Interior Adjacency
+        const mockedZoneWithVerts = { ...zone, _vertices: vertices };
+        let boundaries = checkAdjacency(mockedZoneWithVerts, otherZonesOnFloor);
+
+        // 2. Detect Exterior Boundaries (Building Footprint)
+        if (state.buildingFootprint && state.buildingFootprint.length > 0) {
+          boundaries = checkBoundary(boundaries, state.buildingFootprint);
+        }
+
+        // 3. Vertical Analysis (Horizontal Boundaries)
+        const currentFloor = state.floors[zone.floorId];
+        const allFloorArray = Object.values(state.floors).sort((a, b) => a.order - b.order);
+        const currentIndex = allFloorArray.findIndex(f => f.id === zone.floorId);
+        
+        const floorAbove = currentIndex < allFloorArray.length - 1 ? allFloorArray[currentIndex + 1] : null;
+        const floorBelow = currentIndex > 0 ? allFloorArray[currentIndex - 1] : null;
+
+        const zonesAbove = floorAbove ? Object.values(state.zones)
+          .filter(z => z.floorId === floorAbove.id)
+          .map(z => {
+             const p = canvasState.floors[floorAbove.id]?.polygons?.find(poly => poly.zoneId === z.id);
+             if (!p) return null;
+             const v: {x:number, y:number}[] = [];
+             for (let i = 0; i < p.points.length; i += 2) v.push({ x: p.points[i], y: p.points[i+1] });
+             return { ...z, _vertices: v };
+          }).filter(Boolean) : [];
+
+        const zonesBelow = floorBelow ? Object.values(state.zones)
+          .filter(z => z.floorId === floorBelow.id)
+          .map(z => {
+             const p = canvasState.floors[floorBelow.id]?.polygons?.find(poly => poly.zoneId === z.id);
+             if (!p) return null;
+             const v: {x:number, y:number}[] = [];
+             for (let i = 0; i < p.points.length; i += 2) v.push({ x: p.points[i], y: p.points[i+1] });
+             return { ...z, _vertices: v };
+          }).filter(Boolean) : [];
+
+        const horizontalBoundaries = calculateHorizontalBoundaries(
+          mockedZoneWithVerts,
+          state.floors,
+          zonesBelow,
+          zonesAbove
+        );
+
+        set(s => ({
+          zones: {
+            ...s.zones,
+            [zoneId]: { ...zone, boundaries, horizontalBoundaries }
+          }
+        }));
+      },
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),

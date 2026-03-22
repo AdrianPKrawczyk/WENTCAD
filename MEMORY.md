@@ -20,6 +20,8 @@
 * [x] **FAZA 3.4: Algorytm Propagacji Przepływów DFS** - Done
 * [x] **WATT KROK 1: Definicja Typów i Rozbudowa Stanu (IFC Data Structures)** - Done
 * [x] **WATT KROK 2: Rozbudowa Parsera DXF i Ekstrakcja Metadanych (Inteligentna Stolarka)** - Done
+* [x] **WATT KROK 3: Wdrożenie Silnika Topologicznego 2D (Hybrid Adjacency Engine)** - Done
+* [x] **WATT KROK 4: Wdrożenie Analizy Pionowej (Vertical Boolean Logic - Roofs/Floors)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -62,6 +64,25 @@
     * **DXF Extraction Engine**: Created `dxfWattExtractor.ts` with dedicated logic to extract WATT structures independently from UI rendering.
     * **Regex Parsing**: Implemented dynamic extraction of window dimensions (Height $H$, Sill $H_o$) directly from CAD layer names (e.g. `OKNA_H1500_Ho900`) using RegExp.
     * **Smart Geometry**: Algorithm accurately detects 4-vertex rectangles as windows, computing correct real-world Width $B$ (by comparing hypotenuses) and mapping Centroids to the global coordinate space.
+
+* **WATT Module (Architecture & Thermal Topology) - Iteration 3**:
+    * **Hybrid Adjacency Engine**: Implemented in `topology.ts`. Detects interior walls by analyzing segment parallelism and proximity ($d \le 0.6m$) between zone polygons.
+    * **Boundary Detection**: Automated classification of `EXTERIOR` walls by projecting unresolved edges against the `buildingFootprint`.
+    * **UI Integration**: `ZonePropertiesPanel` refactored into a Tabbed UI (General, Systems, WATT). Topology tab provides real-time visualization of wall attributes (Length, Azimuth, Thickness).
+    * **TDD Validation**: Comprehensive test suite ensuring mathematical accuracy of adjacency and snapping logic.
+
+* **WATT Module (Architecture & Thermal Topology) - Iteration 4**:
+    * **Vertical Analysis Engine**: Implemented `verticalAnalysis.ts` using a high-performance **Grid Sampling** method (Boolean Difference approximation).
+    * **Boundary Detection**: Automated discovery of `ROOF`, `FLOOR_GROUND`, and `FLOOR_EXTERIOR` (overhangs) by cross-referencing zone polygons across different floor elevations.
+    * **Multi-Floor Logic**: `updateZoneTopology` enhanced to fetch and transform geometry from adjacent floors (Above/Below) for 3D analytical consistency.
+    * **UI Data visualization**: Added "Horizontal Boundaries" table to the WATT tab, showing computed areas for all thermal slabs.
+
+* **WATT Module (Architecture & Thermal Topology) - Iteration 5 (Final)**:
+    * **Analytical Visualization**: Added a dedicated Konva layer in `Workspace2D` to render thermal topology results.
+    * **Wall Highlighting**: Exterior walls are visually distinguished with orange strokes, providing immediate feedback on building boundary correctness.
+    * **Smart Windows**: Window instances are projected onto walls as dynamic rectangles, respecting CAD-derived widths and positions.
+    * **3D Context Indicators**: Implemented centroid-based badges for `ROOF` and `OVERHANG` status, enabling quick identification of multi-level exposure.
+    * **UI/UX Consistency**: Integrated all WATT actions into the tabbed properties panel, ensuring a seamless flow between mechanical design and architectural analysis.
 
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.

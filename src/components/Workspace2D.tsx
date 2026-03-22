@@ -1646,6 +1646,85 @@ export function Workspace2D({ className }: Workspace2DProps) {
             );
           })}
 
+          {/* === WATT TOPOLOGY VISUALIZATION === */}
+          {showZonesOnCanvas && polygons.map((poly) => {
+            const zone = zones[poly.zoneId];
+            if (!zone || !zone.boundaries) return null;
+
+            return (
+              <Group key={`watt-${poly.id}`} listening={false}>
+                {/* 1. Exterior Walls Highlighting */}
+                {zone.boundaries.filter(b => b.type === 'EXTERIOR').map((b, bIdx) => (
+                  <Line
+                    key={`ext-wall-${poly.id}-${bIdx}`}
+                    points={[b.geometry.p1.x, b.geometry.p1.y, b.geometry.p2.x, b.geometry.p2.y]}
+                    stroke="#f59e0b"
+                    strokeWidth={4 / scale}
+                    lineCap="round"
+                    shadowColor="#f59e0b"
+                    shadowBlur={5 / scale}
+                    shadowOpacity={0.5}
+                  />
+                ))}
+
+                {/* 2. Windows / Openings */}
+                {zone.boundaries.flatMap(b => b.openings.map(op => ({ op, b }))).map(({ op, b }, opIdx) => {
+                   // Calculate window position on the wall line
+                   const dx = b.geometry.p2.x - b.geometry.p1.x;
+                   const dy = b.geometry.p2.y - b.geometry.p1.y;
+                   const len = Math.hypot(dx, dy);
+                   if (len === 0) return null;
+
+                   const ratio = op.placement / b.geometry.lengthNet;
+                   const wx = b.geometry.p1.x + dx * ratio;
+                   const wy = b.geometry.p1.y + dy * ratio;
+                   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                   return (
+                     <Rect
+                       key={`win-${poly.id}-${opIdx}`}
+                       x={wx}
+                       y={wy}
+                       width={op.width}
+                       height={6 / scale}
+                       fill="#38bdf8"
+                       stroke="#0369a1"
+                       strokeWidth={1 / scale}
+                       rotation={angle}
+                       offsetX={op.width / 2}
+                       offsetY={3 / scale}
+                       shadowColor="#0ea5e9"
+                       shadowBlur={10 / scale}
+                     />
+                   );
+                })}
+
+                {/* 3. Roof / Vertical indicators */}
+                {(() => {
+                   if (!zone.horizontalBoundaries) return null;
+                   const hasRoof = zone.horizontalBoundaries.some(hb => hb.type === 'ROOF');
+                   const hasOverhang = zone.horizontalBoundaries.some(hb => hb.type === 'FLOOR_EXTERIOR');
+                   if (!hasRoof && !hasOverhang) return null;
+
+                   const centroid = calculatePolygonCentroid(poly.points);
+                   return (
+                     <Group x={centroid.x} y={centroid.y}>
+                        <Circle radius={15 / scale} fill="#4f46e5" opacity={0.8} />
+                        <Text 
+                          text={hasRoof ? "R" : "O"} 
+                          fontSize={14 / scale} 
+                          fill="white" 
+                          fontStyle="bold" 
+                          offsetX={5 / scale} 
+                          offsetY={7 / scale} 
+                        />
+                     </Group>
+                   );
+                })()}
+              </Group>
+            );
+          })}
+
           {/* === PRZEWODY (DUCT EDGES) === */}
           {Object.values(ductEdges).map(edge => {
             const source = ductNodes[edge.sourceNodeId];

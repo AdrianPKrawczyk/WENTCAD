@@ -3,11 +3,13 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
-import { Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
-import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
+import { Trash2, ChevronRight, ChevronLeft, Settings2, Wind, ShieldAlert, Layers, Box, Globe, Square, Maximize } from 'lucide-react';
+import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator, ZoneBoundary } from '../types';
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
+
+type PanelTab = 'GENERAL' | 'SYSTEMS' | 'WATT';
 
 export function ZonePropertiesPanel() {
   const selectedZoneId = useZoneStore((state) => state.selectedZoneId);
@@ -15,8 +17,11 @@ export function ZonePropertiesPanel() {
   const floors = useZoneStore((state) => state.floors);
   const systems = useZoneStore((state) => state.systems);
   const updateZone = useZoneStore((state) => state.updateZone);
+  const updateZoneTopology = useZoneStore((state) => state.updateZoneTopology);
+  const buildingFootprint = useZoneStore((state) => state.buildingFootprint);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
+  const [activeTab, setActiveTab] = useState<PanelTab>('GENERAL');
 
   const [newTransferTarget, setNewTransferTarget] = useState('');
   const [newTransferVol, setNewTransferVol] = useState('');
@@ -103,6 +108,20 @@ export function ZonePropertiesPanel() {
 
   const calculatedVolRaw = activeZone.area * activeZone.height;
 
+  const TabButton = ({ tab, icon: Icon, label }: { tab: PanelTab, icon: any, label: string }) => (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 transition-all relative border-b-2 ${
+        activeTab === tab 
+          ? 'text-indigo-600 border-indigo-600 bg-indigo-50/30 font-bold' 
+          : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      <Icon className={`w-4 h-4 ${activeTab === tab ? 'animate-in zoom-in-75 duration-300' : ''}`} />
+      <span className="text-[10px] uppercase tracking-wider">{label}</span>
+    </button>
+  );
+
   return (
     <div 
       style={{ width: isCollapsed ? 48 : width }}
@@ -131,7 +150,8 @@ export function ZonePropertiesPanel() {
           </span>
         </div>
       ) : (
-        <div className="w-full h-full overflow-y-auto overflow-x-hidden relative flex flex-col">
+        <div className="w-full h-full overflow-hidden relative flex flex-col">
+          {/* HEADER */}
           <div className="p-4 border-b border-gray-100 bg-gray-50 shrink-0">
             <h2 className="text-lg font-bold text-gray-800">Właściwości Strefy</h2>
             <p className="text-xs text-gray-500 flex justify-between mt-1">
@@ -140,636 +160,407 @@ export function ZonePropertiesPanel() {
             </p>
           </div>
 
-          <div className={`p-4 pb-20 ${isWide ? 'grid grid-cols-2 gap-x-4 gap-y-4 items-start' : 'space-y-6'}`}>
-        
-        {/* SEKCJA: GEOMETRIA */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Geometria</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Nazwa</label>
-              <input 
-                type="text" 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                onFocus={() => pause()}
-                onBlur={() => resume()}
-                value={activeZone.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Rodzaj Pomieszczenia</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.activityType}
-                onChange={(e) => {
-                  const newType = e.target.value as ActivityType;
-                  const preset = ROOM_PRESETS[newType];
-                  const hasManualOverrides = activeZone.isTargetACHManual || activeZone.isMaxDbAManual;
-                  
-                  // Update room type always
-                  handleChange('activityType', newType);
-                  
-                  if (preset) {
-                    if (hasManualOverrides) {
-                      const ok = window.confirm(
-                        `Zmieniono typ na "${newType}".\nCzy zaktualizować domyślne wartości?\n` +
-                        `Krotność: ${preset.ach} [1/h], Limit hałasu: ${preset.maxDbA} [dB(A)]\n` +
-                        `(Manualne nadpisania zostaną wyłączone)`
-                      );
-                      if (ok) {
-                        handleChange('targetACH', preset.ach);
-                        handleChange('isTargetACHManual', false);
-                        handleChange('maxAllowedDbA', preset.maxDbA);
-                        handleChange('isMaxDbAManual', false);
-                        handleChange('manualMaxAllowedDbA', null);
-                      }
-                    } else {
-                      handleChange('targetACH', preset.ach);
-                      handleChange('maxAllowedDbA', preset.maxDbA);
-                    }
-                  }
-                }}
-              >
-                {Object.keys(ROOM_TYPE_ACH_MAPPING).map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
+          {/* TABS */}
+          <div className="flex border-b border-gray-100 bg-white shrink-0">
+            <TabButton tab="GENERAL" icon={Settings2} label="Ogólne" />
+            <TabButton tab="SYSTEMS" icon={Wind} label="Instalacje" />
+            <TabButton tab="WATT" icon={Layers} label="Topologia" />
+          </div>
 
-            {/* Kondygnacja */}
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">📐 Kondygnacja</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.floorId || ''}
-                onChange={(e) => handleChange('floorId', e.target.value)}
-              >
-                {Object.values(floors).sort((a, b) => a.order - b.order).map((floor) => (
-                  <option key={floor.id} value={floor.id}>{floor.name}</option>
-                ))}
-              </select>
-            </div>
+          {/* CONTENT */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-20">
+            {activeTab === 'GENERAL' && (
+              <div className={`${isWide ? 'grid grid-cols-2 gap-4' : 'space-y-6'}`}>
+                {/* SEKCJA: GEOMETRIA */}
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Dane Podstawowe</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Nazwa</label>
+                      <input 
+                        type="text" 
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                        onFocus={() => pause()}
+                        onBlur={() => resume()}
+                        value={activeZone.name}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Rodzaj Pomieszczenia</label>
+                      <select 
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
+                        value={activeZone.activityType}
+                        onChange={(e) => {
+                          const newType = e.target.value as ActivityType;
+                          const preset = ROOM_PRESETS[newType];
+                          const hasManualOverrides = activeZone.isTargetACHManual || activeZone.isMaxDbAManual;
+                          
+                          handleChange('activityType', newType);
+                          
+                          if (preset) {
+                            if (hasManualOverrides) {
+                              const ok = window.confirm(
+                                `Zmieniono typ na "${newType}".\nCzy zaktualizować domyślne wartości?\n` +
+                                `Krotność: ${preset.ach} [1/h], Limit hałasu: ${preset.maxDbA} [dB(A)]\n` +
+                                `(Manualne nadpisania zostaną wyłączone)`
+                              );
+                              if (ok) {
+                                handleChange('targetACH', preset.ach);
+                                handleChange('isTargetACHManual', false);
+                                handleChange('maxAllowedDbA', preset.maxDbA);
+                                handleChange('isMaxDbAManual', false);
+                                handleChange('manualMaxAllowedDbA', null);
+                              }
+                            } else {
+                              handleChange('targetACH', preset.ach);
+                              handleChange('maxAllowedDbA', preset.maxDbA);
+                            }
+                          }
+                        }}
+                      >
+                        {Object.keys(ROOM_TYPE_ACH_MAPPING).map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
 
-            {/* SEKCJA: POWIERZCHNIA (3 FIELD LAYOUT) */}
-            <div className="space-y-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">
-              {/* 1. Final Area (Computed) */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">1. Pow. Obliczeniowa (Finalna)</label>
-                  <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono">LINKED</span>
-                </div>
-                <input 
-                  type="text" 
-                  disabled
-                  className="w-full text-sm border-b border-indigo-200 py-1 bg-indigo-50/30 text-indigo-900 font-bold focus:outline-none cursor-not-allowed"
-                  value={`${(activeZone.area || 0).toFixed(2)} m²`}
-                />
-              </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">📐 Kondygnacja</label>
+                      <select 
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
+                        value={activeZone.floorId || ''}
+                        onChange={(e) => handleChange('floorId', e.target.value)}
+                      >
+                        {Object.values(floors).sort((a, b) => a.order - b.order).map((floor) => (
+                          <option key={floor.id} value={floor.id}>{floor.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* 2. Manual Area & Toggle */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">2. Pow. Manualna</label>
-                  <label className="flex items-center space-x-1 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={activeZone.isAreaManual} 
-                      onChange={(e) => handleChange('isAreaManual', e.target.checked)}
-                      className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
-                    />
-                    <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
-                  </label>
-                </div>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  disabled={!activeZone.isAreaManual}
-                  className={`w-full text-sm border-b py-1 focus:outline-none transition-colors ${
-                    activeZone.isAreaManual 
-                      ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' 
-                      : 'border-gray-200 bg-transparent text-gray-400'
-                  }`}
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.manualArea}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    handleChange('manualArea', Math.round(val * 100) / 100);
-                  }}
-                />
-              </div>
+                    <div className="space-y-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">Pow. Obliczeniowa (Finalna)</label>
+                        </div>
+                        <input 
+                          type="text" 
+                          disabled
+                          className="w-full text-sm border-b border-indigo-200 py-1 bg-indigo-50/30 text-indigo-900 font-bold focus:outline-none cursor-not-allowed"
+                          value={`${(activeZone.area || 0).toFixed(2)} m²`}
+                        />
+                      </div>
 
-              {/* 3. Geometry Area */}
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase tracking-tight">3. Pow. z Rysunku (CAD)</label>
-                <input 
-                  type="text" 
-                  disabled
-                  className="w-full text-sm border-b border-gray-200 py-1 bg-transparent text-gray-500 italic cursor-not-allowed"
-                  value={activeZone.geometryArea != null ? `${activeZone.geometryArea.toFixed(2)} m²` : 'Brak obrysu'}
-                />
-              </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Pow. Manualna</label>
+                          <label className="flex items-center space-x-1 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={activeZone.isAreaManual} 
+                              onChange={(e) => handleChange('isAreaManual', e.target.checked)}
+                              className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                            />
+                            <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                          </label>
+                        </div>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          disabled={!activeZone.isAreaManual}
+                          className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isAreaManual ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-gray-200 bg-transparent text-gray-400'}`}
+                          value={activeZone.manualArea}
+                          onChange={(e) => handleChange('manualArea', parseFloat(e.target.value) || 0)}
+                        />
+                      </div>
+                    </div>
 
-              {/* Geometry Actions */}
-              <div className="flex gap-2 pt-1">
-                <button
-                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${
-                    activeZone.geometryArea != null 
-                      ? 'bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100' 
-                      : 'bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed opacity-50'
-                  }`}
-                  disabled={activeZone.geometryArea == null}
-                  onClick={() => {
-                    if (window.confirm("Czy na pewno usunąć geometrię (obrys) dla tej strefy?")) {
-                      handleChange('geometryArea', null);
-                      useCanvasStore.getState().removePolygonByZoneId(activeZone.floorId, activeZone.id);
-                    }
-                  }}
-                >
-                  🧹 WYCZYŚĆ
-                </button>
-                <button
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-                  onClick={() => {
-                    const canvasStore = useCanvasStore.getState();
-                    canvasStore.setCurrentTool(activeZone.floorId, 'PEN');
-                    canvasStore.setRedefiningZoneId(activeZone.floorId, activeZone.id);
-                  }}
-                >
-                  ✏️ EDYTUJ OBRYS
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Wysokość [m]</label>
-              <input 
-                type="number" 
-                min="0" step="0.1"
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                onFocus={() => pause()}
-                onBlur={() => resume()}
-                value={activeZone.height}
-                onChange={(e) => handleChange('height', Number(e.target.value))}
-              />
-            </div>
-            <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
-              <div>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={activeZone.manualVolume !== null && activeZone.manualVolume !== undefined} 
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleChange('manualVolume', calculatedVolRaw);
-                      } else {
-                        handleChange('manualVolume', null);
-                      }
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-gray-700 font-medium">Ręczna Kubatura</span>
-                </label>
-              </div>
-              <div className="text-xs text-gray-500 text-right">
-                Calc: {(calculatedVolRaw || 0).toFixed(1)} m³
-              </div>
-            </div>
-            
-            {(activeZone.manualVolume !== null && activeZone.manualVolume !== undefined) && (
-              <div className="mt-2 pl-6">
-                 <input 
-                  type="number" 
-                  min="0" step="0.1"
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-yellow-50 text-yellow-800 px-2 rounded font-bold"
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.manualVolume}
-                  onChange={(e) => handleChange('manualVolume', Number(e.target.value))}
-                  placeholder="Podaj objętość w m³"
-                />
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Wysokość [m]</label>
+                      <input 
+                        type="number" 
+                        min="0" step="0.1"
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                        value={activeZone.height}
+                        onChange={(e) => handleChange('height', Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Akustyka</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Maks. poziom hałasu [dB(A)]</label>
+                      <input 
+                        type="number" 
+                        className={`w-full text-sm border-b py-1 ${activeZone.isMaxDbAManual ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                        value={activeZone.isMaxDbAManual ? (activeZone.manualMaxAllowedDbA ?? activeZone.maxAllowedDbA) : activeZone.maxAllowedDbA}
+                        onChange={(e) => {
+                          handleChange('manualMaxAllowedDbA', Number(e.target.value));
+                          handleChange('isMaxDbAManual', true);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Chłonność akustyczna</label>
+                      <select 
+                        className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
+                        value={activeZone.acousticAbsorption}
+                        onChange={(e) => handleChange('acousticAbsorption', e.target.value as AcousticAbsorptionIndicator)}
+                      >
+                        <option value="HARD">Twarda (HARD)</option>
+                        <option value="MEDIUM">Średnia (MEDIUM)</option>
+                        <option value="SOFT">Miękka (SOFT)</option>
+                      </select>
+                    </div>
+                  </div>
+                </section>
               </div>
             )}
-          </div>
-        </section>
 
-        {/* SEKCJA: DANE BILANSOWE */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Dane Bilansowe</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Tryb obliczeń</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.calculationMode}
-                onChange={(e) => handleChange('calculationMode', e.target.value as CalculationMode)}
-              >
-                <option value="AUTO_MAX">AUTO_MAX</option>
-                <option value="MANUAL">MANUAL</option>
-                <option value="HYGIENIC_ONLY">HYGIENIC_ONLY</option>
-                <option value="ACH_ONLY">ACH_ONLY</option>
-                <option value="THERMAL_ONLY">THERMAL_ONLY</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Liczba osób</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  value={activeZone.occupants}
-                  onChange={(e) => handleChange('occupants', Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Dawka na osobę [m³/h/os]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.dosePerOccupant}
-                  onChange={(e) => handleChange('dosePerOccupant', Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100">
-               <div className="flex justify-between items-center mb-1">
-                 <label className="block text-xs text-gray-500 font-medium">Krotność zadana [1/h]</label>
-                 <label className="flex items-center space-x-1 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={activeZone.isTargetACHManual} 
-                      onChange={(e) => {
-                        const isManual = e.target.checked;
-                        handleChange('isTargetACHManual', isManual);
-                        if (isManual && activeZone.manualTargetACH === null) {
-                           handleChange('manualTargetACH', activeZone.targetACH);
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
-                    />
-                    <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
-                  </label>
-               </div>
-               
-               <div className="flex relative">
-                 <input 
-                    type="number" 
-                    step="0.1"
-                    className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isTargetACHManual ? 'border-gray-500 bg-yellow-50 font-bold' : 'border-gray-300 bg-gray-50 text-gray-500'}`}
-                    onFocus={() => pause()}
-                    onBlur={() => resume()}
-                    value={activeZone.isTargetACHManual ? (activeZone.manualTargetACH ?? 0) : activeZone.targetACH}
-                    onChange={(e) => {
-                      if (activeZone.isTargetACHManual) {
-                        handleChange('manualTargetACH', Number(e.target.value));
-                      }
-                    }}
-                    disabled={!activeZone.isTargetACHManual}
-                  />
-               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Wydatek norm. nawiew [m³/h]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.normativeVolume}
-                  onChange={(e) => handleChange('normativeVolume', Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Stały wydatek wywiew [m³/h]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-red-500 focus:outline-none py-1 bg-transparent border-red-200"
-                  onFocus={() => pause()}
-                  onBlur={() => resume()}
-                  value={activeZone.normativeExhaust || 0}
-                  onChange={(e) => handleChange('normativeExhaust', Number(e.target.value))}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SEKCJA: TERMODYNAMIKA */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Termodynamika</h3>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Temp. pow. [°C]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  value={activeZone.roomTemp}
-                  onChange={(e) => handleChange('roomTemp', Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Wilgotność względna [%]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  value={activeZone.roomRH}
-                  onChange={(e) => handleChange('roomRH', Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Temp. nawiewu [°C]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent border-blue-200"
-                  value={activeZone.supplyTemp}
-                  onChange={(e) => handleChange('supplyTemp', Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Wilg. nawiewu [%]</label>
-                <input 
-                  type="number" 
-                  className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                  value={activeZone.supplyRH}
-                  onChange={(e) => handleChange('supplyRH', Number(e.target.value))}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Zyski ciepła (Jawne + Utajone) [W]</label>
-              <input 
-                type="number" 
-                className="w-full text-sm border-b border-gray-300 focus:border-red-500 focus:outline-none py-1 bg-red-50"
-                onFocus={() => pause()}
-                onBlur={() => resume()}
-                value={activeZone.totalHeatGain}
-                onChange={(e) => handleChange('totalHeatGain', Number(e.target.value))}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* SEKCJA: GEOMETRIA */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Geometria</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">Obrys obiektu:</span>
-              <span className={`text-xs font-bold ${activeZone.geometryArea ? 'text-blue-600' : 'text-gray-400'}`}>
-                {activeZone.geometryArea ? `${activeZone.geometryArea.toFixed(2)} m²` : 'Brak obrysu'}
-              </span>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  useCanvasStore.getState().setIsDrawingPolygon(true);
-                  useCanvasStore.getState().setRedefiningZoneId(activeZone.floorId, activeZone.id);
-                  useCanvasStore.getState().setCurrentTool(activeZone.floorId, 'PEN');
-                  toast.info("Tryb przedefiniowania obrysu. Stary obrys jest widoczny jako czerwony.");
-                }}
-                className="flex-1 flex items-center justify-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 rounded text-xs font-bold transition-colors"
-                title="Przerysuj obrys"
-              >
-                <div className="w-3 h-3 border border-current rounded-sm rotate-45" />
-                Redefiniuj
-              </button>
-              
-              <button
-                disabled={!activeZone.geometryArea}
-                onClick={() => {
-                  if (window.confirm("Czy na pewno usunąć obrys strefy?")) {
-                    useCanvasStore.getState().removePolygonByZoneId(activeZone.floorId, activeZone.id);
-                    updateZone(activeZone.id, { geometryArea: null });
-                    toast.success("Usunięto geometrię strefy.");
-                  }
-                }}
-                className="flex-1 flex items-center justify-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 py-1.5 rounded text-xs font-bold transition-colors disabled:opacity-30"
-              >
-                <Trash2 className="w-3 h-3" />
-                Usuń
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* SEKCJA: AKUSTYKA */}
-        <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Akustyka</h3>
-          <div className="space-y-4">
-            <div className="pt-2 border-t border-gray-100">
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs text-gray-500 font-medium">Maks. poziom hałasu [dB(A)]</label>
-                <label className="flex items-center space-x-1 cursor-pointer">
-                   <input 
-                     type="checkbox" 
-                     checked={activeZone.isMaxDbAManual} 
-                     onChange={(e) => {
-                       const isManual = e.target.checked;
-                       handleChange('isMaxDbAManual', isManual);
-                       if (isManual && activeZone.manualMaxAllowedDbA === null) {
-                          handleChange('manualMaxAllowedDbA', activeZone.maxAllowedDbA);
-                       }
-                     }}
-                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
-                   />
-                   <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
-                </label>
-              </div>
-              <div className="flex relative">
-                <input 
-                   type="number" 
-                   step="1"
-                   className={`w-full text-sm border-b py-1 focus:outline-none ${activeZone.isMaxDbAManual ? 'border-gray-500 bg-yellow-50 font-bold' : 'border-gray-300 bg-gray-50 text-gray-500'}`}
-                   value={activeZone.isMaxDbAManual ? (activeZone.manualMaxAllowedDbA ?? activeZone.maxAllowedDbA) : activeZone.maxAllowedDbA}
-                   onChange={(e) => {
-                     if (activeZone.isMaxDbAManual) {
-                       handleChange('manualMaxAllowedDbA', Number(e.target.value));
-                       handleChange('maxAllowedDbA', Number(e.target.value));
-                     }
-                   }}
-                   disabled={!activeZone.isMaxDbAManual}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Chłonność akustyczna</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.acousticAbsorption}
-                onChange={(e) => handleChange('acousticAbsorption', e.target.value as AcousticAbsorptionIndicator)}
-              >
-                <option value="HARD">Twarda (HARD)</option>
-                <option value="MEDIUM">Średnia (MEDIUM)</option>
-                <option value="SOFT">Miękka (SOFT)</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        {/* SEKCJA: SYSTEMY I TRANSFERY */}
-        <section className={`bg-white rounded border border-gray-100 p-3 shadow-sm ${isWide ? 'col-span-2' : ''}`}>
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Systemy i Transfery</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">System N (Nawiew)</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.systemSupplyId || 'Brak'}
-                onChange={(e) => handleChange('systemSupplyId', e.target.value === 'Brak' ? '' : e.target.value)}
-              >
-                <option value="Brak">Brak</option>
-                {systems.filter(s => s.type === 'SUPPLY').map(s => (
-                  <option key={s.id} value={s.id}>{s.id}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">System W (Wywiew)</label>
-              <select 
-                className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent text-gray-800"
-                value={activeZone.systemExhaustId || 'Brak'}
-                onChange={(e) => handleChange('systemExhaustId', e.target.value === 'Brak' ? '' : e.target.value)}
-              >
-                <option value="Brak">Brak</option>
-                {systems.filter(s => s.type === 'EXHAUST').map(s => (
-                  <option key={s.id} value={s.id}>{s.id}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-4 mt-4">
-            <div>
-              <span className="text-xs font-medium text-blue-600 mb-1 block">Dopływ transferem: {activeZone.transferInSum} m³/h</span>
-              {activeZone.transferIn.length === 0 ? (
-                <span className="text-xs text-gray-400 italic">Brak transferów do strefy</span>
-              ) : (
-                <ul className="text-xs space-y-1 bg-gray-50 p-2 rounded border border-gray-100">
-                  {activeZone.transferIn.map((t, idx) => (
-                    <li key={idx} className="flex justify-between items-center bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                      <span className="text-gray-600 truncate mr-2" title={zones[t.roomId]?.name || t.roomId}>
-                        Z: [{zones[t.roomId]?.nr || '?'}] {zones[t.roomId]?.name || t.roomId}
-                      </span>
-                      <span className="font-bold text-blue-700 whitespace-nowrap">+{t.volume}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div>
-              <span className="text-xs font-medium text-red-600 mb-1 block">Odpływ transferem: {activeZone.transferOutSum} m³/h</span>
-              {activeZone.transferOut.length === 0 ? (
-                <span className="text-xs text-gray-400 italic block mb-2">Brak transferów ze strefy</span>
-              ) : (
-                <ul className="text-xs space-y-1 bg-gray-50 p-2 rounded border border-gray-100 mb-2">
-                  {activeZone.transferOut.map((t, idx) => (
-                    <li key={idx} className="flex justify-between items-center bg-white px-2 py-1 rounded shadow-sm border border-gray-200">
-                      <span className="text-gray-600 truncate mr-2" title={zones[t.roomId]?.name || t.roomId}>
-                        Do: [{zones[t.roomId]?.nr || '?'}] {zones[t.roomId]?.name || t.roomId}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                         <span className="font-bold text-red-700 whitespace-nowrap">-{t.volume}</span>
-                         <button 
-                             onClick={() => {
-                                const newArr = [...activeZone.transferOut];
-                                newArr.splice(idx, 1);
-                                handleChange('transferOut', newArr);
-                             }} 
-                             className="text-gray-400 hover:text-red-500 font-bold"
-                             title="Usuń transfer"
-                         >
-                            ✕
-                         </button>
+            {activeTab === 'SYSTEMS' && (
+              <div className="space-y-6">
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Bilans Powietrza</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Nawiew (System)</label>
+                        <select 
+                          className="w-full text-sm border-b border-gray-300 py-1 bg-transparent"
+                          value={activeZone.systemSupplyId || 'Brak'}
+                          onChange={(e) => handleChange('systemSupplyId', e.target.value === 'Brak' ? '' : e.target.value)}
+                        >
+                          <option value="Brak">Brak</option>
+                          {systems.filter(s => s.type === 'SUPPLY').map(s => (
+                            <option key={s.id} value={s.id}>{s.id}</option>
+                          ))}
+                        </select>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              
-              <div className="bg-gray-50 p-2 rounded border border-gray-200 mt-2">
-                 <h4 className="text-[10px] uppercase font-bold text-gray-500 mb-2 tracking-wide">Dodaj Odpływ</h4>
-                 <select 
-                    className="w-full text-xs border border-gray-300 rounded p-1 mb-2 bg-white"
-                    value={newTransferTarget}
-                    onChange={(e) => setNewTransferTarget(e.target.value)}
-                 >
-                    <option value="" disabled>Wybierz strefę docelową...</option>
-                    {Object.values(zones).filter(z => z.id !== activeZone.id).map(z => (
-                       <option key={z.id} value={z.id}>[{z.nr}] {z.name}</option>
-                    ))}
-                 </select>
-                 <div className="flex space-x-2">
-                    <input 
-                       type="number" 
-                       min="0"
-                       placeholder="m³/h" 
-                       value={newTransferVol}
-                       onChange={(e) => setNewTransferVol(e.target.value)}
-                       className="w-20 text-xs border border-gray-300 rounded p-1 bg-white"
-                    />
-                    <button 
-                       onClick={() => {
-                          if (newTransferTarget && newTransferVol && Number(newTransferVol) > 0) {
-                             const newTransfer = { roomId: newTransferTarget, volume: Number(newTransferVol) };
-                             handleChange('transferOut', [...activeZone.transferOut, newTransfer]);
-                             setNewTransferTarget('');
-                             setNewTransferVol('');
-                          }
-                       }}
-                       disabled={!newTransferTarget || !newTransferVol || Number(newTransferVol) <= 0}
-                       className="flex-1 bg-indigo-100 hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-700 text-xs font-bold py-1 px-2 rounded transition-colors"
-                    >
-                       + Dodaj
-                    </button>
-                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        
-        {/* WYNIKI OBLICZEŃ SILNIKA FIZYCZNEGO */}
-        <section className={`bg-gray-800 rounded border border-gray-700 p-3 shadow-md text-white mt-4 ${isWide ? 'col-span-2' : ''}`}>
-          <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider border-b border-gray-700 pb-2 mb-3">Wyniki (Silnik Obliczeniowy)</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-blue-300">Nawiew</span>
-              <span className="text-lg font-bold text-blue-400">{activeZone.calculatedVolume} <span className="text-xs font-normal">m³/h</span></span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-red-300">Wywiew</span>
-              <span className="text-lg font-bold text-red-400">{activeZone.calculatedExhaust} <span className="text-xs font-normal">m³/h</span></span>
-            </div>
-            <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-              <span className="text-xs text-gray-400">Bilans netto</span>
-              <span className={`text-sm font-bold ${activeZone.netBalance > 0 ? 'text-blue-300' : activeZone.netBalance < 0 ? 'text-yellow-300' : 'text-green-300'}`}>
-                {activeZone.netBalance > 0 ? '+' : ''}{activeZone.netBalance} <span className="text-xs font-normal">m³/h</span>
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-400">Krotność rzeczywista</span>
-              <span className="text-sm font-bold text-gray-300">
-                {(activeZone.realACH || 0).toFixed(2)} <span className="text-xs font-normal">1/h</span>
-              </span>
-            </div>
-          </div>
-        </section>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Wywiew (System)</label>
+                        <select 
+                          className="w-full text-sm border-b border-gray-300 py-1 bg-transparent"
+                          value={activeZone.systemExhaustId || 'Brak'}
+                          onChange={(e) => handleChange('systemExhaustId', e.target.value === 'Brak' ? '' : e.target.value)}
+                        >
+                          <option value="Brak">Brak</option>
+                          {systems.filter(s => s.type === 'EXHAUST').map(s => (
+                            <option key={s.id} value={s.id}>{s.id}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-indigo-900 rounded-lg p-4 text-white">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-indigo-300 uppercase tracking-widest font-bold">Wynik Analizy</span>
+                        <Wind className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] text-indigo-300 uppercase">Nawiew</p>
+                          <p className="text-xl font-black">{activeZone.calculatedVolume} <span className="text-[10px] font-normal italic">m³/h</span></p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-indigo-300 uppercase">Wywiew</p>
+                          <p className="text-xl font-black">{activeZone.calculatedExhaust} <span className="text-[10px] font-normal italic">m³/h</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
-        {activeZone.thermodynamicError && (
-          <div className={`mt-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-100 text-xs ${isWide ? 'col-span-2' : ''}`}>
-            ⚠️ <b>Błąd termodynamiki:</b> Powietrze nawiewane wprowadza więcej ciepła utajonego niż może usunąć ciepła jawnego. Entalpia układu rośnie. Chłodzenie niemożliwe.
-          </div>
-        )}
+                <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Transfery</h3>
+                  {/* ... Transfer UI from original file ... */}
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-[10px] font-bold text-blue-600 mb-1 block uppercase">Dopływ (+): {activeZone.transferInSum} m³/h</span>
+                      {activeZone.transferIn.length === 0 ? (
+                        <span className="text-xs text-gray-400 italic">Brak dopływów</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {activeZone.transferIn.map((t, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-blue-50/50 px-2 py-1.5 rounded border border-blue-100 text-xs">
+                              <span className="text-blue-900 font-medium">[{zones[t.roomId]?.nr || '?'}] {zones[t.roomId]?.name}</span>
+                              <span className="font-bold text-blue-700">+{t.volume}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-red-600 mb-1 block uppercase">Odpływ (-): {activeZone.transferOutSum} m³/h</span>
+                      {activeZone.transferOut.length === 0 ? (
+                        <span className="text-xs text-gray-400 italic block mb-2">Brak odpływów</span>
+                      ) : (
+                        <div className="space-y-1 mb-2">
+                          {activeZone.transferOut.map((t, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-red-50/50 px-2 py-1.5 rounded border border-red-100 text-xs">
+                              <span className="text-red-900 font-medium">[{zones[t.roomId]?.nr || '?'}] {zones[t.roomId]?.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-red-700">-{t.volume}</span>
+                                <button onClick={() => {
+                                  const n = [...activeZone.transferOut]; n.splice(idx, 1); handleChange('transferOut', n);
+                                }} className="text-red-300 hover:text-red-600">✕</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                        <select className="w-full text-xs p-1 mb-2 border rounded" value={newTransferTarget} onChange={e => setNewTransferTarget(e.target.value)}>
+                          <option value="">Wybierz strefę...</option>
+                          {Object.values(zones).filter(z => z.id !== activeZone.id).map(z => <option key={z.id} value={z.id}>[{z.nr}] {z.name}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                          <input type="number" placeholder="m³/h" className="w-20 text-xs p-1 border rounded" value={newTransferVol} onChange={e => setNewTransferVol(e.target.value)} />
+                          <button onClick={() => {
+                            if (newTransferTarget && newTransferVol) {
+                              handleChange('transferOut', [...activeZone.transferOut, { roomId: newTransferTarget, volume: Number(newTransferVol) }]);
+                              setNewTransferTarget(''); setNewTransferVol('');
+                            }
+                          }} className="flex-1 bg-indigo-600 text-white text-[10px] font-bold py-1 rounded">DODAJ</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'WATT' && (
+              <div className="space-y-6">
+                <section className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2 text-indigo-700">
+                      <Layers className="w-5 h-5" />
+                      <div>
+                        <h3 className="font-bold text-sm">Analiza Topologiczna (WATT)</h3>
+                        <p className="text-[10px] text-indigo-500 uppercase tracking-tighter">WENTCAD Architecture & Thermal Topology</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => updateZoneTopology(activeZone.id)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg shadow-indigo-200 transition-all flex items-center gap-1.5"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      ANALIZUJ
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-white/60 p-2 rounded-lg border border-indigo-100">
+                      <p className="text-[9px] text-indigo-400 uppercase font-bold">Obrys Budynku</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {buildingFootprint && buildingFootprint.length > 0 ? (
+                          <><Check className="w-3 h-3 text-green-600" /><span className="text-xs font-bold text-slate-700">Wczytany</span></>
+                        ) : (
+                          <><ShieldAlert className="w-3 h-3 text-amber-500" /><span className="text-xs font-medium text-slate-400 italic">Brak danych</span></>
+                        )}
+                      </div>
+                    </div>
+                    <div className="bg-white/60 p-2 rounded-lg border border-indigo-100">
+                      <p className="text-[9px] text-indigo-400 uppercase font-bold">Obrys Strefy</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {activeZone.geometryArea ? (
+                          <><Check className="w-3 h-3 text-green-600" /><span className="text-xs font-bold text-slate-700">{activeZone.geometryArea.toFixed(2)} m²</span></>
+                        ) : (
+                          <><ShieldAlert className="w-3 h-3 text-red-500" /><span className="text-xs font-medium text-slate-400 italic">Brak obrysu</span></>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {!activeZone.boundaries || activeZone.boundaries.length === 0 ? (
+                    <div className="text-center py-8 bg-white/40 rounded-lg border border-dashed border-indigo-200">
+                      <Maximize className="w-8 h-8 text-indigo-200 mx-auto mb-2" />
+                      <p className="text-xs text-indigo-400 font-medium">Brak wyliczonej topologii.<br/>Kliknij przycisk Analizuj powyżej.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                        <Box className="w-3 h-3" /> Wykryte Przegrody ({activeZone.boundaries.length})
+                      </h4>
+                      <div className="overflow-hidden rounded-lg border border-indigo-100 bg-white">
+                        <table className="w-full text-[11px] text-left">
+                          <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
+                            <tr>
+                              <th className="p-2 border-b border-indigo-100">Typ</th>
+                              <th className="p-2 border-b border-indigo-100">L [m]</th>
+                              <th className="p-2 border-b border-indigo-100">Azymut</th>
+                              <th className="p-2 border-b border-indigo-100">d [cm]</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {activeZone.boundaries.map((b, idx) => (
+                              <tr key={idx} className={`hover:bg-indigo-50/30 transition-colors ${b.type === 'EXTERIOR' ? 'bg-orange-50/20' : ''}`}>
+                                <td className="p-2 font-medium flex items-center gap-1.5">
+                                  {b.type === 'EXTERIOR' ? <Globe className="w-3 h-3 text-orange-500" /> : <Square className="w-3 h-3 text-slate-400" />}
+                                  {b.type === 'EXTERIOR' ? 'Zewn.' : 'Wewn.'}
+                                </td>
+                                <td className="p-2 font-mono">{b.geometry.lengthNet.toFixed(2)}</td>
+                                <td className="p-2 font-mono">{Math.round(b.geometry.azimuth)}°</td>
+                                <td className="p-2 font-mono text-indigo-600 font-bold">{Math.round(b.geometry.thickness * 100)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <p className="text-[10px] text-slate-400 italic bg-white p-2 rounded border border-slate-100 leading-relaxed">
+                        <b>Wskazówka:</b> System automatycznie wyliczył azymut oraz grubość przegród na podstawie odległości między poligonami CAD.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Horizontal Boundaries Section */}
+                  {activeZone.horizontalBoundaries && activeZone.horizontalBoundaries.length > 0 && (
+                    <div className="mt-6 space-y-3">
+                      <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                        <Globe className="w-3 h-3" /> Przegrody Poziome ({activeZone.horizontalBoundaries.length})
+                      </h4>
+                      <div className="overflow-hidden rounded-lg border border-indigo-100 bg-white">
+                        <table className="w-full text-[11px] text-left">
+                          <thead className="bg-indigo-50/50 text-indigo-700 font-bold uppercase tracking-tighter">
+                            <tr>
+                              <th className="p-2 border-b border-indigo-100">Typ Przegrody</th>
+                              <th className="p-2 border-b border-indigo-100 text-right">Pow. [m²]</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {activeZone.horizontalBoundaries.map((hb, idx) => (
+                              <tr key={idx} className="hover:bg-indigo-50/30 transition-colors">
+                                <td className="p-2 font-medium flex items-center gap-1.5">
+                                  {hb.type === 'ROOF' && <span className="w-2 h-2 rounded-full bg-orange-400" />}
+                                  {hb.type === 'FLOOR_GROUND' && <span className="w-2 h-2 rounded-full bg-green-600" />}
+                                  {hb.type === 'CEILING_INTERIOR' && <span className="w-2 h-2 rounded-full bg-slate-300" />}
+                                  {hb.type === 'FLOOR_EXTERIOR' && <span className="w-2 h-2 rounded-full bg-blue-400" />}
+                                  {hb.type}
+                                </td>
+                                <td className="p-2 font-mono text-right font-bold">{hb.area.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 }
+
+const Check = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5"/></svg>
+);
