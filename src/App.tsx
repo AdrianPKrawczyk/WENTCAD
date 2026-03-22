@@ -12,6 +12,7 @@ import { AnalysisDashboard } from './components/AnalysisDashboard';
 import { ExportDashboard } from './components/ExportDashboard';
 import { DuctPropertiesPanel } from './components/DuctPropertiesPanel';
 import { Building3DViewer } from './components/Building3DViewer';
+import { Building2DViewer } from './components/Building2DViewer';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
@@ -28,7 +29,8 @@ import {
   PanelLeft, 
   PanelTop,
   PanelRight,
-  Cuboid
+  Cuboid,
+  Map
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { customDebounce } from './lib/utils';
@@ -168,6 +170,7 @@ function App() {
           {[
             { id: 1, name: 'Bilans', icon: Calculator, color: 'text-blue-600' },
             { id: 2, name: 'Podkłady', icon: Layers, color: 'text-indigo-600' },
+            { id: 9, name: 'Budynek 2D', icon: Map, color: 'text-emerald-600' },
             { id: 8, name: 'Budynek 3D', icon: Cuboid, color: 'text-sky-600' },
             { id: 3, name: 'Instalacje', icon: GitBranch, color: 'text-orange-600' },
             { id: 4, name: 'Aksonometria', icon: Box, color: 'text-purple-600' },
@@ -199,7 +202,7 @@ function App() {
         </aside>
 
         {/* SECONDARY SIDEBAR: Stage Tools */}
-        {(currentStage === 2 || currentStage === 3) && (
+        {(currentStage === 2 || currentStage === 3 || currentStage === 9) && (
           <aside className="w-12 bg-white/50 backdrop-blur-sm border-r border-gray-100 flex flex-col items-center py-4 space-y-3 z-10 shrink-0 animate-in slide-in-from-left-4 duration-300">
             <div className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter mb-1">Widok</div>
             <button
@@ -332,7 +335,13 @@ function App() {
             </div>
           )}
 
-          {currentStage > 3 && currentStage !== 7 && currentStage !== 8 && (
+          {currentStage === 9 && (
+            <div className="flex-1 overflow-hidden">
+              <Building2DViewer />
+            </div>
+          )}
+
+          {currentStage > 3 && currentStage !== 7 && currentStage !== 8 && currentStage !== 9 && (
             <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
               <Box className="w-16 h-16 mb-4 opacity-20" />
               <h2 className="text-xl font-bold">Moduł w przygotowaniu...</h2>

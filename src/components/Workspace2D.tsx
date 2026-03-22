@@ -153,6 +153,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const isFloorSwitcherVisible = useUIStore((s) => s.isFloorSwitcherVisible);
   const floorSwitcherPosition = useUIStore((s) => s.floorSwitcherPosition);
   const setFloorSwitcherPosition = useUIStore((s) => s.setFloorSwitcherPosition);
+  const isUnderlayVisible = useUIStore((s) => s.isUnderlayVisible);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const uiLayerRef = useRef<Konva.Layer>(null);
@@ -1440,7 +1442,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         {/* === WARSTWA ZAWARTOŚCI - NA DOLE (podkład, strefy, węzły) === */}
         <Layer ref={contentLayerRef} name="content">
           {/* === PODKŁAD (PDF/IMG) === */}
-          {underlayImage && underlaySize && !forceHideUnderlay && (
+          {underlayImage && underlaySize && !forceHideUnderlay && isUnderlayVisible && (
             <KonvaImage
               image={underlayImage}
               x={0}
@@ -1732,7 +1734,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           })}
 
           {/* === PRZEWODY (DUCT EDGES) === */}
-          {Object.values(ductEdges).map(edge => {
+          {currentStage === 3 && Object.values(ductEdges).map(edge => {
             const source = ductNodes[edge.sourceNodeId];
             const target = ductNodes[edge.targetNodeId];
             if (!source || !target || source.floorId !== activeFloorId || target.floorId !== activeFloorId) return null;
@@ -1910,7 +1912,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           })}
 
           {/* === WĘZŁY (DUCT NODES) === */}
-          {Object.values(ductNodes).map(node => {
+          {currentStage === 3 && Object.values(ductNodes).map(node => {
             if (node.floorId !== activeFloorId) return null;
             const system = systems.find(s => s.id === node.systemId);
             const nodeColor = system?.color || '#94a3b8';

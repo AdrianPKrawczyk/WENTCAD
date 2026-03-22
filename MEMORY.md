@@ -28,6 +28,7 @@
 * [x] **WATT REWIZJA 1: Poprawki po testach (Skala, Wysokości, Dziedzińce, Północ)** - Done
 * [x] **WATT REWIZJA 2: Stabilizacja Architektury (Circular Deps, Skalowanie, UX)** - Done
 * [x] **WATT REWIZJA 3: Algorytmy Gross Area, Synchronizacja Skali i Poprawki Importu** - Done
+* [x] **WATT DODATKOWY KROK: Moduł Budynek 2D (Widok Architektoniczny)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -95,6 +96,11 @@
     * **Layered Structures**: `WallTypeModal` allows building multi-layer wall structures with dynamic U-value calculation based on material $\lambda$ and layer thickness.
     * **Physics Integration**: Added `thermalUtils.ts` for standardized thermal resistance ($R$) and transmittance ($U$) calculations ($R_{total} = R_{si} + \sum(d_i / \lambda_i) + R_{se}$).
     * **Boundary Linking**: `ZonePropertiesPanel` updated to allow assigning specific wall types to detected topological boundaries, bridging the gap between geometry and thermal analysis.
+
+* **WATT DODATKOWY KROK (Budynek 2D)**:
+    * **Widok Architektoniczny**: Wdrożono nowy moduł `Building2DViewer` (ID etapu: 9), który służy jako dedykowany obszar roboczy dla modelu HVAC/BIM bez wizualnego szumu podkładów.
+    * **Sterowanie Podkładem**: Dodano globalny stan `isUnderlayVisible` do `useUIStore`, co pozwala na niezależne przełączanie widoczności tła (PDF/DXF) w różnych widokach. W widoku "Budynek 2D" podkład jest domyślnie wyłączony.
+    * **Reużywalność**: Moduł wykorzystuje silnik `Workspace2D`, zapewniając pełną spójność wizualną stref, metek i wyników analizy WATT między etapami projektu.
 
 * **WATT DODATKOWY KROK (Budynek 3D)**:
     * **Technologia**: Wdrożono biblioteki `three`, `@react-three/fiber` oraz `@react-three/drei` w celu stworzenia deklaratywnego widoku 3D na platformie React.
