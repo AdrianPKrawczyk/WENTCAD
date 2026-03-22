@@ -1,4 +1,4 @@
-import { OpeningInstance } from '../types';
+import type { OpeningInstance } from './wattTypes';
 
 export interface ExtractedWattData {
   buildingFootprint: { x: number; y: number }[][];

@@ -4,7 +4,8 @@ import { useCanvasStore } from '../stores/useCanvasStore';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
 import { toast } from 'sonner';
 import { Trash2, ChevronRight, ChevronLeft, Settings2, Wind, ShieldAlert, Layers, Box, Globe, Square, Maximize } from 'lucide-react';
-import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator, ZoneBoundary } from '../types';
+import type { ActivityType, ZoneData, CalculationMode, AcousticAbsorptionIndicator } from '../types';
+import type { ZoneBoundary } from '../lib/wattTypes';
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;

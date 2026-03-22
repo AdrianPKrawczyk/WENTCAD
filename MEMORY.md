@@ -84,6 +84,11 @@
     * **3D Context Indicators**: Implemented centroid-based badges for `ROOF` and `OVERHANG` status, enabling quick identification of multi-level exposure.
     * **UI/UX Consistency**: Integrated all WATT actions into the tabbed properties panel, ensuring a seamless flow between mechanical design and architectural analysis.
 
+* **WATT Module Fix (ESM/Vite Export Error)**:
+    * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.
+    * **Import Optimization**: Converted all WATT type imports to `import type` to prevent Vite from attempting to resolve them as runtime exports, fixing the "does not provide an export named 'OpeningInstance'" crash.
+    * **Interface Cleanup**: Fixed duplicated property definitions in `ZoneStore` interface and missing semicolons in `src/types.ts`.
+
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.
 - **Interfejs:** Implementacja `BulkEditModal` z systemem "Change" checkboxes pozwala na selektywną aktualizację pól.

@@ -1,4 +1,5 @@
-import { ZoneData, ZoneBoundary, OpeningInstance } from '../../types';
+import type { ZoneData } from '../../types';
+import type { ZoneBoundary, OpeningInstance } from '../wattTypes';
 
 /**
  * Normalizes an angle to 0-180 range to check for parallelism

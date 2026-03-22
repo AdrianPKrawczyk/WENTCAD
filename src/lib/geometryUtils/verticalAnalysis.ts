@@ -1,4 +1,5 @@
-import { ZoneData, Floor, HorizontalBoundary } from '../../types';
+import type { ZoneData, Floor } from '../../types';
+import type { HorizontalBoundary } from '../wattTypes';
 import { isPointInPolygon } from '../geometryUtils';
 
 /**

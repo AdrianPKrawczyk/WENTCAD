@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings, IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings } from '../types';
+import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../lib/wattTypes';
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 import { checkAdjacency, checkBoundary, snapOpeningsToEdges } from '../lib/geometryUtils/topology';
@@ -196,10 +197,6 @@ interface ZoneStore {
   setSelectedDxfOutlineId: (id: string | null) => void;
   globalTagSettings: GlobalTagSettings;
   updateGlobalTagSettings: (settings: Partial<GlobalTagSettings>) => void;
-  dxfExportSettings: DxfExportSettings;
-  setDxfFontHeight: (height: number) => void;
-  setDxfLineSpacing: (spacing: number) => void;
-  setDxfPaddingX: (padding: number) => void;
   dxfExportSettings: DxfExportSettings;
   setDxfFontHeight: (height: number) => void;
   setDxfLineSpacing: (spacing: number) => void;
