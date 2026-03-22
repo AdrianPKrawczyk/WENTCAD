@@ -8,7 +8,7 @@ import { FloorManagerBar } from './FloorManagerBar';
 import { BulkEditModal } from './BulkEditModal';
 import { ModuleRegistry, ClientSideRowModelModule, ValidationModule, RowSelectionModule, themeQuartz } from 'ag-grid-community';
 import { AllEnterpriseModule } from 'ag-grid-enterprise';
-import { useZoneStore } from '../stores/useZoneStore';
+import { useZoneStore, createDefaultZone } from '../stores/useZoneStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { customDebounce } from '../lib/utils';
 import { ROOM_PRESETS, ROOM_TYPE_ACH_MAPPING } from '../lib/hvacConstants';
@@ -522,70 +522,21 @@ export function AirBalanceTable() {
   const handleAddRow = () => {
     const newId = `zone-${Date.now()}`;
     const newIndex = Object.keys(zones).length + 1;
+    const newZone = createDefaultZone(
+      newId,
+      `P-${newIndex.toString().padStart(2, '0')}`,
+      `Nowy Pokój`,
+      activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId
+    );
+    
     addZone({
-      id: newId,
-      nr: `P-${newIndex.toString().padStart(2, '0')}`,
-      name: `Nowy Pokój`,
-      activityType: 'CUSTOM',
-      calculationMode: 'AUTO_MAX',
+      ...newZone,
       systemSupplyId: 'N1',
       systemExhaustId: 'W1',
       area: 15,
       manualArea: 15,
-      height: 3,
-      geometryArea: null,
       isAreaManual: true,
       occupants: 2,
-      dosePerOccupant: 30,
-      isTargetACHManual: false,
-      manualTargetACH: null,
-      targetACH: 0,
-      normativeVolume: 0,
-      normativeExhaust: 0,
-      totalHeatGain: 0,
-      roomTemp: 24,
-      roomRH: 50,
-      supplyTemp: 16,
-      supplyRH: 80,
-      acousticAbsorption: 'MEDIUM',
-      maxAllowedDbA: 35,
-      isMaxDbAManual: false,
-      manualMaxAllowedDbA: null,
-      transferIn: [],
-      transferOut: [],
-      calculatedVolume: 0,
-      calculatedExhaust: 0,
-      transferInSum: 0,
-      transferOutSum: 0,
-      netBalance: 0,
-      realACH: 0,
-      volume: 0,
-      manualVolume: 0,
-      geometryVolume: null,
-      isVolumeManual: false,
-      floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
-      roomTempSummer: 24,
-      roomRHSummer: 50,
-      supplyTempSummer: 18,
-      supplyRHSummer: 90,
-      roomTempWinter: 20,
-      roomRHWinter: 40,
-      supplyTempWinter: 25,
-      supplyRHWinter: 20,
-      wattHeatLoss: 0,
-      manualHeatLoss: 0,
-      isHeatLossManual: false,
-      heatLossUnit: 'W',
-      wattSensibleGain: 0,
-      manualSensibleGain: 0,
-      isSensibleGainManual: false,
-      sensibleGainUnit: 'W',
-      wattMoistureGain: 0,
-      manualMoistureGain: 0,
-      isMoistureGainManual: false,
-      moistureGainUnit: 'g/s',
-      techSensibleGain: 0,
-      techMoistureGain: 0
     });
   };
 

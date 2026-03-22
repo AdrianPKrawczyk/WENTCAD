@@ -1007,6 +1007,14 @@
 - **Synchronizacja**: Zaktualizowano `RoomWizardModal.tsx`, `Workspace2D.tsx` (import DXF) oraz `AirBalanceTable.tsx` (dodawanie wierszy), aby nowe pola były inicjalizowane domyślnie.
 - **Pliki**: `src/types.ts`, `src/stores/useZoneStore.ts`, `src/components/ZonePropertiesPanel.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/RoomWizardModal.tsx`, `src/components/Workspace2D.tsx`, `src/lib/PhysicsEngine.ts`.
 
+### Iteracja 3.7.1 (Marzec 2026) - Poprawki Błędów i UI Pomiaru
+- **Cel**: Wyeliminowanie krytycznych crashy i poprawa narzędzia pomiarowego.
+- **Zmiany**:
+    - **Fix Crash**: Dodano null-checki w `LinkOutlineModal.tsx` dla `polygons`, zapobiegając zawieszeniu przy łączeniu pomieszczeń.
+    - **Measuring Tool**: Dodano dynamiczną etykietę odległości typu "live-preview" oraz komunikat toast z wynikiem końcowym w `Workspace2D.tsx`.
+    - **Data Integrity**: Wprowadzono helper `createDefaultZone` w `useZoneStore.ts` i zunifikowano tworzenie stref w całym projekcie (`Workspace2D.tsx`, `AirBalanceTable.tsx`).
+- **Pliki**: `src/components/LinkOutlineModal.tsx`, `src/components/Workspace2D.tsx`, `src/stores/useZoneStore.ts`, `src/components/AirBalanceTable.tsx`.
+
 ### Iteracja 3.7.0 (Marzec 2026) - Integracja Termodynamiki WATT
 - **Cel**: Rozbudowa modułu WATT o zaawansowane parametry termodynamiczne i bilansowe.
 - **Zmiany**:

@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Rect } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
-import { useZoneStore } from '../stores/useZoneStore';
+import { useZoneStore, createDefaultZone } from '../stores/useZoneStore';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useUIStore } from '../stores/useUIStore';
 import { resolveZoneStyle } from '../lib/VisualStyles';
@@ -709,7 +709,15 @@ export function Workspace2D({ className }: Workspace2DProps) {
       if (measurePoints.length === 0 || measurePoints.length === 2) {
         setMeasurePoints([canvasPos]);
       } else if (measurePoints.length === 1) {
+        const p1 = measurePoints[0];
+        const p2 = canvasPos;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const distM = scaleFactor ? distPx * scaleFactor : 0;
+        
         setMeasurePoints([...measurePoints, canvasPos]);
+        toast.info(`Zmierzona odległość: ${distM.toFixed(3)} m`);
       }
       return;
     }
@@ -2474,14 +2482,43 @@ export function Workspace2D({ className }: Workspace2DProps) {
           )}
 
           {/* === POMIAR - LINIA === */}
-          {isMeasuring && measurePoints.length === 1 && (
-            <Line
-              points={[measurePoints[0].x, measurePoints[0].y, mousePos.x, mousePos.y]}
-              stroke="#22c55e"
-              strokeWidth={2 / scale}
-              dash={[5 / scale, 5 / scale]}
-            />
-          )}
+          {isMeasuring && measurePoints.length === 1 && (() => {
+            const dx = (mousePos.x - measurePoints[0].x);
+            const dy = (mousePos.y - measurePoints[0].y);
+            const distPx = Math.sqrt(dx * dx + dy * dy);
+            const distM = scaleFactor ? distPx * scaleFactor : 0;
+            
+            return (
+              <Group>
+                <Line
+                  points={[measurePoints[0].x, measurePoints[0].y, mousePos.x, mousePos.y]}
+                  stroke="#22c55e"
+                  strokeWidth={2 / scale}
+                  dash={[5 / scale, 5 / scale]}
+                />
+                <Group x={(measurePoints[0].x + mousePos.x) / 2} y={(measurePoints[0].y + mousePos.y) / 2}>
+                   <Rect 
+                     x={10 / scale} 
+                     y={10 / scale} 
+                     width={80 / scale} 
+                     height={20 / scale} 
+                     fill="white" 
+                     stroke="#22c55e" 
+                     strokeWidth={1 / scale} 
+                     cornerRadius={4 / scale} 
+                   />
+                   <Text 
+                     x={15 / scale} 
+                     y={14 / scale} 
+                     text={`${distM.toFixed(3)} m`} 
+                     fontSize={12 / scale} 
+                     fill="#166534" 
+                     fontStyle="bold" 
+                   />
+                </Group>
+              </Group>
+            );
+          })()}
 
           {/* === RYSOWANIE STREFY - POLYGON === */}
           {isDrawingPolygon && currentPolygonPoints.length > 0 && (
@@ -2646,48 +2683,17 @@ export function Workspace2D({ className }: Workspace2DProps) {
               
               const newZoneId = crypto.randomUUID();
               const nextNumber = Object.keys(zones).length + 1;
+              const newZone = createDefaultZone(
+                newZoneId,
+                `P-${nextNumber.toString().padStart(2, '0')}`,
+                "Nowe Pomieszczenie",
+                activeFloorId
+              );
+              
               addZone({
-                id: newZoneId,
-                nr: `P-${nextNumber.toString().padStart(2, '0')}`,
-                name: "Nowe Pomieszczenie",
-                activityType: 'CUSTOM',
-                calculationMode: 'AUTO_MAX',
-                systemSupplyId: '',
-                systemExhaustId: '',
-                area: 0,
-                manualArea: 0,
-                height: 3,
+                ...newZone,
                 geometryArea: outline.area,
                 isAreaManual: false,
-                occupants: 1,
-                dosePerOccupant: 30,
-                isTargetACHManual: false,
-                manualTargetACH: null,
-                targetACH: 0,
-                normativeVolume: 0,
-                normativeExhaust: 0,
-                totalHeatGain: 0,
-                roomTemp: 24,
-                roomRH: 50,
-                supplyTemp: 16,
-                supplyRH: 80,
-                acousticAbsorption: 'MEDIUM',
-                maxAllowedDbA: 35,
-                isMaxDbAManual: false,
-                manualMaxAllowedDbA: null,
-                transferIn: [],
-                transferOut: [],
-                calculatedVolume: 0,
-                calculatedExhaust: 0,
-                transferInSum: 0,
-                transferOutSum: 0,
-                netBalance: 0,
-                realACH: 0,
-                volume: 0,
-                manualVolume: 0,
-                geometryVolume: null,
-                isVolumeManual: false,
-                floorId: activeFloorId,
               });
 
               const newPoly = { id: crypto.randomUUID(), zoneId: newZoneId, points: outline.points };

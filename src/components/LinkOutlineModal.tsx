@@ -22,7 +22,7 @@ export function LinkOutlineModal({ isOpen, onClose, outlineId }: LinkOutlineModa
   // ORAZ należą do aktualnie wybranej kondygnacji
   const unassignedZones = useMemo(() => {
     const allLinkedZoneIds = new Set(
-      Object.values(canvasFloors).flatMap((f) => f.polygons.map((p) => p.zoneId))
+      Object.values(canvasFloors).flatMap((f) => (f.polygons || []).map((p) => p.zoneId))
     );
     return Object.values(zones)
       .filter((z) => !allLinkedZoneIds.has(z.id) && z.floorId === activeFloorId)
