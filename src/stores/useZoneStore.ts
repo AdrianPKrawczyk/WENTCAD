@@ -562,7 +562,8 @@ export const useZoneStore = create<ZoneStore>()(
           materials: stateData.materials || {},
           layerSets: stateData.layerSets || {},
           wallTypes: stateData.wallTypes || {},
-          windowStyles: stateData.windowStyles || {}
+          windowStyles: stateData.windowStyles || {},
+          pendingWindows: stateData.pendingWindows || []
         });
       },
 
@@ -736,7 +737,8 @@ export const useZoneStore = create<ZoneStore>()(
         materials,
         layerSets,
         wallTypes,
-        windowStyles
+        windowStyles,
+        pendingWindows
       } = state;
       return { 
         zones, 
@@ -753,7 +755,8 @@ export const useZoneStore = create<ZoneStore>()(
         materials,
         layerSets,
         wallTypes,
-        windowStyles
+        windowStyles,
+        pendingWindows
       };
     },
   }
