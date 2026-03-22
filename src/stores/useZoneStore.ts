@@ -404,7 +404,8 @@ export const useZoneStore = create<ZoneStore>()(
           state.floors,
           zonesBelow,
           zonesAbove,
-          scaleFactor
+          scaleFactor,
+          state.buildingFootprint
         );
 
         set(s => ({

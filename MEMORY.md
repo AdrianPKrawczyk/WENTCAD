@@ -27,6 +27,7 @@
 * [x] **WATT DODATKOWY KROK: Moduł Budynek 3D (Three.js)** - Done
 * [x] **WATT REWIZJA 1: Poprawki po testach (Skala, Wysokości, Dziedzińce, Północ)** - Done
 * [x] **WATT REWIZJA 2: Stabilizacja Architektury (Circular Deps, Skalowanie, UX)** - Done
+* [x] **WATT REWIZJA 3: Algorytmy Gross Area, Synchronizacja Skali i Poprawki Importu** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -122,6 +123,11 @@
         *   **Smart Auto-Detection**: Sync modal now uses Regex to auto-suggest layers for Rooms, Footprints, and Windows.
         *   **Reliable Selection**: Layer lists in the sync modal now use buttons with explicit `onClick` handlers, resolving double-click and interaction issues common with native labels.
     * **Data Robustness**: Added migration logic in `loadState` to ensure default thermal heights exist for all projects, preventing crashes in the 3D rendering pipeline.
+
+* **WATT REWIZJA 3 (Poprawki Obliczeniowe i UX Importu)**:
+    * **Topology Scaling Synchronization**: Resolved critical bug where imported walls had lengths like 566m instead of 5.66m. The `AirBalanceTable` now automatically writes the `syncMultiplier` back to the floor's `scaleFactor` after CAD extraction, ensuring the topology engine calculates lengths in meters.
+    * **Gross Area Algorithm (Roofs & Floors)**: Overhauled `verticalAnalysis.ts` to compute gross areas (instead of net interior areas). Points outside the zone but within the `buildingFootprint` are now correctly credited to the nearest zone, yielding accurate external boundary dimensions (e.g. 21.09m² instead of 14.8m²).
+    * **Robust State Initialization**: Fixed `ReferenceError` crashes occurring on empty/new projects by enforcing `{ outer: [], courtyards: [] }` as the default structure for `buildingFootprint` during `loadState` and component evaluation.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.

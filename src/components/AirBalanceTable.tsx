@@ -962,7 +962,8 @@ export function AirBalanceTable() {
           // Final update to floor state
           useCanvasStore.getState().updateFloorState(activeFloorId, {
             polygons: updatedPolygons,
-            dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines]
+            dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines],
+            scaleFactor: syncMultiplier // AUTO-CALIBRATE scale from CAD multiplier
           });
 
           // 2. WATT TOPOLOGY EXTRACTION (Opcjonalne)

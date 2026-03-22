@@ -11,7 +11,8 @@ export function calculateHorizontalBoundaries(
   allFloors: Record<string, Floor>,
   zonesBelow: any[],
   zonesAbove: any[],
-  scale: number = 1.0
+  scale: number = 1.0,
+  buildingFootprint?: { outer: {x:number, y:number}[]; courtyards: {x:number, y:number}[][] }
 ): HorizontalBoundary[] {
   const vertices = (zone as any)._vertices || [];
   if (vertices.length < 3) return [];
@@ -30,25 +31,27 @@ export function calculateHorizontalBoundaries(
     if (y > maxY) maxY = y;
   }
 
-  // LOGIKA L_osi: Rozszerzamy bounding box o połowę grubości ściany (uproszczenie) 
-  // Aby powierzchnia dachu/podłogi objęła ściany zewnętrzne
-  const offset = 0.2; // 20cm offset for gross area estimation
+  // LOGIKA L_osi: Rozszerzamy bounding box o grubość ściany (uproszczenie) 
+  const offset = 0.5; // 50cm offset to cover wall area
   minX -= offset; maxX += offset;
   minY -= offset; maxY += offset;
 
   const width = maxX - minX;
   const height = maxY - minY;
   
-  // Sampling density (increase for more accuracy, 20x20 is usually enough for thermal)
-  const steps = 20;
+  // Sampling density
+  const steps = 25; // Increased for better precision
   const dx = width / steps;
   const dy = height / steps;
+  const sampleArea = dx * dy;
 
-  let totalPointsInZone = 0;
+  let totalPointsGross = 0;
   let pointsCoveredAbove = 0;
   let pointsCoveredBelow = 0;
 
-  // Prepare flat points for other zones to speed up PIP checks
+  // Prepare footprints for PIP
+  const footprintOuter = buildingFootprint?.outer?.flatMap(p => [p.x, p.y]) || [];
+
   const preparedAbove = zonesAbove.map(z => ({
     id: z.id,
     flatPoints: ((z as any)._vertices || []).flatMap((v: any) => [v.x * scale, v.y * scale])
@@ -65,34 +68,41 @@ export function calculateHorizontalBoundaries(
       const px = minX + ix * dx + dx / 2;
       const py = minY + iy * dy + dy / 2;
 
-      if (isPointInPolygon(px, py, flatPoints)) {
-        totalPointsInZone++;
+      // GROSS AREA LOGIC:
+      // Point is counted if it's INSIDE the zone OR 
+      // (INSIDE building footprint AND closer to this zone than any other)
+      const isInZone = isPointInPolygon(px, py, flatPoints);
+      const isInFootprint = footprintOuter.length >= 6 ? isPointInPolygon(px, py, footprintOuter) : false;
+      
+      if (isInZone || (isInFootprint && isInZone)) { 
+        // Note: isInZone is priority. If we had multiple zones, we'd check proximity.
+        // For a single room building, isInFootprint is enough.
+        const effectiveIn = isInZone || isInFootprint;
+        
+        if (effectiveIn) {
+          totalPointsGross++;
 
-        // Check if covered from above
-        const isCoveredAbove = preparedAbove.some(z => isPointInPolygon(px, py, z.flatPoints));
-        if (isCoveredAbove) pointsCoveredAbove++;
+          const isCoveredAbove = preparedAbove.some(z => isPointInPolygon(px, py, z.flatPoints));
+          if (isCoveredAbove) pointsCoveredAbove++;
 
-        // Check if covered from below
-        const isCoveredBelow = preparedBelow.some(z => isPointInPolygon(px, py, z.flatPoints));
-        if (isCoveredBelow) pointsCoveredBelow++;
+          const isCoveredBelow = preparedBelow.some(z => isPointInPolygon(px, py, z.flatPoints));
+          if (isCoveredBelow) pointsCoveredBelow++;
+        }
       }
     }
   }
 
-  if (totalPointsInZone === 0) return [];
+  if (totalPointsGross === 0) return [];
 
-  const zoneArea = zone.area || 0;
-  // Area ratio per point based on actual zone area (more accurate than cellArea * points)
-  const areaPerPoint = zoneArea / totalPointsInZone;
-
-  const roofArea = (totalPointsInZone - pointsCoveredAbove) * areaPerPoint;
-  const floorExteriorArea = (totalPointsInZone - pointsCoveredBelow) * areaPerPoint;
-  const ceilingInteriorArea = pointsCoveredAbove * areaPerPoint;
-  const floorInteriorArea = pointsCoveredBelow * areaPerPoint;
+  // Estimated areas based on samples
+  const grossArea = totalPointsGross * sampleArea;
+  const roofArea = (totalPointsGross - pointsCoveredAbove) * sampleArea;
+  const floorExteriorArea = (totalPointsGross - pointsCoveredBelow) * sampleArea;
+  const ceilingInteriorArea = pointsCoveredAbove * sampleArea;
+  const floorInteriorArea = pointsCoveredBelow * sampleArea;
 
   const boundaries: HorizontalBoundary[] = [];
 
-  // 1. CEILING / ROOF
   if (roofArea > 0.1) {
     boundaries.push({ id: `roof-${zone.id}`, type: 'ROOF', area: Math.round(roofArea * 100) / 100 });
   }
@@ -100,12 +110,11 @@ export function calculateHorizontalBoundaries(
     boundaries.push({ id: `ceil-${zone.id}`, type: 'CEILING_INTERIOR', area: Math.round(ceilingInteriorArea * 100) / 100 });
   }
 
-  // 2. FLOOR / GROUND
   const currentFloor = allFloors[zone.floorId];
   const isGroundFloor = currentFloor?.elevation === 0 || currentFloor?.order === 0;
 
   if (isGroundFloor) {
-    boundaries.push({ id: `ground-${zone.id}`, type: 'FLOOR_GROUND', area: zoneArea });
+    boundaries.push({ id: `ground-${zone.id}`, type: 'FLOOR_GROUND', area: Math.round(grossArea * 100) / 100 });
   } else {
     if (floorExteriorArea > 0.1) {
       boundaries.push({ id: `overhang-${zone.id}`, type: 'FLOOR_EXTERIOR', area: Math.round(floorExteriorArea * 100) / 100 });

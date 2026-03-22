@@ -64,11 +64,12 @@ export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: n
       for (let j = 0; j < verticesB.length; j++) {
         const q1 = verticesB[j];
         const q2 = verticesB[(j + 1) % verticesB.length];
-        
+
         const sq1 = { x: q1.x * scale, y: q1.y * scale };
         const sq2 = { x: q2.x * scale, y: q2.y * scale };
 
         const angleB = normalizeAngle(sq1, sq2);
+
 
         // 1. Parallel check (tolerance 2 degrees)
         if (Math.abs(angleA - angleB) < 2 || Math.abs(angleA - angleB) > 178) {
