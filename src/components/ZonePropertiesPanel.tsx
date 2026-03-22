@@ -19,8 +19,9 @@ export function ZonePropertiesPanel() {
   const systems = useZoneStore((state) => state.systems);
   const updateZone = useZoneStore((state) => state.updateZone);
   const updateZoneTopology = useZoneStore((state) => state.updateZoneTopology);
-  const buildingFootprint = useZoneStore((state) => state.buildingFootprint);
-  const wallTypes = useZoneStore((state) => state.wallTypes);
+  const analyzeAllZones = useZoneStore((state) => state.analyzeAllZones);
+  const northAzimuth = useZoneStore((state) => state.northAzimuth);
+  const setNorthAzimuth = useZoneStore((state) => state.setNorthAzimuth);
 
   const activeZone = selectedZoneId ? zones[selectedZoneId] : null;
   const [activeTab, setActiveTab] = useState<PanelTab>('GENERAL');
@@ -438,6 +439,32 @@ export function ZonePropertiesPanel() {
 
             {activeTab === 'WATT' && (
               <div className="space-y-6">
+                <section className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+                   <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-gray-800 text-sm">Ustawienia Projektu (WATT)</h3>
+                      <button
+                        onClick={() => {
+                           analyzeAllZones();
+                           toast.success("Zakończono analizę całego budynku.");
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all"
+                      >
+                        Analizuj Wszystko
+                      </button>
+                   </div>
+                   <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                         <label className="text-[10px] font-bold text-gray-400 uppercase">Orientacja Północy [°]</label>
+                         <input 
+                           type="number" value={northAzimuth} 
+                           onChange={e => setNorthAzimuth(Number(e.target.value))}
+                           className="w-16 border-b border-gray-200 text-right text-xs font-bold focus:border-indigo-500 outline-none"
+                         />
+                      </div>
+                      <p className="text-[9px] text-gray-400 italic">0° = Góra rysunku, 90° = Prawo, 180° = Dół...</p>
+                   </div>
+                </section>
+
                 <section className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 shadow-sm">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2 text-indigo-700">

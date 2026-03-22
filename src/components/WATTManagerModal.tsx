@@ -6,18 +6,20 @@ import { WallTypeModal } from './WallTypeModal';
 
 export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const materials = useZoneStore((state) => state.materials);
-  const layerSets = useZoneStore((state) => state.layerSets);
   const wallTypes = useZoneStore((state) => state.wallTypes);
-  
+  const wallTypeTemplates = useZoneStore((state) => state.wallTypeTemplates);
+
   const addMaterial = useZoneStore((state) => state.addMaterial);
   const updateMaterial = useZoneStore((state) => state.updateMaterial);
   const removeMaterial = useZoneStore((state) => state.removeMaterial);
-  
+
   const addWallType = useZoneStore((state) => state.addWallType);
   const removeWallType = useZoneStore((state) => state.removeWallType);
+  const removeWallTypeTemplate = useZoneStore((state) => state.removeWallTypeTemplate);
 
   const [activeTab, setActiveTab] = useState<'MATERIALS' | 'WALL_TYPES'>('MATERIALS');
   const [isWallTypeModalOpen, setIsWallTypeModalOpen] = useState(false);
+
 
   // Material Form State
   const [mName, setMName] = useState('');
@@ -194,6 +196,39 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                     <Plus className="w-5 h-5" /> Stwórz nową przegrodę wielowarstwową
                   </button>
                </div>
+
+               {/* GLOBAL TEMPLATES SECTION */}
+               {wallTypeTemplates.length > 0 && (
+                 <div className="mt-12 space-y-4">
+                    <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                       <Save className="w-4 h-4" /> Twoja Biblioteka Szablonów
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       {wallTypeTemplates.map(template => (
+                         <div key={template.id} className="flex items-center gap-4 bg-amber-50/30 p-4 rounded-2xl border border-amber-100 relative group">
+                            <div className="flex-1">
+                               <h4 className="font-bold text-gray-800 text-sm">{template.name}</h4>
+                               <p className="text-[10px] text-amber-600 font-medium">Szablon: {template.predefinedType}</p>
+                            </div>
+                            <div className="flex gap-2">
+                               <button 
+                                 onClick={() => addWallType({ ...template, id: crypto.randomUUID() })}
+                                 className="px-3 py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg hover:bg-amber-600 transition-colors"
+                               >
+                                 UŻYJ W PROJEKCIE
+                               </button>
+                               <button 
+                                 onClick={() => removeWallTypeTemplate(template.id)}
+                                 className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+               )}
             </div>
           )}
         </div>

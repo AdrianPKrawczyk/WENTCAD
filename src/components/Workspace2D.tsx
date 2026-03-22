@@ -1651,33 +1651,39 @@ export function Workspace2D({ className }: Workspace2DProps) {
             const zone = zones[poly.zoneId];
             if (!zone || !zone.boundaries) return null;
 
+            // Get scaling factor to convert METERS back to PIXELS for rendering
+            const floorState = floorsCanvas[activeFloorId];
+            const sFactor = floorState?.scaleFactor || 1.0;
+
             return (
               <Group key={`watt-${poly.id}`} listening={false}>
                 {/* 1. Exterior Walls Highlighting */}
                 {zone.boundaries.filter(b => b.type === 'EXTERIOR').map((b, bIdx) => (
                   <Line
                     key={`ext-wall-${poly.id}-${bIdx}`}
-                    points={[b.geometry.p1.x, b.geometry.p1.y, b.geometry.p2.x, b.geometry.p2.y]}
+                    points={[
+                      b.geometry.p1.x / sFactor, b.geometry.p1.y / sFactor, 
+                      b.geometry.p2.x / sFactor, b.geometry.p2.y / sFactor
+                    ]}
                     stroke="#f59e0b"
-                    strokeWidth={4 / scale}
+                    strokeWidth={6 / scale}
                     lineCap="round"
                     shadowColor="#f59e0b"
-                    shadowBlur={5 / scale}
-                    shadowOpacity={0.5}
+                    shadowBlur={10 / scale}
+                    shadowOpacity={0.6}
                   />
                 ))}
 
                 {/* 2. Windows / Openings */}
                 {zone.boundaries.flatMap(b => b.openings.map(op => ({ op, b }))).map(({ op, b }, opIdx) => {
-                   // Calculate window position on the wall line
-                   const dx = b.geometry.p2.x - b.geometry.p1.x;
-                   const dy = b.geometry.p2.y - b.geometry.p1.y;
+                   const dx = (b.geometry.p2.x - b.geometry.p1.x) / sFactor;
+                   const dy = (b.geometry.p2.y - b.geometry.p1.y) / sFactor;
                    const len = Math.hypot(dx, dy);
                    if (len === 0) return null;
 
                    const ratio = op.placement / b.geometry.lengthNet;
-                   const wx = b.geometry.p1.x + dx * ratio;
-                   const wy = b.geometry.p1.y + dy * ratio;
+                   const wx = (b.geometry.p1.x / sFactor) + dx * ratio;
+                   const wy = (b.geometry.p1.y / sFactor) + dy * ratio;
                    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
                    return (
@@ -1685,14 +1691,14 @@ export function Workspace2D({ className }: Workspace2DProps) {
                        key={`win-${poly.id}-${opIdx}`}
                        x={wx}
                        y={wy}
-                       width={op.width}
-                       height={6 / scale}
+                       width={op.width / sFactor}
+                       height={8 / scale}
                        fill="#38bdf8"
                        stroke="#0369a1"
                        strokeWidth={1 / scale}
                        rotation={angle}
-                       offsetX={op.width / 2}
-                       offsetY={3 / scale}
+                       offsetX={(op.width / sFactor) / 2}
+                       offsetY={4 / scale}
                        shadowColor="#0ea5e9"
                        shadowBlur={10 / scale}
                      />

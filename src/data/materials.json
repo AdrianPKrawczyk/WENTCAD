@@ -1,0 +1,14 @@
+[
+  { "id": "mat-concrete-std", "name": "Beton zwykły", "thermalConductivity": 1.7, "massDensity": 2400, "specificHeatCapacity": 1000, "category": "CONSTRUCTION" },
+  { "id": "mat-concrete-light", "name": "Beton lekki (gazobeton 600)", "thermalConductivity": 0.17, "massDensity": 600, "specificHeatCapacity": 840, "category": "CONSTRUCTION" },
+  { "id": "mat-brick-solid", "name": "Cegła ceramiczna pełna", "thermalConductivity": 0.77, "massDensity": 1800, "specificHeatCapacity": 880, "category": "CONSTRUCTION" },
+  { "id": "mat-brick-hollow", "name": "Pustak ceramiczny (np. Porotherm)", "thermalConductivity": 0.22, "massDensity": 800, "specificHeatCapacity": 1000, "category": "CONSTRUCTION" },
+  { "id": "mat-eps-std", "name": "Styropian EPS 040", "thermalConductivity": 0.04, "massDensity": 15, "specificHeatCapacity": 1460, "category": "INSULATION" },
+  { "id": "mat-eps-graphite", "name": "Styropian Grafitowy 031", "thermalConductivity": 0.031, "massDensity": 15, "specificHeatCapacity": 1460, "category": "INSULATION" },
+  { "id": "mat-wool-std", "name": "Wełna mineralna 035", "thermalConductivity": 0.035, "massDensity": 40, "specificHeatCapacity": 1030, "category": "INSULATION" },
+  { "id": "mat-pir", "name": "Płyty PIR", "thermalConductivity": 0.022, "massDensity": 30, "specificHeatCapacity": 1400, "category": "INSULATION" },
+  { "id": "mat-plaster-gypsum", "name": "Tynk gipsowy", "thermalConductivity": 0.4, "massDensity": 1000, "specificHeatCapacity": 1000, "category": "FINISH" },
+  { "id": "mat-plaster-cement", "name": "Tynk cementowo-wapienny", "thermalConductivity": 0.82, "massDensity": 1850, "specificHeatCapacity": 840, "category": "FINISH" },
+  { "id": "mat-wood-soft", "name": "Drewno iglaste (sosna/świerk)", "thermalConductivity": 0.13, "massDensity": 500, "specificHeatCapacity": 2510, "category": "CONSTRUCTION" },
+  { "id": "mat-air-gap", "name": "Pustka powietrzna (nieentylowana)", "thermalConductivity": 0.08, "massDensity": 1.2, "specificHeatCapacity": 1005, "category": "OTHER" }
+]

@@ -25,6 +25,7 @@
 * [x] **WATT KROK 5: Wizualizacja WATT na Workspace2D** - Done
 * [x] **WATT KROK 6: Biblioteka Materiałów i Typów Przegród (Thermal Catalog)** - Done
 * [x] **WATT DODATKOWY KROK: Moduł Budynek 3D (Three.js)** - Done
+* [x] **WATT REWIZJA 1: Poprawki po testach (Skala, Wysokości, Dziedzińce, Północ)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -98,6 +99,16 @@
     * **Komponent `Building3DViewer`**: Zintegrowano nowy router UI (ID etapu: 8) wyświetlający pełnoekranowy Canvas.
     * **Algorytm Generacji**: Na podstawie punktów $p_1$ i $p_2$ z `ZoneBoundary` obliczany jest wektor różnicy (dx, dz), środek ciężkości krawędzi oraz azymut dla potrzeb obrócenia BoxGeometry w 3D.
     * **Zapobieganie Z-Fighting**: Modele okien posiadają grubość zwiększoną o 5 cm względem ściany oraz ustawione parametry przezroczystości (transmission, opacity) w materiale fizycznym, co zapobiega migotaniu na stykach poligonów.
+
+* **WATT REWIZJA 1 (Poprawki po testach użytkownika)**:
+    * **Skala i Geometria**: Naprawiono błąd skali (566m -> 5.6m) poprzez automatyczne aplikowanie `syncMultiplier` do wszystkich obliczeń topologicznych w `topology.ts`.
+    * **Analiza Pionowa (Floor Heights)**: Rozszerzono model `Floor` o trzy rzędne: `heightTotal` (konstrukcyjna), `heightNet` (do stropu), `heightSuspended` (dla HVAC). `Building3DViewer` używa teraz `heightTotal` dla ścian zewnętrznych i `heightNet` dla wewnętrznych.
+    * **Globalna Baza Materiałów**: Wdrożono `src/data/materials.json` jako źródło prawdy dla biblioteki materiałów (12 standardowych pozycji). `useZoneStore` inicjalizuje się tymi danymi.
+    * **Szablony Przegród**: Implementacja `wallTypeTemplates` pozwala na zapisywanie konstrukcji wielowarstwowych do biblioteki globalnej, ułatwiając wielokrotne użycie w projektach.
+    * **Wykrywanie Ścian Zewnętrznych**: Zoptymalizowano `checkBoundary` – zwiększono tolerancję snappingu do $1.2\text{ m}$ oraz wdrożono wsparcie dla warstw dziedzińców (`CourtyardLayers`).
+    * **Logika L_osi**: Wprowadzono przybliżenie długości osiowej ścian zewnętrznych poprzez automatyczne rozszerzanie krawędzi o ich grubość w algorytmie topologii.
+    * **Globalna Analiza**: Dodano przycisk ⚡ (`Zap`) w `TopBar` wyzwalający akcję `analyzeAllZones`, eliminując potrzebę ręcznego analizowania każdej strefy z osobna.
+    * **Orientacja**: Dodano parametr `northAzimuth` do projektu, pozwalający na obracanie modelu względem kierunków świata dla celów OZC.
 
 * **WATT Module Fix (ESM/Vite Export Error)**:
     * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.

@@ -87,6 +87,12 @@ export interface Floor {
   elevation: number; // Rzędna terenu [m], np. 0.0, 3.5
   order: number;     // Kolejność wyświetlania
   originDescription?: string; // np. "Przecięcie osi A i 1"
+  
+  // WATT thermal heights [m]
+  heightTotal: number;     // H_brutto: od podłogi do podłogi (lub dachu)
+  heightNet: number;       // H_netto: od podłogi do stropu
+  heightSuspended: number; // H_hvac: od podłogi do sufitu podwieszanego
+
   dxfOutlines?: {
     id: string;
     points: number[];
@@ -376,11 +382,13 @@ export interface ProjectStateData {
   globalTagSettings: GlobalTagSettings;
   
   // WATT Additions
-  buildingFootprint?: { x: number; y: number }[][];
+  buildingFootprint?: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] };
   materials?: Record<string, IfcMaterial>;
   layerSets?: Record<string, IfcMaterialLayerSet>;
   wallTypes?: Record<string, IfcWallType>;
   windowStyles?: Record<string, IfcWindowStyle>;
+  pendingWindows?: OpeningInstance[];
+  northAzimuth?: number; // 0 is North, clockwise degrees
 }
 
 // Rekord Projektu

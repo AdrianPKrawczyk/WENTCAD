@@ -60,9 +60,27 @@ export type ZoneBoundary = {
   openings: OpeningInstance[];
 };
 
+export type Floor = {
+  id: string;
+  name: string;
+  elevation: number; // rzędna poziomu podłogi [m]
+  order: number;
+  originDescription?: string;
+  
+  // WATT thermal heights [m]
+  heightTotal: number;     // H_brutto: od podłogi do podłogi (lub dachu)
+  heightNet: number;       // H_netto: od podłogi do stropu
+  heightSuspended: number; // H_hvac: od podłogi do sufitu podwieszanego
+};
+
 export type HorizontalBoundary = {
   id: string;
   type: 'ROOF' | 'FLOOR_EXTERIOR' | 'CEILING_INTERIOR' | 'FLOOR_INTERIOR' | 'FLOOR_GROUND';
   area: number; // [m^2]
   uValueRef?: string; // Reference to Slab/Roof type
+};
+
+export type BuildingFootprint = {
+  outer: { x: number; y: number }[];
+  courtyards: { x: number; y: number }[][]; // DZIEDZIŃCE: Holes in the building footprint
 };

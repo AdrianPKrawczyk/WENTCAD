@@ -4,7 +4,7 @@ import { isPointInPolygon } from '../geometryUtils';
 
 /**
  * Grid Sampling Analysis for vertical boundaries (Roof, Terraces, Overhangs)
- * Estmates areas where a zone is exposed to exterior (up or down)
+ * Estimates areas where a zone is exposed to exterior (up or down)
  */
 export function calculateHorizontalBoundaries(
   zone: ZoneData,
@@ -15,17 +15,29 @@ export function calculateHorizontalBoundaries(
   const vertices = (zone as any)._vertices || [];
   if (vertices.length < 3) return [];
 
-  // Convert vertices to flat array for isPointInPolygon util
-  const flatPoints = vertices.flatMap((v: any) => [v.x, v.y]);
+  // Get scaling factor from current floor
+  const floorState = useCanvasStore.getState().getFloorState(zone.floorId);
+  const scale = floorState.scaleFactor || 1.0; 
 
-  // Calculate Bounding Box
+  // Convert vertices to flat array and SCALE TO METERS
+  const flatPoints = vertices.flatMap((v: any) => [v.x * scale, v.y * scale]);
+
+  // Calculate Bounding Box in METERS
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  vertices.forEach((v: any) => {
-    if (v.x < minX) minX = v.x;
-    if (v.x > maxX) maxX = v.x;
-    if (v.y < minY) minY = v.y;
-    if (v.y > maxY) maxY = v.y;
-  });
+  for (let i = 0; i < flatPoints.length; i += 2) {
+    const x = flatPoints[i];
+    const y = flatPoints[i+1];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+
+  // LOGIKA L_osi: Rozszerzamy bounding box o połowę grubości ściany (uproszczenie) 
+  // Aby powierzchnia dachu/podłogi objęła ściany zewnętrzne
+  const offset = 0.2; // 20cm offset for gross area estimation
+  minX -= offset; maxX += offset;
+  minY -= offset; maxY += offset;
 
   const width = maxX - minX;
   const height = maxY - minY;

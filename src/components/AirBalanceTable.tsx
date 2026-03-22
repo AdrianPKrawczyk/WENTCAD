@@ -893,6 +893,7 @@ export function AirBalanceTable() {
           // Store WATT settings globally or pass them through state to use after alignment
           useCanvasStore.getState().setPendingWattSettings({
              footprintLayer: settings.footprintLayer,
+             courtyardLayers: settings.courtyardLayers,
              windowLayers: settings.windowLayers
           });
 
@@ -970,12 +971,19 @@ export function AirBalanceTable() {
           const wattSettings = useCanvasStore.getState().pendingWattSettings;
           if (wattSettings && (wattSettings.footprintLayer || (wattSettings.windowLayers && wattSettings.windowLayers.length > 0))) {
              const footprintLayers = wattSettings.footprintLayer ? [wattSettings.footprintLayer] : [];
+             const courtyardLayers = wattSettings.courtyardLayers || [];
              const windowLayers = wattSettings.windowLayers || [];
              
-             const rawWattData = extractWattTopology(syncDxfData, footprintLayers, windowLayers);
+             const rawWattData = extractWattTopology(syncDxfData, footprintLayers, courtyardLayers, windowLayers);
              
-             // Transform footprint
-             const transformedFootprint = rawWattData.buildingFootprint.map(polygon => {
+             // Transform outer footprint
+             const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
+                const t = transformFn(pt.x, pt.y);
+                return { x: t.x, y: t.y };
+             });
+
+             // Transform courtyards
+             const transformedCourtyards = rawWattData.buildingFootprint.courtyards.map(polygon => {
                 return polygon.map(pt => {
                    const t = transformFn(pt.x, pt.y);
                    return { x: t.x, y: t.y };
@@ -995,7 +1003,10 @@ export function AirBalanceTable() {
              });
 
              // Zapisz do głownego stanu projektu WATT
-             useZoneStore.getState().setBuildingFootprint(transformedFootprint);
+             useZoneStore.getState().setBuildingFootprint({
+                outer: transformedOuter,
+                courtyards: transformedCourtyards
+             });
              useZoneStore.getState().setPendingWindows(transformedWindows);
              
              useCanvasStore.getState().setPendingWattSettings(null); // Clear pending settings

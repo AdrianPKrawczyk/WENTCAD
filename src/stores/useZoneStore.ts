@@ -143,6 +143,8 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
   return newZones;
 }
 
+import materialsData from '../data/materials.json';
+
 interface ZoneStore {
   activeProjectId: string | null;
   selectedZoneId: string | null;
@@ -175,7 +177,7 @@ interface ZoneStore {
   saveStylePreset: (preset: StylePreset) => void;
   removeStylePreset: (id: string) => void;
   loadState: (projectId: string, state: ProjectStateData) => void;
-  addFloor: (floor: Omit<Floor, 'id' | 'order'>) => string;
+  addFloor: (floor: Omit<Floor, 'id' | 'order' | 'heightTotal' | 'heightNet' | 'heightSuspended'>) => string;
   updateFloor: (id: string, updates: Partial<Floor>) => void;
   removeFloor: (id: string) => void;
   saveAnalysisPreset: (preset: AnalysisPreset) => void;
@@ -204,15 +206,20 @@ interface ZoneStore {
   setDxfPaddingY: (padding: number) => void;
   
   // WATT Properties
-  buildingFootprint: { x: number; y: number }[][];
+  buildingFootprint: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] };
   materials: Record<string, IfcMaterial>;
   layerSets: Record<string, IfcMaterialLayerSet>;
   wallTypes: Record<string, IfcWallType>;
   windowStyles: Record<string, IfcWindowStyle>;
-  pendingWindows: OpeningInstance[]; // Loose windows from DXF awaiting topology assignment
-  setBuildingFootprint: (footprint: { x: number; y: number }[][]) => void;
+  wallTypeTemplates: IfcWallType[]; // Global presets
+  pendingWindows: OpeningInstance[]; 
+ // Loose windows from DXF awaiting topology assignment
+  northAzimuth: number;
+  setBuildingFootprint: (footprint: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] }) => void;
   setPendingWindows: (windows: OpeningInstance[]) => void;
+  setNorthAzimuth: (azimuth: number) => void;
   updateZoneTopology: (zoneId: string) => void;
+  analyzeAllZones: () => void;
   
   // WATT Actions
   addMaterial: (material: IfcMaterial) => void;
@@ -224,6 +231,8 @@ interface ZoneStore {
   addWallType: (wallType: IfcWallType) => void;
   updateWallType: (id: string, updates: Partial<IfcWallType>) => void;
   removeWallType: (id: string) => void;
+  addWallTypeTemplate: (template: IfcWallType) => void;
+  removeWallTypeTemplate: (id: string) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -261,7 +270,7 @@ export const useZoneStore = create<ZoneStore>()(
       dxfExportSettings: DEFAULT_DXF_EXPORT_SETTINGS,
       
       // WATT Initial State
-      buildingFootprint: [],
+      buildingFootprint: { outer: [], courtyards: [] },
       materials: {
         'mat-concrete': { id: 'mat-concrete', name: 'Beton', thermalConductivity: 1.7, massDensity: 2400, specificHeatCapacity: 1000 },
         'mat-brick': { id: 'mat-brick', name: 'Cegła', thermalConductivity: 0.7, massDensity: 1800, specificHeatCapacity: 880 },
@@ -271,8 +280,13 @@ export const useZoneStore = create<ZoneStore>()(
       layerSets: {},
       wallTypes: {},
       windowStyles: {},
+      wallTypeTemplates: [],
+      pendingWindows: [],
+      northAzimuth: 0,
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
+      setPendingWindows: (windows) => set({ pendingWindows: windows }),
+      setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
 
       addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
       updateMaterial: (id, updates) => set(s => ({ 
@@ -303,6 +317,13 @@ export const useZoneStore = create<ZoneStore>()(
         delete next[id];
         return { wallTypes: next };
       }),
+
+      addWallTypeTemplate: (template) => set(s => ({ 
+        wallTypeTemplates: [...s.wallTypeTemplates, template] 
+      })),
+      removeWallTypeTemplate: (id) => set(s => ({ 
+        wallTypeTemplates: s.wallTypeTemplates.filter(t => t.id !== id) 
+      })),
 
       setPendingWindows: (windows) => set({ pendingWindows: windows }),
 
@@ -602,15 +623,21 @@ export const useZoneStore = create<ZoneStore>()(
       // ===== FLOOR CRUD =====
       addFloor: (floorData) => {
         const state = get();
-        const maxOrder = Object.values(state.floors).reduce(
-          (max, f) => Math.max(max, f.order), -1
-        );
+        const floorsArray = Object.values(state.floors).sort((a, b) => a.order - b.order);
+        const lastFloor = floorsArray.length > 0 ? floorsArray[floorsArray.length - 1] : null;
+        
+        const maxOrder = lastFloor ? lastFloor.order : -1;
+        const autoElevation = lastFloor ? (lastFloor.elevation + (lastFloor.heightTotal || 3.5)) : 0;
+
         const newFloor: Floor = {
           id: `floor-${Date.now()}`,
           name: floorData.name,
-          elevation: floorData.elevation,
+          elevation: autoElevation,
           order: maxOrder + 1,
           originDescription: (floorData as any).originDescription || "",
+          heightTotal: 3.5,
+          heightNet: 3.0,
+          heightSuspended: 2.7
         };
         set((s) => ({ floors: { ...s.floors, [newFloor.id]: newFloor } }));
         return newFloor.id;
@@ -619,12 +646,31 @@ export const useZoneStore = create<ZoneStore>()(
       updateFloor: (id, updates) => {
         set((state) => {
           if (!state.floors[id]) return state;
-          return {
-            floors: {
-              ...state.floors,
-              [id]: { ...state.floors[id], ...updates }
-            }
+          const nextFloors = {
+            ...state.floors,
+            [id]: { ...state.floors[id], ...updates }
           };
+
+          // Re-calculate elevations for floors above if heightTotal changed
+          if (updates.heightTotal !== undefined) {
+             const sorted = Object.values(nextFloors).sort((a, b) => a.order - b.order);
+             let currentElev = sorted[0].elevation;
+             sorted.forEach((f, idx) => {
+                if (idx > 0) {
+                   f.elevation = currentElev;
+                }
+                currentElev += f.heightTotal;
+             });
+          }
+
+          return { floors: nextFloors };
+        });
+      },
+
+      analyzeAllZones: () => {
+        const state = get();
+        Object.keys(state.zones).forEach(id => {
+           state.updateZoneTopology(id);
         });
       },
 

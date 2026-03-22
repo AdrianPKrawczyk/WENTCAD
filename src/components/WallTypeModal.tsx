@@ -14,10 +14,14 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
   const materials = useZoneStore((state) => state.materials);
   const addWallType = useZoneStore((state) => state.addWallType);
   const addLayerSet = useZoneStore((state) => state.addLayerSet);
+  const wallTypeTemplates = useZoneStore((state) => state.wallTypeTemplates);
+  
+  const addWallTypeTemplate = useZoneStore((state) => state.addWallTypeTemplate);
   
   const [name, setName] = useState(editingWallType?.name || '');
   const [isExternal, setIsExternal] = useState(editingWallType?.isExternal ?? true);
   const [type, setType] = useState<IfcWallType['predefinedType']>(editingWallType?.predefinedType || 'STANDARD');
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   
   const [layers, setLayers] = useState<IfcMaterialLayer[]>([]);
 
@@ -71,6 +75,11 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
 
     addLayerSet(layerSet);
     addWallType(wallType);
+    
+    if (saveAsTemplate) {
+       addWallTypeTemplate(wallType);
+    }
+    
     onClose();
   };
 
@@ -131,6 +140,25 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
                 <p className="text-[10px] text-indigo-400 uppercase font-bold">Wyliczone U</p>
                 <p className="text-2xl font-black text-indigo-700">{uValue.toFixed(3)} <span className="text-[10px] font-normal">W/m²K</span></p>
              </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-100 rounded-xl">
+             <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-1.5 rounded text-amber-600">
+                   <Save className="w-4 h-4" />
+                </div>
+                <div>
+                   <p className="text-xs font-bold text-amber-900">Biblioteka Szablonów</p>
+                   <p className="text-[9px] text-amber-600 uppercase">Zapisz tę konstrukcję do użytku w innych projektach</p>
+                </div>
+             </div>
+             <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" checked={saveAsTemplate} onChange={e => setSaveAsTemplate(e.target.checked)}
+                  className="sr-only peer" 
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+             </label>
           </div>
 
           {/* Layer Editor */}

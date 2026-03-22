@@ -4,6 +4,7 @@ import { X, Check, Layers, Ruler, Box, Type } from 'lucide-react';
 export interface SyncSettings {
   zoneLayer: string;
   footprintLayer?: string;
+  courtyardLayers: string[];
   windowLayers: string[];
   multiplier: number;
   unitLabel: string;
@@ -27,13 +28,14 @@ const DXF_UNITS = [
 export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm, onCancel }: SyncSettingsModalProps) {
   const [selectedLayer, setSelectedLayer] = useState(availableLayers[0] || '');
   const [footprintLayer, setFootprintLayer] = useState('');
+  const [courtyardLayers, setCourtyardLayers] = useState<string[]>([]);
   const [windowLayers, setWindowLayers] = useState<string[]>([]);
   const [unit, setUnit] = useState(DXF_UNITS[0]);
 
   if (!isOpen) return null;
 
-  const toggleWindowLayer = (layer: string) => {
-    setWindowLayers(prev => 
+  const toggleLayer = (layer: string, state: string[], setState: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setState(prev => 
       prev.includes(layer) ? prev.filter(l => l !== layer) : [...prev, layer]
     );
   };
@@ -113,21 +115,35 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
               {/* Footprint Layer */}
               <div className="space-y-3">
                 <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 flex items-center gap-2">
-                  <Layers className="w-3 h-3" /> Obrys Budynku (Footprint)
+                  <Layers className="w-3 h-3" /> Obrys Budynku (Zewnętrzny)
                 </label>
                 <select
                   value={footprintLayer}
                   onChange={(e) => setFootprintLayer(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none font-medium"
                 >
                   <option value="">Brak (Omiń)</option>
                   {availableLayers.filter(l => l !== selectedLayer).map(layer => (
                     <option key={`foot-${layer}`} value={layer}>{layer}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-400 leading-relaxed italic">
-                  Polilinia wyznaczająca granicę ścian zewnętrznych. Służy do wykrywania ścian zewnętrznych.
-                </p>
+                
+                {/* DZIEDZIŃCE (Inner Outlines) */}
+                <label className="text-[10px] uppercase tracking-widest font-black text-slate-400 flex items-center gap-2 mt-4">
+                  <Box className="w-3 h-3" /> Dziedzińce / Obrysy Wewn.
+                </label>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl max-h-32 overflow-y-auto p-2 space-y-1">
+                  {availableLayers.filter(l => l !== selectedLayer && l !== footprintLayer).map(layer => (
+                    <label key={`court-${layer}`} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-lg cursor-pointer group">
+                      <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                        courtyardLayers.includes(layer) ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white group-hover:border-amber-400'
+                      }`}>
+                        {courtyardLayers.includes(layer) && <Check className="w-3 h-3" />}
+                      </div>
+                      <span className="text-xs text-slate-700 font-medium truncate flex-1">{layer}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {/* Windows Layers */}
@@ -136,7 +152,7 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
                   <Type className="w-3 h-3" /> Warstwy Okien (Windows)
                 </label>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl max-h-40 overflow-y-auto p-2 space-y-1">
-                  {availableLayers.filter(l => l !== selectedLayer && l !== footprintLayer).map(layer => {
+                  {availableLayers.map(layer => {
                      // Auto-detect window metadata
                      const hasMeta = layer.match(/_H\d+/i);
                      return (
@@ -149,13 +165,13 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
                             {windowLayers.includes(layer) && <Check className="w-3 h-3" />}
                           </div>
                           <span className="text-sm text-slate-700 font-medium truncate flex-1">{layer}</span>
-                          {hasMeta && <span className="text-[10px] font-mono bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0">WATT META</span>}
+                          {hasMeta && <span className="text-[9px] font-black bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded shrink-0">WATT META</span>}
                         </label>
                      );
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 leading-relaxed italic">
-                  Zaznacz wszystkie warstwy zawierające prostokąty okien. Jeśli nazwa zawiera "H", system spróbuje odczytać wysokość.
+                  Zaznacz wszystkie warstwy zawierające prostokąty okien. System odczyta wymiary z nazw warstw z tagiem "H".
                 </p>
               </div>
             </div>
@@ -173,6 +189,7 @@ export function SyncSettingsModal({ isOpen, fileName, availableLayers, onConfirm
             onClick={() => onConfirm({
               zoneLayer: selectedLayer,
               footprintLayer: footprintLayer || undefined,
+              courtyardLayers: courtyardLayers,
               windowLayers: windowLayers,
               multiplier: unit.multiplier,
               unitLabel: unit.label

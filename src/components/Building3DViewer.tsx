@@ -14,34 +14,37 @@ export function Building3DViewer() {
 
     Object.values(zones).forEach(zone => {
       const floor = floors[zone.floorId];
-      const baseElev = floor?.elevation || 0;
+      if (!floor) return;
+      
+      const baseElev = floor.elevation || 0;
+      // Zewnętrzne ściany używają H_brutto (heightTotal)
+      // Wewnętrzne ściany używają H_netto (heightNet)
       
       if (zone.boundaries) {
         zone.boundaries.forEach(b => {
-           // Ignorujemy ściany bez wyliczonej geometrii
            if (!b.geometry || b.geometry.lengthNet === 0) return;
 
            const dx = b.geometry.p2.x - b.geometry.p1.x;
-           const dz = b.geometry.p2.y - b.geometry.p1.y; // W 3D rzutujemy Y z 2D na oś Z
+           const dz = b.geometry.p2.y - b.geometry.p1.y;
            const len = Math.hypot(dx, dz);
            const angle = Math.atan2(dz, dx);
            
+           const wallHeight = b.type === 'EXTERIOR' ? floor.heightTotal : floor.heightNet;
+           
            const cx = b.geometry.p1.x + dx / 2;
            const cz = b.geometry.p1.y + dz / 2;
-           const cy = baseElev + zone.height / 2;
+           const cy = baseElev + wallHeight / 2;
 
-           // Grubość ściany - fallback 10cm jeśli niewykryta
            const thickness = b.geometry.thickness > 0.05 ? b.geometry.thickness : 0.1;
 
            walls.push({
              id: b.id,
              type: b.type,
              position: [cx, cy, cz],
-             rotation: [0, -angle, 0], // Obrót wokół osi Y
-             size: [len, zone.height, thickness]
+             rotation: [0, -angle, 0],
+             size: [len, wallHeight, thickness]
            });
 
-           // Okna na tej ścianie
            if (b.openings) {
              b.openings.forEach(op => {
                const ratio = op.placement / b.geometry.lengthNet;
@@ -53,8 +56,7 @@ export function Building3DViewer() {
                  id: op.id,
                  position: [wx, wy, wz],
                  rotation: [0, -angle, 0],
-                 // Dodajemy lekkie pogrubienie okna względem ściany, żeby uniknąć z-fighting
-                 size: [op.width, op.height, thickness + 0.05]
+                 size: [op.width, op.height, thickness + 0.02]
                });
              });
            }

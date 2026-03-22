@@ -21,12 +21,18 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
   const [name, setName] = useState(floor?.name || '');
   const [elevation, setElevation] = useState(floor?.elevation || 0);
   const [originDescription, setOriginDescription] = useState(floor?.originDescription || '');
+  const [hTotal, setHTotal] = useState(floor?.heightTotal || 3.5);
+  const [hNet, setHNet] = useState(floor?.heightNet || 3.0);
+  const [hHvac, setHHvac] = useState(floor?.heightSuspended || 2.7);
 
   useEffect(() => {
     if (floor) {
       setName(floor.name);
       setElevation(floor.elevation);
       setOriginDescription(floor.originDescription || '');
+      setHTotal(floor.heightTotal || 3.5);
+      setHNet(floor.heightNet || 3.0);
+      setHHvac(floor.heightSuspended || 2.7);
     }
   }, [floor]);
 
@@ -41,6 +47,9 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
       name: name.trim(),
       elevation,
       originDescription: originDescription.trim(),
+      heightTotal: hTotal,
+      heightNet: hNet,
+      heightSuspended: hHvac
     });
     onClose();
   };
@@ -129,7 +138,7 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
           {/* Elevation */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-600 uppercase tracking-wider ml-1">
-              Rzędna terenu [m n.p.m.]
+              Rzędna poziomu podłogi [m]
             </label>
             <input
               type="number"
@@ -139,6 +148,50 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               placeholder="0.00"
             />
+          </div>
+
+          <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-4">
+            <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+              <Ruler className="w-3 h-3" /> Parametry Wysokościowe (WATT)
+            </h4>
+            
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 ml-1">
+                   <span>H Brutto (Kondygnacja)</span>
+                   <span className="text-indigo-600">Od podłogi do podłogi</span>
+                </div>
+                <input
+                  type="number" step="0.01" value={hTotal}
+                  onChange={(e) => setHTotal(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 ml-1">
+                   <span>H Netto (Strop)</span>
+                   <span className="text-indigo-600">Do spodu stropu</span>
+                </div>
+                <input
+                  type="number" step="0.01" value={hNet}
+                  onChange={(e) => setHNet(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 ml-1">
+                   <span>H HVAC (Sufit podwieszany)</span>
+                   <span className="text-indigo-600">Kubatura obliczeniowa</span>
+                </div>
+                <input
+                  type="number" step="0.01" value={hHvac}
+                  onChange={(e) => setHHvac(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Origin Description */}

@@ -80,8 +80,8 @@ interface CanvasState {
   activeDuctCategory: 'EQUIPMENT' | 'TERMINAL' | 'INLINE' | 'JUNCTION' | 'SHAFT' | 'VIRTUAL_ROOT' | null;
 
   // Pending settings for WATT extraction during CAD Sync
-  pendingWattSettings: { footprintLayer?: string; windowLayers: string[] } | null;
-  setPendingWattSettings: (settings: { footprintLayer?: string; windowLayers: string[] } | null) => void;
+  pendingWattSettings: { footprintLayer?: string; courtyardLayers?: string[]; windowLayers: string[] } | null;
+  setPendingWattSettings: (settings: { footprintLayer?: string; courtyardLayers?: string[]; windowLayers: string[] } | null) => void;
 
   // Actions
   getFloorState: (floorId: string) => FloorCanvasState;

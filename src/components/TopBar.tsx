@@ -21,7 +21,7 @@ import { exportCurrentProjectData, downloadProjectFile } from '../lib/projectTra
 import { ProjectImportModal } from './ProjectImportModal';
 import { importProjectService } from '../lib/importProjectService';
 import { WATTManagerModal } from './WATTManagerModal';
-import { Database } from 'lucide-react';
+import { Database, Zap } from 'lucide-react';
 
 const STAGE_NAMES: Record<number, string> = {
   1: 'Krok 1 (Bilans)',
@@ -66,6 +66,8 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
 
   const isFloorSwitcherVisible = useUIStore((s) => s.isFloorSwitcherVisible);
   const setIsFloorSwitcherVisible = useUIStore((s) => s.setIsFloorSwitcherVisible);
+  
+  const analyzeAllZones = useZoneStore((s) => s.analyzeAllZones);
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between shadow-sm z-10 shrink-0">
@@ -183,6 +185,19 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
             }`}
           >
             <Database className="w-5 h-5" />
+          </button>
+
+          <div className="h-4 w-px bg-gray-200 mx-1"></div>
+
+          <button
+            onClick={() => {
+               analyzeAllZones();
+               toast.success("Przeprowadzono analizę topologiczną całego budynku (WATT).");
+            }}
+            title="Analizuj model 3D budynku (WATT)"
+            className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95 group"
+          >
+            <Zap className="w-5 h-5 group-hover:fill-indigo-600 transition-all" />
           </button>
         </div>
       </div>
