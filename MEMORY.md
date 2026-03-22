@@ -1006,3 +1006,12 @@
     - **Tabela**: W `AirBalanceTable.tsx` dodano kolumny "Manual Kub." oraz "Kubatura [m³]" dla masowej edycji i podglądu.
 - **Synchronizacja**: Zaktualizowano `RoomWizardModal.tsx`, `Workspace2D.tsx` (import DXF) oraz `AirBalanceTable.tsx` (dodawanie wierszy), aby nowe pola były inicjalizowane domyślnie.
 - **Pliki**: `src/types.ts`, `src/stores/useZoneStore.ts`, `src/components/ZonePropertiesPanel.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/RoomWizardModal.tsx`, `src/components/Workspace2D.tsx`, `src/lib/PhysicsEngine.ts`.
+
+### Iteracja 3.7.0 (Marzec 2026) - Integracja Termodynamiki WATT
+- **Cel**: Rozbudowa modułu WATT o zaawansowane parametry termodynamiczne i bilansowe.
+- **Zmiany**:
+    - Rozszerzono `ZoneData` i `CalculationMode` o parametry sezonowe (Lato/Zima) oraz zyski i straty mocy/wilgoci.
+    - Zaimplementowano w `PhysicsEngine.ts` obliczenia strumienia powietrza na podstawie bilansu cieplnego (straty/zyski) i wilgotnościowego.
+    - Przebudowano UI w `ZonePropertiesPanel.tsx`, wprowadzając dynamiczną sekcję "Termodynamika i Bilans" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
+    - Zapewniono domyślne inicjalizowanie parametrów klimatycznych dla nowych pomieszczeń w `AirBalanceTable.tsx`.
+- **Status**: Zakończone. Funkcjonalność gotowa do testów projektowych.

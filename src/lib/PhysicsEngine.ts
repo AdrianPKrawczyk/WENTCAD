@@ -26,15 +26,17 @@ export function calculateEnthalpy(temp: number, rh: number): number {
   // if h_p and h_n are in kJ/kg, it works out if 3.6 factor is used.
 }
 
+const SPECIFIC_HEAT_AIR = 1005; // J/(kg·K)
+
 /**
  * Oblicza ostateczny bilans powietrza dla strefy (Air Balance)
  * Implementuje Zasadę Maximum oraz TDD z docs/05-hvac-formulas.md
  */
 export function calculateZoneAirBalance(zone: ZoneData) {
   // 1. Zapotrzebowanie higieniczne
-  const vHig = zone.occupants * zone.dosePerOccupant;
+  const vHig = (zone.occupants || 0) * (zone.dosePerOccupant || 0);
 
-  // 2. Krotność wymian (Wyznaczenie docelowej krotności z uwzględnieniem flagi Manual)
+  // 2. Krotność wymian
   const computedACH = zone.isTargetACHManual 
     ? (zone.manualTargetACH ?? 0) 
     : (ROOM_TYPE_ACH_MAPPING[zone.activityType] ?? ROOM_TYPE_ACH_MAPPING[DEFAULT_ACTIVITY_TYPE]);
@@ -48,23 +50,49 @@ export function calculateZoneAirBalance(zone: ZoneData) {
   // 3. Normatywne
   const vNorm = zone.normativeVolume || 0;
 
-  // 4. Termodynamiczne (Chłodzenie)
+  // 4. Termodynamiczne (Legacy/Simple Chłodzenie)
   let vTerm = 0;
   let thermodynamicError = false;
-  if (zone.totalHeatGain > 0 && zone.supplyTemp < zone.roomTemp) {
+  if ((zone.totalHeatGain || 0) > 0 && (zone.supplyTemp || 0) < (zone.roomTemp || 0)) {
     const hp = calculateEnthalpy(zone.roomTemp, zone.roomRH);
     const hn = calculateEnthalpy(zone.supplyTemp, zone.supplyRH);
-    
     const enthalpyDiff = hp - hn;
     if (enthalpyDiff > 0) {
-      // V_term = Q_total * 3.6 / (1.2 * (h_p - h_n))
       vTerm = (zone.totalHeatGain * 3.6) / (AIR_DENSITY * enthalpyDiff);
     } else {
-      // Entalpia nawiewu jest wyższa (lub równa) entalpii w pomieszczeniu mimo niższej temperatury.
-      // Powietrze nawiewane wprowadza więcej ciepła utajonego (wilgoci) niż odbiera ciepła jawnego.
-      // Chłodzenie całkowite jest niemożliwe.
       thermodynamicError = true;
     }
+  }
+
+  // 5. WATT - Od straty ciepła (ZIMA)
+  let vHeatLoss = 0;
+  const currentHeatLoss = zone.isHeatLossManual ? (zone.manualHeatLoss || 0) : (zone.wattHeatLoss || 0);
+  const dT_winter = (zone.supplyTempWinter || 0) - (zone.roomTempWinter || 0);
+  if (currentHeatLoss > 0 && dT_winter > 0) {
+    // V = Q * 3600 / (rho * cp * dT)
+    vHeatLoss = (currentHeatLoss * 3600) / (AIR_DENSITY * SPECIFIC_HEAT_AIR * dT_winter);
+  }
+
+  // 6. WATT - Od zysków ciepła jawnego (LATO)
+  let vHeatGain = 0;
+  const currentSensibleGain = zone.isSensibleGainManual ? (zone.manualSensibleGain || 0) : (zone.wattSensibleGain || 0);
+  const dT_summer = (zone.roomTempSummer || 0) - (zone.supplyTempSummer || 0);
+  if (currentSensibleGain > 0 && dT_summer > 0) {
+    vHeatGain = (currentSensibleGain * 3600) / (AIR_DENSITY * SPECIFIC_HEAT_AIR * dT_summer);
+  }
+
+  // 7. WATT - Od asymilacji wilgoci (LATO/ZIMA - zwykle Lato dla osuszania, ale tutaj ogólne)
+  let vMoisture = 0;
+  const currentMoistureGain = zone.isMoistureGainManual ? (zone.manualMoistureGain || 0) : (zone.wattMoistureGain || 0);
+  
+  // Oblicz x (Humidity Ratio) dla pokoju i nawiewu (sezon lato jako domyślny dla wilgoci)
+  const x_room = psychrolib.GetHumRatioFromRelHum(zone.roomTempSummer || 24, (zone.roomRHSummer || 50) / 100, ATMOSPHERIC_PRESSURE);
+  const x_supply = psychrolib.GetHumRatioFromRelHum(zone.supplyTempSummer || 18, (zone.supplyRHSummer || 90) / 100, ATMOSPHERIC_PRESSURE);
+  const dX = (x_room - x_supply) * 1000; // g/kg
+  
+  if (currentMoistureGain > 0 && dX > 0) {
+    // V = W [g/s] * 3600 / (rho * dX [g/kg])
+    vMoisture = (currentMoistureGain * 3600) / (AIR_DENSITY * dX);
   }
 
   // Wydatek końcowy - zależny od trybu obliczeń
@@ -81,36 +109,39 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     case 'THERMAL_ONLY':
       calculatedVolumeRaw = vTerm;
       break;
+    case 'HEAT_LOSS':
+      calculatedVolumeRaw = vHeatLoss;
+      break;
+    case 'HEAT_GAIN':
+      calculatedVolumeRaw = vHeatGain;
+      break;
+    case 'MOISTURE_GAIN':
+      calculatedVolumeRaw = vMoisture;
+      break;
     case 'MANUAL':
       calculatedVolumeRaw = vNorm;
       break;
     case 'AUTO_MAX':
     default:
-      calculatedVolumeRaw = Math.max(vHig, vKrotnosc, vNorm, vTerm);
+      calculatedVolumeRaw = Math.max(vHig, vKrotnosc, vNorm, vTerm, vHeatLoss, vHeatGain, vMoisture);
       break;
   }
 
   const calculatedVolume = Math.ceil(calculatedVolumeRaw);
   
-  // Transfery (potrzebne do auto-bilansowania wyciągu)
+  // Transfery
   const transferInSum = zone.transferIn ? zone.transferIn.reduce((sum, t) => sum + t.volume, 0) : 0;
   const transferOutSum = zone.transferOut ? zone.transferOut.reduce((sum, t) => sum + t.volume, 0) : 0;
 
-  // Wyciąg (Exhaust)
-  // Jeśli użytkownik zdefiniował jawnie wydatek wyciągowy normatywny (>0), używamy go.
-  // W przeciwnym razie, jeśli strefa ma przypisany system wyciągowy, automatycznie bilansujemy pomieszczenie do 0.
+  // Wyciąg
   let calculatedExhaustRaw = zone.normativeExhaust || 0;
-  
   if (calculatedExhaustRaw === 0 && zone.systemExhaustId && zone.systemExhaustId !== 'Brak') {
     calculatedExhaustRaw = Math.max(0, calculatedVolume + transferInSum - transferOutSum);
   }
   
   const calculatedExhaust = Math.ceil(calculatedExhaustRaw);
-
-  // Net Balance
   const netBalance = (calculatedVolume + transferInSum) - (calculatedExhaust + transferOutSum);
 
-  // Rzeczywista krotność wymian (największa z dostarczonego lub wyciąganego dla krotności)
   let realACH = 0;
   if (volumeM3 > 0) {
     const dominantFlow = Math.max(calculatedVolume + transferInSum, calculatedExhaust + transferOutSum);
@@ -123,7 +154,7 @@ export function calculateZoneAirBalance(zone: ZoneData) {
     transferInSum,
     transferOutSum,
     netBalance,
-    volume: volumeM3, // Return the final m3 volume for storage
+    volume: volumeM3,
     realACH: parseFloat(realACH.toFixed(2)),
     targetACH: computedACH,
     thermodynamicError

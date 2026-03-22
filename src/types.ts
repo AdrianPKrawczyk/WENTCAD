@@ -73,7 +73,15 @@ export type ActivityType =
 
 export type AcousticAbsorptionIndicator = 'HARD' | 'MEDIUM' | 'SOFT';
 
-export type CalculationMode = 'AUTO_MAX' | 'MANUAL' | 'HYGIENIC_ONLY' | 'ACH_ONLY' | 'THERMAL_ONLY';
+export type CalculationMode = 
+  | 'AUTO_MAX' 
+  | 'MANUAL' 
+  | 'HYGIENIC_ONLY' 
+  | 'ACH_ONLY' 
+  | 'THERMAL_ONLY'
+  | 'HEAT_LOSS'      // New: V from heating requirement
+  | 'HEAT_GAIN'      // New: V from cooling requirement
+  | 'MOISTURE_GAIN'; // New: V from moisture assimilation
 
 export interface AirTransfer {
   volume: number;
@@ -138,12 +146,42 @@ export interface ZoneData {
   transferIn: AirTransfer[];
   transferOut: AirTransfer[];
   
-  // Thermodynamics (V_term)
+  // Thermodynamics (V_term) - Legacy/Simple fields
   totalHeatGain: number; // W (Total heat gains, jawne + utajone)
   roomTemp: number;      // °C
   roomRH: number;        // %
   supplyTemp: number;    // °C
   supplyRH: number;      // %
+
+  // New WATT Thermodynamics (Seasonal)
+  roomTempSummer: number;
+  roomRHSummer: number;
+  supplyTempSummer: number;
+  supplyRHSummer: number;
+  
+  roomTempWinter: number;
+  roomRHWinter: number;
+  supplyTempWinter: number;
+  supplyRHWinter: number;
+
+  // Power Balances & Moisture
+  wattHeatLoss: number;       // W
+  manualHeatLoss: number;     // W
+  isHeatLossManual: boolean;
+  heatLossUnit: 'W' | 'kW';
+
+  wattSensibleGain: number;   // W
+  manualSensibleGain: number; // W
+  isSensibleGainManual: boolean;
+  sensibleGainUnit: 'W' | 'kW';
+
+  wattMoistureGain: number;   // g/s
+  manualMoistureGain: number; // g/s
+  isMoistureGainManual: boolean;
+  moistureGainUnit: 'g/s' | 'kg/h';
+
+  techSensibleGain: number;   // W (Technology)
+  techMoistureGain: number;   // g/s (Technology)
   
   // WATT Topology boundaries
   boundaries?: ZoneBoundary[];

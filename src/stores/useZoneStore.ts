@@ -146,7 +146,6 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
     const results = calculateZoneAirBalance(updatedZone);
 
     if (
-      updatedZone.area !== results.calculatedVolume || // Wait, area is input to physics, not output
       updatedZone.calculatedVolume !== results.calculatedVolume ||
       updatedZone.calculatedExhaust !== results.calculatedExhaust ||
       updatedZone.transferInSum !== results.transferInSum ||
@@ -155,7 +154,7 @@ function resolveZonesState(zones: Record<string, ZoneData>): Record<string, Zone
       updatedZone.realACH !== results.realACH ||
       updatedZone.targetACH !== results.targetACH ||
       updatedZone.area !== finalArea ||
-      updatedZone.volume !== results.volume // Check if volume changed
+      updatedZone.volume !== results.volume
     ) {
       newZones[id] = { ...updatedZone, ...results };
     }

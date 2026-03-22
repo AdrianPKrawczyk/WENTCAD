@@ -1,0 +1,122 @@
+LinkOutlineModal.tsx:25 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at LinkOutlineModal.tsx:25:61
+    at Array.flatMap (<anonymous>)
+    at LinkOutlineModal.tsx:25:35
+    at mountMemo (react-dom_client.js?v=9b8b467a:4684:20)
+    at Object.useMemo (react-dom_client.js?v=9b8b467a:12777:13)
+    at exports.useMemo (react.js?v=9b8b467a:736:31)
+    at LinkOutlineModal (LinkOutlineModal.tsx:23:27)
+    at Object.react_stack_bottom_frame (react-dom_client.js?v=9b8b467a:12621:12)
+    at renderWithHooks (react-dom_client.js?v=9b8b467a:3966:19)
+    at updateFunctionComponent (react-dom_client.js?v=9b8b467a:5322:16)
+(anonymous) @ LinkOutlineModal.tsx:25
+(anonymous) @ LinkOutlineModal.tsx:25
+mountMemo @ react-dom_client.js?v=9b8b467a:4684
+useMemo @ react-dom_client.js?v=9b8b467a:12777
+exports.useMemo @ react.js?v=9b8b467a:736
+LinkOutlineModal @ LinkOutlineModal.tsx:23
+react_stack_bottom_frame @ react-dom_client.js?v=9b8b467a:12621
+renderWithHooks @ react-dom_client.js?v=9b8b467a:3966
+updateFunctionComponent @ react-dom_client.js?v=9b8b467a:5322
+beginWork @ react-dom_client.js?v=9b8b467a:5893
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+performUnitOfWork @ react-dom_client.js?v=9b8b467a:8182
+workLoopSync @ react-dom_client.js?v=9b8b467a:8078
+renderRootSync @ react-dom_client.js?v=9b8b467a:8062
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7747
+performSyncWorkOnRoot @ react-dom_client.js?v=9b8b467a:8820
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=9b8b467a:8737
+processRootScheduleInMicrotask @ react-dom_client.js?v=9b8b467a:8758
+(anonymous) @ react-dom_client.js?v=9b8b467a:8831
+<LinkOutlineModal>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+Workspace2D @ Workspace2D.tsx:3268
+react_stack_bottom_frame @ react-dom_client.js?v=9b8b467a:12621
+renderWithHooksAgain @ react-dom_client.js?v=9b8b467a:4021
+renderWithHooks @ react-dom_client.js?v=9b8b467a:3972
+updateFunctionComponent @ react-dom_client.js?v=9b8b467a:5322
+beginWork @ react-dom_client.js?v=9b8b467a:5893
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+performUnitOfWork @ react-dom_client.js?v=9b8b467a:8182
+workLoopSync @ react-dom_client.js?v=9b8b467a:8078
+renderRootSync @ react-dom_client.js?v=9b8b467a:8062
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7747
+performSyncWorkOnRoot @ react-dom_client.js?v=9b8b467a:8820
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=9b8b467a:8737
+processRootScheduleInMicrotask @ react-dom_client.js?v=9b8b467a:8758
+(anonymous) @ react-dom_client.js?v=9b8b467a:8831
+<Workspace2D>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+App @ App.tsx:320
+react_stack_bottom_frame @ react-dom_client.js?v=9b8b467a:12621
+renderWithHooksAgain @ react-dom_client.js?v=9b8b467a:4021
+renderWithHooks @ react-dom_client.js?v=9b8b467a:3972
+updateFunctionComponent @ react-dom_client.js?v=9b8b467a:5322
+beginWork @ react-dom_client.js?v=9b8b467a:5893
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+performUnitOfWork @ react-dom_client.js?v=9b8b467a:8182
+workLoopSync @ react-dom_client.js?v=9b8b467a:8078
+renderRootSync @ react-dom_client.js?v=9b8b467a:8062
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=9b8b467a:8812
+performWorkUntilDeadline @ scheduler-Dc7Hb4rI.js?v=9b8b467a:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+(anonymous) @ main.tsx:8
+VM595:63 An error occurred in the <LinkOutlineModal> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+console.<computed> @ VM595:63
+defaultOnUncaughtError @ react-dom_client.js?v=9b8b467a:5011
+logUncaughtError @ react-dom_client.js?v=9b8b467a:5040
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+lane.callback @ react-dom_client.js?v=9b8b467a:5068
+callCallback @ react-dom_client.js?v=9b8b467a:3848
+commitCallbacks @ react-dom_client.js?v=9b8b467a:3856
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+commitLayoutEffectOnFiber @ react-dom_client.js?v=9b8b467a:6739
+flushLayoutEffects @ react-dom_client.js?v=9b8b467a:8424
+commitRoot @ react-dom_client.js?v=9b8b467a:8337
+commitRootWhenReady @ react-dom_client.js?v=9b8b467a:7832
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7804
+performSyncWorkOnRoot @ react-dom_client.js?v=9b8b467a:8820
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=9b8b467a:8737
+processRootScheduleInMicrotask @ react-dom_client.js?v=9b8b467a:8758
+(anonymous) @ react-dom_client.js?v=9b8b467a:8831
+<LinkOutlineModal>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+Workspace2D @ Workspace2D.tsx:3268
+react_stack_bottom_frame @ react-dom_client.js?v=9b8b467a:12621
+renderWithHooksAgain @ react-dom_client.js?v=9b8b467a:4021
+renderWithHooks @ react-dom_client.js?v=9b8b467a:3972
+updateFunctionComponent @ react-dom_client.js?v=9b8b467a:5322
+beginWork @ react-dom_client.js?v=9b8b467a:5893
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+performUnitOfWork @ react-dom_client.js?v=9b8b467a:8182
+workLoopSync @ react-dom_client.js?v=9b8b467a:8078
+renderRootSync @ react-dom_client.js?v=9b8b467a:8062
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7747
+performSyncWorkOnRoot @ react-dom_client.js?v=9b8b467a:8820
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=9b8b467a:8737
+processRootScheduleInMicrotask @ react-dom_client.js?v=9b8b467a:8758
+(anonymous) @ react-dom_client.js?v=9b8b467a:8831
+<Workspace2D>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+App @ App.tsx:320
+react_stack_bottom_frame @ react-dom_client.js?v=9b8b467a:12621
+renderWithHooksAgain @ react-dom_client.js?v=9b8b467a:4021
+renderWithHooks @ react-dom_client.js?v=9b8b467a:3972
+updateFunctionComponent @ react-dom_client.js?v=9b8b467a:5322
+beginWork @ react-dom_client.js?v=9b8b467a:5893
+runWithFiberInDEV @ react-dom_client.js?v=9b8b467a:604
+performUnitOfWork @ react-dom_client.js?v=9b8b467a:8182
+workLoopSync @ react-dom_client.js?v=9b8b467a:8078
+renderRootSync @ react-dom_client.js?v=9b8b467a:8062
+performWorkOnRoot @ react-dom_client.js?v=9b8b467a:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=9b8b467a:8812
+performWorkUntilDeadline @ scheduler-Dc7Hb4rI.js?v=9b8b467a:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=9b8b467a:193
+(anonymous) @ main.tsx:8

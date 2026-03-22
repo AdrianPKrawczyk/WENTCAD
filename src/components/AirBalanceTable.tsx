@@ -272,7 +272,7 @@ export function AirBalanceTable() {
       editable: true, 
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: {
-        values: ['AUTO_MAX', 'MANUAL', 'HYGIENIC_ONLY', 'ACH_ONLY', 'THERMAL_ONLY']
+        values: ['AUTO_MAX', 'MANUAL', 'HYGIENIC_ONLY', 'ACH_ONLY', 'THERMAL_ONLY', 'HEAT_LOSS', 'HEAT_GAIN', 'MOISTURE_GAIN']
       },
       minWidth: 130
     },
@@ -564,6 +564,28 @@ export function AirBalanceTable() {
       geometryVolume: null,
       isVolumeManual: false,
       floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
+      roomTempSummer: 24,
+      roomRHSummer: 50,
+      supplyTempSummer: 18,
+      supplyRHSummer: 90,
+      roomTempWinter: 20,
+      roomRHWinter: 40,
+      supplyTempWinter: 25,
+      supplyRHWinter: 20,
+      wattHeatLoss: 0,
+      manualHeatLoss: 0,
+      isHeatLossManual: false,
+      heatLossUnit: 'W',
+      wattSensibleGain: 0,
+      manualSensibleGain: 0,
+      isSensibleGainManual: false,
+      sensibleGainUnit: 'W',
+      wattMoistureGain: 0,
+      manualMoistureGain: 0,
+      isMoistureGainManual: false,
+      moistureGainUnit: 'g/s',
+      techSensibleGain: 0,
+      techMoistureGain: 0
     });
   };
 
@@ -633,6 +655,28 @@ export function AirBalanceTable() {
         geometryVolume: null,
         isVolumeManual: false,
         floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
+        roomTempSummer: 24,
+        roomRHSummer: 50,
+        supplyTempSummer: 18,
+        supplyRHSummer: 90,
+        roomTempWinter: 20,
+        roomRHWinter: 40,
+        supplyTempWinter: 25,
+        supplyRHWinter: 20,
+        wattHeatLoss: 0,
+        manualHeatLoss: 0,
+        isHeatLossManual: false,
+        heatLossUnit: 'W',
+        wattSensibleGain: 0,
+        manualSensibleGain: 0,
+        isSensibleGainManual: false,
+        sensibleGainUnit: 'W',
+        wattMoistureGain: 0,
+        manualMoistureGain: 0,
+        isMoistureGainManual: false,
+        moistureGainUnit: 'g/s',
+        techSensibleGain: 0,
+        techMoistureGain: 0
       });
     });
     

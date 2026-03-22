@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { 
   ChevronRight, ChevronLeft, Settings2, Wind, 
   ShieldAlert, Layers, Box, Globe, Square, Maximize, Check,
-  Edit2, X
+  Edit2, X, Sun, Snowflake, Droplets, Flame
 } from 'lucide-react';
 import type { ActivityType, ZoneData, AcousticAbsorptionIndicator } from '../types';
 import { getCompassDirection } from '../lib/geometryHelpers';
@@ -416,6 +416,9 @@ export function ZonePropertiesPanel() {
                         <option value="HYGIENIC_ONLY">WYŁĄCZNIE HIGIENICZNY</option>
                         <option value="ACH_ONLY">WYŁĄCZNIE KROTNOŚCI</option>
                         <option value="THERMAL_ONLY">WYŁĄCZNIE TERMICZNY</option>
+                        <option value="HEAT_LOSS">WG STRATY CIEPŁA (Zima)</option>
+                        <option value="HEAT_GAIN">WG ZYSKÓW CIEPŁA (Lato)</option>
+                        <option value="MOISTURE_GAIN">WG ASYMILACJI WILGOCI</option>
                       </select>
                     </div>
 
@@ -467,62 +470,238 @@ export function ZonePropertiesPanel() {
                   </div>
                 </section>
 
-                {/* SEKCJA: TERMODYNAMIKA (V_TERM) */}
+                {/* SEKCJA: TERMODYNAMIKA (WATT) */}
                 <section className="bg-white rounded border border-gray-100 p-3 shadow-sm">
-                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Termodynamika</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Temp. Pomieszczenia [°C]</label>
-                        <input 
-                          type="number" step="0.5"
-                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                          value={activeZone.roomTemp}
-                          onChange={(e) => handleChange('roomTemp', Number(e.target.value))}
-                        />
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-2 mb-3">Termodynamika i Bilans</h3>
+                  
+                  <div className="space-y-6">
+                    {/* 1. PARAMETRY POWIETRZA */}
+                    <div className="rounded-lg overflow-hidden border border-gray-100 shadow-sm">
+                      <table className="w-full text-[10px] border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 text-gray-400 font-bold divide-x divide-white">
+                            <th className="p-1 px-2 text-left">Parametr</th>
+                            <th className="p-1 text-center bg-blue-50/50 text-blue-600"><div className="flex items-center justify-center gap-1"><Sun className="w-3 h-3" /> LATO</div></th>
+                            <th className="p-1 text-center bg-indigo-50/50 text-indigo-600"><div className="flex items-center justify-center gap-1"><Snowflake className="w-3 h-3" /> ZIMA</div></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          <tr className="divide-x divide-gray-50">
+                            <td className="p-1.5 px-2 font-medium text-gray-500">Pokój [°C]</td>
+                            <td className="p-1">
+                              <input type="number" step="0.5" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.roomTempSummer} onChange={e => handleChange('roomTempSummer', Number(e.target.value))} />
+                            </td>
+                            <td className="p-1">
+                              <input type="number" step="0.5" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.roomTempWinter} onChange={e => handleChange('roomTempWinter', Number(e.target.value))} />
+                            </td>
+                          </tr>
+                          <tr className="divide-x divide-gray-50 bg-gray-50/20">
+                            <td className="p-1.5 px-2 font-medium text-gray-500">Pokój RH [%]</td>
+                            <td className="p-1">
+                              <input type="number" step="1" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.roomRHSummer} onChange={e => handleChange('roomRHSummer', Number(e.target.value))} />
+                            </td>
+                            <td className="p-1">
+                              <input type="number" step="1" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.roomRHWinter} onChange={e => handleChange('roomRHWinter', Number(e.target.value))} />
+                            </td>
+                          </tr>
+                          <tr className="divide-x divide-gray-50">
+                            <td className="p-1.5 px-2 font-medium text-gray-500">Nawiew [°C]</td>
+                            <td className="p-1">
+                              <input type="number" step="0.5" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.supplyTempSummer} onChange={e => handleChange('supplyTempSummer', Number(e.target.value))} />
+                            </td>
+                            <td className="p-1">
+                              <input type="number" step="0.5" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.supplyTempWinter} onChange={e => handleChange('supplyTempWinter', Number(e.target.value))} />
+                            </td>
+                          </tr>
+                          <tr className="divide-x divide-gray-50 bg-gray-50/20">
+                            <td className="p-1.5 px-2 font-medium text-gray-500">Nawiew RH [%]</td>
+                            <td className="p-1">
+                              <input type="number" step="1" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.supplyRHSummer} onChange={e => handleChange('supplyRHSummer', Number(e.target.value))} />
+                            </td>
+                            <td className="p-1">
+                              <input type="number" step="1" className="w-full text-center focus:outline-none bg-transparent" value={activeZone.supplyRHWinter} onChange={e => handleChange('supplyRHWinter', Number(e.target.value))} />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 2. BILANS MOCY CIEPLNEJ */}
+                    <div className="space-y-4">
+                      {/* STRATA CIEPŁA */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center group">
+                          <label className="text-[10px] font-bold text-indigo-800 uppercase flex items-center gap-1">
+                            <Snowflake className="w-3 h-3" /> Strata Ciepła
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select 
+                              className="text-[9px] font-bold bg-transparent border-none p-0 focus:ring-0 text-gray-400"
+                              value={activeZone.heatLossUnit}
+                              onChange={e => handleChange('heatLossUnit', e.target.value as any)}
+                            >
+                              <option value="W">W</option>
+                              <option value="kW">kW</option>
+                            </select>
+                            <label className="flex items-center space-x-1 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={activeZone.isHeatLossManual} 
+                                onChange={(e) => handleChange('isHeatLossManual', e.target.checked)}
+                                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                              />
+                              <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-gray-50 p-1.5 rounded border border-gray-100">
+                            <p className="text-[8px] text-gray-400 uppercase font-bold">WATT/OZC</p>
+                            <p className="text-xs font-mono font-bold text-gray-600">
+                              {activeZone.heatLossUnit === 'kW' ? (activeZone.wattHeatLoss / 1000).toFixed(3) : activeZone.wattHeatLoss.toFixed(0)} {activeZone.heatLossUnit}
+                            </p>
+                          </div>
+                          <div className={`p-1.5 rounded border ${activeZone.isHeatLossManual ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-transparent border-gray-100 grayscale opacity-40'}`}>
+                            <p className="text-[8px] text-amber-600 uppercase font-bold">Własna</p>
+                            <div className="flex items-center">
+                              <input 
+                                type="number" 
+                                disabled={!activeZone.isHeatLossManual}
+                                className="w-full text-xs font-mono font-bold bg-transparent focus:outline-none"
+                                value={activeZone.heatLossUnit === 'kW' ? activeZone.manualHeatLoss / 1000 : activeZone.manualHeatLoss}
+                                onChange={(e) => {
+                                  let val = parseFloat(e.target.value) || 0;
+                                  if (activeZone.heatLossUnit === 'kW') val *= 1000;
+                                  handleChange('manualHeatLoss', val);
+                                }}
+                              />
+                              <span className="text-[10px] text-gray-400 ml-1">{activeZone.heatLossUnit}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Wilgotność [%]</label>
-                        <input 
-                          type="number" step="1" max="100" min="0"
-                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                          value={activeZone.roomRH}
-                          onChange={(e) => handleChange('roomRH', Number(e.target.value))}
-                        />
+
+                      {/* ZYSKI JAWNE */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center group">
+                          <label className="text-[10px] font-bold text-orange-800 uppercase flex items-center gap-1">
+                            <Sun className="w-3 h-3" /> Zyski Ciepła (Jawne)
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select 
+                              className="text-[9px] font-bold bg-transparent border-none p-0 focus:ring-0 text-gray-400"
+                              value={activeZone.sensibleGainUnit}
+                              onChange={e => handleChange('sensibleGainUnit', e.target.value as any)}
+                            >
+                              <option value="W">W</option>
+                              <option value="kW">kW</option>
+                            </select>
+                            <label className="flex items-center space-x-1 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={activeZone.isSensibleGainManual} 
+                                onChange={(e) => handleChange('isSensibleGainManual', e.target.checked)}
+                                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                              />
+                              <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-gray-50 p-1.5 rounded border border-gray-100">
+                            <p className="text-[8px] text-gray-400 uppercase font-bold">WATT Spec</p>
+                            <p className="text-xs font-mono font-bold text-gray-600">
+                              {activeZone.sensibleGainUnit === 'kW' ? (activeZone.wattSensibleGain / 1000).toFixed(3) : activeZone.wattSensibleGain.toFixed(0)} {activeZone.sensibleGainUnit}
+                            </p>
+                          </div>
+                          <div className={`p-1.5 rounded border ${activeZone.isSensibleGainManual ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-transparent border-gray-100 grayscale opacity-40'}`}>
+                            <p className="text-[8px] text-amber-600 uppercase font-bold">Własna</p>
+                            <div className="flex items-center">
+                              <input 
+                                type="number" 
+                                disabled={!activeZone.isSensibleGainManual}
+                                className="w-full text-xs font-mono font-bold bg-transparent focus:outline-none"
+                                value={activeZone.sensibleGainUnit === 'kW' ? activeZone.manualSensibleGain / 1000 : activeZone.manualSensibleGain}
+                                onChange={(e) => {
+                                  let val = parseFloat(e.target.value) || 0;
+                                  if (activeZone.sensibleGainUnit === 'kW') val *= 1000;
+                                  handleChange('manualSensibleGain', val);
+                                }}
+                              />
+                              <span className="text-[10px] text-gray-400 ml-1">{activeZone.sensibleGainUnit}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ZYSKI WILGOCI */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center group">
+                          <label className="text-[10px] font-bold text-blue-800 uppercase flex items-center gap-1">
+                            <Droplets className="w-3 h-3" /> Zyski Wilgoci
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <select 
+                              className="text-[9px] font-bold bg-transparent border-none p-0 focus:ring-0 text-gray-400"
+                              value={activeZone.moistureGainUnit}
+                              onChange={e => handleChange('moistureGainUnit', e.target.value as any)}
+                            >
+                              <option value="g/s">g/s</option>
+                              <option value="kg/h">kg/h</option>
+                            </select>
+                            <label className="flex items-center space-x-1 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={activeZone.isMoistureGainManual} 
+                                onChange={(e) => handleChange('isMoistureGainManual', e.target.checked)}
+                                className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-3 h-3"
+                              />
+                              <span className="text-[10px] text-gray-600 tracking-wider font-bold">MANUAL</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-gray-50 p-1.5 rounded border border-gray-100">
+                            <p className="text-[8px] text-gray-400 uppercase font-bold">WATT Calc</p>
+                            <p className="text-xs font-mono font-bold text-gray-600">
+                              {activeZone.moistureGainUnit === 'kg/h' ? (activeZone.wattMoistureGain * 3.6).toFixed(3) : activeZone.wattMoistureGain.toFixed(4)} {activeZone.moistureGainUnit}
+                            </p>
+                          </div>
+                          <div className={`p-1.5 rounded border ${activeZone.isMoistureGainManual ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-transparent border-gray-100 grayscale opacity-40'}`}>
+                            <p className="text-[8px] text-amber-600 uppercase font-bold">Własna</p>
+                            <div className="flex items-center">
+                              <input 
+                                type="number" 
+                                disabled={!activeZone.isMoistureGainManual}
+                                className="w-full text-xs font-mono font-bold bg-transparent focus:outline-none"
+                                value={activeZone.moistureGainUnit === 'kg/h' ? activeZone.manualMoistureGain * 3.6 : activeZone.manualMoistureGain}
+                                onChange={(e) => {
+                                  let val = parseFloat(e.target.value) || 0;
+                                  if (activeZone.moistureGainUnit === 'kg/h') val /= 3.6;
+                                  handleChange('manualMoistureGain', val);
+                                }}
+                              />
+                              <span className="text-[10px] text-gray-400 ml-1">{activeZone.moistureGainUnit}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Temp. Nawiewu [°C]</label>
-                        <input 
-                          type="number" step="0.5"
-                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                          value={activeZone.supplyTemp}
-                          onChange={(e) => handleChange('supplyTemp', Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 mb-1 uppercase">Wilgotność Naw. [%]</label>
-                        <input 
-                          type="number" step="1" max="100" min="0"
-                          className="w-full text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent"
-                          value={activeZone.supplyRH}
-                          onChange={(e) => handleChange('supplyRH', Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1 uppercase">Zyski Ciepła Jawne + Utajone [W]</label>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="number" 
-                          className="flex-1 text-sm border-b border-gray-300 focus:border-blue-500 focus:outline-none py-1 bg-transparent font-bold text-orange-700"
-                          value={activeZone.totalHeatGain}
-                          onChange={(e) => handleChange('totalHeatGain', Number(e.target.value))}
-                        />
-                        <span className="text-[10px] text-gray-400 font-bold">WATTY</span>
+                    {/* 3. ZYSKI TECHNOLOGICZNE */}
+                    <div className="bg-gray-50/50 p-3 rounded-lg border border-gray-100 space-y-3">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Flame className="w-3 h-3" /> Zyski Technologiczne <span className="text-[8px] font-normal lowercase bg-gray-200 px-1 rounded text-gray-500">przyszłość</span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">Ciepło [W]</label>
+                          <input type="number" className="w-full text-xs border-b border-gray-200 focus:border-indigo-500 bg-transparent py-1 font-bold" value={activeZone.techSensibleGain} onChange={e => handleChange('techSensibleGain', Number(e.target.value))} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-1">Wilgoć [g/s]</label>
+                          <input type="number" className="w-full text-xs border-b border-gray-200 focus:border-indigo-500 bg-transparent py-1 font-bold" value={activeZone.techMoistureGain} onChange={e => handleChange('techMoistureGain', Number(e.target.value))} />
+                        </div>
                       </div>
                     </div>
                   </div>
