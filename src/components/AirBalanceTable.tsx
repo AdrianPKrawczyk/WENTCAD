@@ -996,11 +996,8 @@ export function AirBalanceTable() {
 
              // Zapisz do głownego stanu projektu WATT
              useZoneStore.getState().setBuildingFootprint(transformedFootprint);
+             useZoneStore.getState().setPendingWindows(transformedWindows);
              
-             // TODO: Windows should be stored temporarily and then assigned to boundaries in Topology Engine (Step 3).
-             // For now we will keep them in memory or console log them, as the Topology engine will match them by coordinate.
-             console.log("WATT Extracted Windows:", transformedWindows);
-
              useCanvasStore.getState().setPendingWattSettings(null); // Clear pending settings
           }
 

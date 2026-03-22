@@ -304,6 +304,8 @@ export const useZoneStore = create<ZoneStore>()(
         return { wallTypes: next };
       }),
 
+      setPendingWindows: (windows) => set({ pendingWindows: windows }),
+
       updateZoneTopology: (zoneId) => {
         const state = get();
         const zone = state.zones[zoneId];
@@ -346,7 +348,12 @@ export const useZoneStore = create<ZoneStore>()(
           boundaries = checkBoundary(boundaries, state.buildingFootprint);
         }
 
-        // 3. Vertical Analysis (Horizontal Boundaries)
+        // 3. Snap Windows from pending list
+        if (state.pendingWindows && state.pendingWindows.length > 0) {
+          boundaries = snapOpeningsToEdges(boundaries, state.pendingWindows);
+        }
+
+        // 4. Vertical Analysis (Horizontal Boundaries)
         const currentFloor = state.floors[zone.floorId];
         const allFloorArray = Object.values(state.floors).sort((a, b) => a.order - b.order);
         const currentIndex = allFloorArray.findIndex(f => f.id === zone.floorId);

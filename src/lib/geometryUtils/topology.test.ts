@@ -73,7 +73,7 @@ function runTopologyTests() {
 
   // TEST 3: Opening Snapping
   // Wall from (0,0) to (10,0)
-  // Opening at (5, 0.1) -> Should snap to this wall
+  // Opening at (5, 0.1) -> Should snap to this wall at placement 5
   const wallSegment: ZoneBoundary = {
     id: 'wall1',
     type: 'EXTERIOR',
@@ -82,15 +82,29 @@ function runTopologyTests() {
     openings: []
   };
 
+  const wallVertical: ZoneBoundary = {
+    id: 'wall2',
+    type: 'EXTERIOR',
+    isExternal: true,
+    geometry: { p1: {x:10, y:0}, p2: {x:10, y:10}, lengthNet: 10, azimuth: 90, thickness: 0.4 },
+    openings: []
+  };
+
   const openings: OpeningInstance[] = [
-    { id: 'win1', width: 2, height: 1.5, sillHeight: 0.9, placement: 0, centroid: { x: 5, y: 0.1 } }
+    { id: 'win1', width: 2, height: 1.5, sillHeight: 0.9, placement: 0, centroid: { x: 5, y: 0.1 } },
+    { id: 'win2', width: 1, height: 1.5, sillHeight: 0.9, placement: 0, centroid: { x: 9.9, y: 8 } }
   ];
 
-  const snapped = snapOpeningsToEdges([wallSegment], openings);
-  console.assert(snapped[0].openings.length === 1, 'Test 3.1 Failed: Opening not snapped to wall');
-  if (snapped[0].openings.length > 1) {
-    console.assert(snapped[0].openings[0].placement === 5, `Test 3.2 Failed: Wrong placement (${snapped[0].openings[0].placement})`);
-  }
+  const snapped = snapOpeningsToEdges([wallSegment, wallVertical], openings);
+  
+  const s1 = snapped.find(e => e.id === 'wall1');
+  const s2 = snapped.find(e => e.id === 'wall2');
+
+  console.assert(s1?.openings.length === 1, 'Test 3.1 Failed: win1 not snapped to wall1');
+  console.assert(s1?.openings[0].placement === 5, `Test 3.2 Failed: win1 placement should be 5, got ${s1?.openings[0].placement}`);
+  
+  console.assert(s2?.openings.length === 1, 'Test 3.3 Failed: win2 not snapped to wall2');
+  console.assert(s2?.openings[0].placement === 8, `Test 3.4 Failed: win2 placement should be 8, got ${s2?.openings[0].placement}`);
 
   console.log('Topology Tests: Finished');
 }
