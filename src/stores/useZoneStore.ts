@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings } from '../types';
+import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings, IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../types';
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 
@@ -197,7 +197,19 @@ interface ZoneStore {
   setDxfFontHeight: (height: number) => void;
   setDxfLineSpacing: (spacing: number) => void;
   setDxfPaddingX: (padding: number) => void;
+  dxfExportSettings: DxfExportSettings;
+  setDxfFontHeight: (height: number) => void;
+  setDxfLineSpacing: (spacing: number) => void;
+  setDxfPaddingX: (padding: number) => void;
   setDxfPaddingY: (padding: number) => void;
+  
+  // WATT Properties
+  buildingFootprint: { x: number; y: number }[][];
+  materials: Record<string, IfcMaterial>;
+  layerSets: Record<string, IfcMaterialLayerSet>;
+  wallTypes: Record<string, IfcWallType>;
+  windowStyles: Record<string, IfcWindowStyle>;
+  setBuildingFootprint: (footprint: { x: number; y: number }[][]) => void;
 }
 
 export const useZoneStore = create<ZoneStore>()(
@@ -233,6 +245,15 @@ export const useZoneStore = create<ZoneStore>()(
       selectedDxfOutlineId: null,
       globalTagSettings: DEFAULT_TAG_SETTINGS,
       dxfExportSettings: DEFAULT_DXF_EXPORT_SETTINGS,
+      
+      // WATT Initial State
+      buildingFootprint: [],
+      materials: {},
+      layerSets: {},
+      wallTypes: {},
+      windowStyles: {},
+      
+      setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
       
       setColumnState: (state) => set({ columnState: state }),
       setActiveProject: (projectId) => set({ activeProjectId: projectId }),
@@ -393,7 +414,14 @@ export const useZoneStore = create<ZoneStore>()(
           columnState: stateData.columnState ?? null,
           activeFloorId: Object.keys(stateData.floors || {})[0] || `floor-${crypto.randomUUID()}`,
           globalPatternScale: stateData.globalPatternScale ?? 1.0,
-          globalTagSettings: stateData.globalTagSettings || DEFAULT_TAG_SETTINGS
+          globalTagSettings: stateData.globalTagSettings || DEFAULT_TAG_SETTINGS,
+          
+          // WATT State
+          buildingFootprint: stateData.buildingFootprint || [],
+          materials: stateData.materials || {},
+          layerSets: stateData.layerSets || {},
+          wallTypes: stateData.wallTypes || {},
+          windowStyles: stateData.windowStyles || {}
         });
       },
 
@@ -562,7 +590,12 @@ export const useZoneStore = create<ZoneStore>()(
         globalSystemOpacity,
         globalPatternScale,
         globalTagSettings,
-        dxfExportSettings
+        dxfExportSettings,
+        buildingFootprint,
+        materials,
+        layerSets,
+        wallTypes,
+        windowStyles
       } = state;
       return { 
         zones, 
@@ -574,7 +607,12 @@ export const useZoneStore = create<ZoneStore>()(
         globalSystemOpacity,
         globalPatternScale,
         globalTagSettings,
-        dxfExportSettings
+        dxfExportSettings,
+        buildingFootprint,
+        materials,
+        layerSets,
+        wallTypes,
+        windowStyles
       };
     },
   }

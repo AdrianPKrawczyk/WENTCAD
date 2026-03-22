@@ -136,6 +136,10 @@ export interface ZoneData {
   supplyTemp: number;    // °C
   supplyRH: number;      // %
   
+  // WATT Topology boundaries
+  boundaries?: ZoneBoundary[];
+  horizontalBoundaries?: HorizontalBoundary[];
+  
   // Acoustics
   acousticAbsorption: AcousticAbsorptionIndicator;
   isMaxDbAManual: boolean;     // If true, use manualMaxAllowedDbA instead of preset
@@ -339,6 +343,79 @@ export interface StylePreset {
   }[];
 }
 
+// ============================================
+// 4. IFC THERMAL TOPOLOGY (WATT)
+// ============================================
+
+export interface IfcMaterial {
+  id: string;
+  name: string;
+  thermalConductivity: number; // lambda [W/(m*K)]
+  massDensity: number; // rho [kg/m^3]
+  specificHeatCapacity: number; // cp [J/(kg*K)]
+}
+
+export interface IfcMaterialLayer {
+  id: string;
+  materialId: string;
+  thickness: number; // d [m]
+}
+
+export interface IfcMaterialLayerSet {
+  id: string;
+  name: string;
+  layers: IfcMaterialLayer[];
+}
+
+export interface IfcWallType {
+  id: string;
+  name: string;
+  layerSetId: string;
+  predefinedType: 'SOLIDWALL' | 'PARTITIONING' | 'STANDARD';
+  isExternal: boolean;
+}
+
+export interface IfcWindowStyle {
+  id: string;
+  name: string;
+  overallUValue: number; // Uw [W/(m^2*K)]
+  solarHeatGainCoefficient: number; // g [0-1]
+}
+
+export interface OpeningInstance {
+  id: string;
+  windowStyleId?: string; // Reference to IfcWindowStyle
+  width: number; // B [m]
+  height: number; // H [m]
+  sillHeight: number; // Ho [m]
+  placement: number; // Offset on the wall length [m]
+  centroid?: { x: number; y: number };
+}
+
+export interface ZoneBoundary {
+  id: string;
+  relatedWallTypeId?: string; // Reference to IfcWallType
+  isExternal: boolean;
+  type: 'INTERIOR' | 'EXTERIOR' | 'UNRESOLVED';
+  geometry: {
+    lengthNet: number; // L_osi [m]
+    lengthGross?: number; // L_wew [m]
+    azimuth: number; // Degrees from North
+    thickness: number; // d [m]
+    p1: { x: number; y: number };
+    p2: { x: number; y: number };
+  };
+  adjacentZoneId?: string; // If INTERIOR
+  openings: OpeningInstance[];
+}
+
+export interface HorizontalBoundary {
+  id: string;
+  type: 'ROOF' | 'FLOOR_EXTERIOR' | 'CEILING_INTERIOR' | 'FLOOR_INTERIOR' | 'FLOOR_GROUND';
+  area: number; // [m^2]
+  uValueRef?: string; // Reference to Slab/Roof type
+}
+
 export interface ProjectStateData {
   floors: Record<string, Floor>;
   zones: Record<string, ZoneData>;
@@ -350,6 +427,13 @@ export interface ProjectStateData {
   columnState: any | null;
   globalPatternScale?: number;
   globalTagSettings: GlobalTagSettings;
+  
+  // WATT Additions
+  buildingFootprint?: { x: number; y: number }[][];
+  materials?: Record<string, IfcMaterial>;
+  layerSets?: Record<string, IfcMaterialLayerSet>;
+  wallTypes?: Record<string, IfcWallType>;
+  windowStyles?: Record<string, IfcWindowStyle>;
 }
 
 // Rekord Projektu

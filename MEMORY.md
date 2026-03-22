@@ -18,6 +18,7 @@
 * [x] **KROK 2.3 UI: System Manager Enhancements** - Done
 * [x] **KROK 2.4 UI: Multi-step System Wizard** - Done
 * [x] **FAZA 3.4: Algorytm Propagacji Przepływów DFS** - Done
+* [x] **WATT KROK 1: Definicja Typów i Rozbudowa Stanu (IFC Data Structures)** - Done
 * [x] **FAZA 2.9.3: Dwukierunkowa synchronizacja & Podświetlanie** - Done
 * [x] **FAZA 2.9.4: Wzory deseniu (Hatch) & Panel Filtracji** - Done
 * [x] **FAZA 2.5: Obsługa plików CAD (DXF)** - Done
@@ -52,6 +53,11 @@
     * **State Implementation**: `bulkUpdateZones` and `bulkDeleteZones` in `useZoneStore.ts`. Recalculates all affected zones via `resolveZonesState`.
     * **UI Component**: `BulkEditModal.tsx` provides thematic sections (General, Thermodynamics, Acoustics, etc.) with granular "Overwrite" checkboxes for each field.
     * **Table Integration**: `AirBalanceTable.tsx` updated with `rowSelection: 'multiple'`, checkbox column, and contextual bulk action buttons ("Edytuj zaznaczone", "Usuń zaznaczone").
+* **WATT Module (Architecture & Thermal Topology) - Iteration 1**:
+    * **IFC Standard**: Data structures for materials (`IfcMaterial`), layer sets (`IfcMaterialLayerSet`), and walls (`IfcWallType`) follow IFC logic to ensure future BIM compatibility.
+    * **Zone Boundaries**: `ZoneData` extended with `boundaries` (vertical) and `horizontalBoundaries` (slabs/roofs).
+    * **Persistence**: `useZoneStore` and `useProjectStore` updated to persist IFC dictionaries and `buildingFootprint` in Supabase and Zundo history.
+
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.
 - **Interfejs:** Implementacja `BulkEditModal` z systemem "Change" checkboxes pozwala na selektywną aktualizację pól.

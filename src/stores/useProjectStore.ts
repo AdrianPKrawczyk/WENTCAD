@@ -98,7 +98,12 @@ export const useProjectStore = create<ProjectStore>()(
               { id: 'W1', name: 'Wywiew 1', type: 'EXHAUST' },
               { id: 'W2', name: 'Wywiew 2', type: 'EXHAUST' }
             ],
-            analysisPresets: []
+            analysisPresets: [],
+            buildingFootprint: [],
+            materials: {},
+            layerSets: {},
+            wallTypes: {},
+            windowStyles: {}
           } 
         }])
         .select()
