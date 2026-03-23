@@ -254,6 +254,7 @@ interface ZoneStore {
   updateZone: (id: string, updates: Partial<ZoneData>) => void;
   removeZone: (id: string) => void;
   bulkUpdateZones: (ids: string[], updates: Partial<ZoneData>) => void;
+  bulkUpdateZonesDiff: (updates: Record<string, Partial<ZoneData>>) => void;
   bulkDeleteZones: (ids: string[]) => void;
   recalculateAirBalance: (id?: string) => void;
   addSystem: (system: SystemDef) => void;
@@ -615,6 +616,20 @@ export const useZoneStore = create<ZoneStore>()(
           ids.forEach(id => {
             if (nextZones[id]) {
               nextZones[id] = { ...nextZones[id], ...updates };
+            }
+          });
+          const resolved = resolveZonesState(nextZones);
+          setTimeout(() => syncTerminalsFromZones(), 0);
+          return { zones: resolved };
+        });
+      },
+
+      bulkUpdateZonesDiff: (updates) => {
+        set((state) => {
+          const nextZones = { ...state.zones };
+          Object.entries(updates).forEach(([id, zoneUpdates]) => {
+            if (nextZones[id]) {
+              nextZones[id] = { ...nextZones[id], ...zoneUpdates };
             }
           });
           const resolved = resolveZonesState(nextZones);

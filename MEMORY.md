@@ -1016,7 +1016,8 @@
     - **Measuring Tool**: Dodano dynamiczną etykietę odległości "live-preview" oraz powiadomienie toast z wynikiem końcowym w `Workspace2D.tsx`.
     - **CSV Import Expansion**: Rozbudowano modal mapowania CSV (`CsvMappingModal.tsx`) o opcjonalne pola termodynamiczne (Temp Lato/Zima, wilgotność, zyski/straty manualne).
     - **Smart Data Import**: Implementacja w `AirBalanceTable.tsx` automatycznie ustawia flagi `isManual` dla zaimportowanych zysków i strat, integrując dane z modułem WATT już na etapie wczytywania pliku.
-    - **Refactor**: Ujednolicono tworzenie stref przy imporcie przy użyciu `createDefaultZone`, co zapewnia spójność modelu danych.
+    - **CSV Update Wizard**: Implementacja `ThermodynamicUpdateModal.tsx` – zaawansowanego kreatora do porównywania danych CSV z istniejącymi strefami. Obsługuje podświetlanie różnic, selektywną aktualizację oraz wybór zakresu (Kondygnacja / Budynek).
+    - **Performance Optimization**: Dodano `bulkUpdateZonesDiff` do `useZoneStore.ts`, umożliwiając wydajną, seryjną aktualizację wielu stref z unikalnymi zestawami danych w jednej transakcji.
 - **Pliki**: `src/components/SyncAlignmentModal.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/LinkOutlineModal.tsx`, `src/components/Workspace2D.tsx`, `src/stores/useZoneStore.ts`.
 
 ### Iteracja 3.7.0 (Marzec 2026) - Integracja Termodynamiki WATT

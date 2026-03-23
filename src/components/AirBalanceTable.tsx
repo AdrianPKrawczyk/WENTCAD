@@ -3,6 +3,7 @@ import Papa from 'papaparse';
 import { AgGridReact } from 'ag-grid-react';
 import { RoomWizardModal } from './RoomWizardModal';
 import { CsvMappingModal } from './CsvMappingModal';
+import { ThermodynamicUpdateModal } from './ThermodynamicUpdateModal';
 import { SystemManagerModal } from './SystemManagerModal';
 import { FloorManagerBar } from './FloorManagerBar';
 import { BulkEditModal } from './BulkEditModal';
@@ -514,6 +515,7 @@ export function AirBalanceTable() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isSystemModalOpen, setIsSystemModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [csvRawData, setCsvRawData] = useState<any[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -687,6 +689,14 @@ export function AirBalanceTable() {
             📥 Importuj CSV
           </button>
 
+          <button 
+            onClick={() => setIsUpdateModalOpen(true)}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-md border border-indigo-200 shadow-sm text-sm font-bold transition-colors flex items-center gap-2"
+            title="Aktualizuj parametry istniejących pomieszczeń z pliku CSV"
+          >
+            🔄 Aktualizuj Dane (CSV)
+          </button>
+
           <input
             type="file"
             accept=".dxf"
@@ -846,6 +856,11 @@ export function AirBalanceTable() {
         onImport={handleCsvImport}
         csvData={csvRawData}
         headers={csvHeaders}
+      />
+
+      <ThermodynamicUpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
       />
       
       <BulkEditModal 
