@@ -1018,6 +1018,7 @@
     - **Smart Data Import**: Implementacja w `AirBalanceTable.tsx` automatycznie ustawia flagi `isManual` dla zaimportowanych zysków i strat, integrując dane z modułem WATT już na etapie wczytywania pliku.
     - **CSV Update Wizard**: Implementacja `ThermodynamicUpdateModal.tsx` – zaawansowanego kreatora do porównywania danych CSV z istniejącymi strefami. Obsługuje podświetlanie różnic, selektywną aktualizację oraz wybór zakresu (Kondygnacja / Budynek).
     - **Performance Optimization**: Dodano `bulkUpdateZonesDiff` do `useZoneStore.ts`, umożliwiając wydajną, seryjną aktualizację wielu stref z unikalnymi zestawami danych w jednej transakcji.
+    - **IFC Export Enhancement**: Rozszerzono eksport do standardu IFC (`ifcExport.ts`) o pełny zestaw danych termodynamicznych. Zaktualizowano `Pset_SpaceThermalDesign` (standardowe właściwości temperatury i mocy) oraz dodano autorski zestaw `Pset_WATT_DesignParameters` (parametry nawiewu i zyski wilgoci).
 - **Pliki**: `src/components/SyncAlignmentModal.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/LinkOutlineModal.tsx`, `src/components/Workspace2D.tsx`, `src/stores/useZoneStore.ts`.
 
 ### Iteracja 3.7.0 (Marzec 2026) - Integracja Termodynamiki WATT

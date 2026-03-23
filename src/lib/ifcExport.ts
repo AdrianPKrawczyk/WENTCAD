@@ -161,21 +161,40 @@ export async function exportToIfc(
       const space = b.add(`IFCSPACE('${b.generateGuid()}',${ownerHistory},'${zone.nr}','${longName}','${zone.activityType}',${spacePlacement},${shapeDef},$,.ELEMENT.,.INTERNAL.,$)`);
       spaceIds.push(space);
 
-      // Add Pset_SpaceThermalDesign
-      const heatLoss = 0.0; // WENTCAD currently doesn't track heat loss
-      const tempWinter = zone.roomTemp || 20.0;
-      const heatGain = zone.totalHeatGain || 0.0;
-      const tempSummer = zone.roomTemp || 24.0;
-      const humiditySummer = zone.roomRH || 50.0;
+      // Add Pset_SpaceThermalDesign (Standard)
+      const heatLoss = zone.isHeatLossManual ? zone.manualHeatLoss : (zone.wattHeatLoss || 0);
+      const tempWinter = zone.roomTempWinter || 20.0;
+      const rhWinter = zone.roomRHWinter || 40.0;
+      const heatGain = zone.isSensibleGainManual ? zone.manualSensibleGain : (zone.wattSensibleGain || 0);
+      const tempSummer = zone.roomTempSummer || 24.0;
+      const humiditySummer = zone.roomRHSummer || 50.0;
 
       const p1 = b.add(`IFCPROPERTYSINGLEVALUE('TotalHeatLoss',$,IFCPOWERMEASURE(${heatLoss.toFixed(2)}),$)`);
       const p2 = b.add(`IFCPROPERTYSINGLEVALUE('SpaceTemperatureWinterMin',$,IFCTHERMODYNAMICTEMPERATUREMEASURE(${tempWinter.toFixed(2)}),$)`);
       const p3 = b.add(`IFCPROPERTYSINGLEVALUE('TotalHeatGain',$,IFCPOWERMEASURE(${heatGain.toFixed(2)}),$)`);
       const p4 = b.add(`IFCPROPERTYSINGLEVALUE('SpaceTemperatureSummerMax',$,IFCTHERMODYNAMICTEMPERATUREMEASURE(${tempSummer.toFixed(2)}),$)`);
-      const p5 = b.add(`IFCPROPERTYSINGLEVALUE('SpaceHumiditySummer',$,IFCPOSITIVERATIOMEASURE(${humiditySummer.toFixed(2)}),$)`); // PositiveRatioMeasure for % or REAL
+      const p5 = b.add(`IFCPROPERTYSINGLEVALUE('SpaceHumiditySummer',$,IFCPOSITIVERATIOMEASURE(${humiditySummer.toFixed(2)}),$)`);
+      const p6 = b.add(`IFCPROPERTYSINGLEVALUE('SpaceHumidityWinter',$,IFCPOSITIVERATIOMEASURE(${rhWinter.toFixed(2)}),$)`);
       
-      const pset = b.add(`IFCPROPERTYSET('${b.generateGuid()}',${ownerHistory},'Pset_SpaceThermalDesign',$,(${p1},${p2},${p3},${p4},${p5}))`);
-      b.add(`IFCRELDEFINESBYPROPERTIES('${b.generateGuid()}',${ownerHistory},$,$,(${space}),${pset})`);
+      const psetStandard = b.add(`IFCPROPERTYSET('${b.generateGuid()}',${ownerHistory},'Pset_SpaceThermalDesign',$,(${p1},${p2},${p3},${p4},${p5},${p6}))`);
+      b.add(`IFCRELDEFINESBYPROPERTIES('${b.generateGuid()}',${ownerHistory},$,$,(${space}),${psetStandard})`);
+
+      // Add Pset_WATT_DesignParameters (Custom WATT fields)
+      const supplyTempSummer = zone.supplyTempSummer || 16.0;
+      const supplyRHSummer = zone.supplyRHSummer || 90.0;
+      const supplyTempWinter = zone.supplyTempWinter || 20.0;
+      const supplyRHWinter = zone.supplyRHWinter || 30.0;
+      const moistureGain = zone.isMoistureGainManual ? zone.manualMoistureGain : (zone.wattMoistureGain || 0);
+
+      const w1 = b.add(`IFCPROPERTYSINGLEVALUE('SupplyTemperatureSummer',$,IFCTHERMODYNAMICTEMPERATUREMEASURE(${supplyTempSummer.toFixed(2)}),$)`);
+      const w2 = b.add(`IFCPROPERTYSINGLEVALUE('SupplyHumiditySummer',$,IFCPOSITIVERATIOMEASURE(${supplyRHSummer.toFixed(2)}),$)`);
+      const w3 = b.add(`IFCPROPERTYSINGLEVALUE('SupplyTemperatureWinter',$,IFCTHERMODYNAMICTEMPERATUREMEASURE(${supplyTempWinter.toFixed(2)}),$)`);
+      const w4 = b.add(`IFCPROPERTYSINGLEVALUE('SupplyHumidityWinter',$,IFCPOSITIVERATIOMEASURE(${supplyRHWinter.toFixed(2)}),$)`);
+      const w5 = b.add(`IFCPROPERTYSINGLEVALUE('MoistureGain',$,IFCREAL(${moistureGain.toFixed(4)}),$)`); // g/s
+      const w6 = b.add(`IFCPROPERTYSINGLEVALUE('CalculationMode',$,IFCLABEL('${zone.calculationMode}'),$)`);
+
+      const psetWatt = b.add(`IFCPROPERTYSET('${b.generateGuid()}',${ownerHistory},'Pset_WATT_DesignParameters',$,(${w1},${w2},${w3},${w4},${w5},${w6}))`);
+      b.add(`IFCRELDEFINESBYPROPERTIES('${b.generateGuid()}',${ownerHistory},$,$,(${space}),${psetWatt})`);
     }
 
     if (spaceIds.length > 0) {
