@@ -22,7 +22,6 @@ import { SyncAlignmentModal } from './SyncAlignmentModal';
 import { SyncSettingsModal } from './SyncSettingsModal';
 import { DxfOutlinesModal } from './DxfOutlinesModal';
 import { useCanvasStore } from '../stores/useCanvasStore';
-import { calculatePolygonArea } from '../lib/geometryUtils';
 import { toast } from 'sonner';
 import { SavedFiltersToolPanel } from './SavedFiltersToolPanel';
 import { useSettingsStore } from '../stores/useSettingsStore';
@@ -930,7 +929,7 @@ export function AirBalanceTable() {
             return;
           }
 
-          const metersPerPixel = syncMultiplier / alignment.pxPerUnit;
+
 
           const currentCanvasFloor = useCanvasStore.getState().getFloorState(activeFloorId);
           const floorPolygons = currentCanvasFloor.polygons || [];
@@ -957,7 +956,8 @@ export function AirBalanceTable() {
                 p.id === overlapping.id ? { ...p, points: ext.points } : p
               );
               
-              const area = calculatePolygonArea(ext.points) * (metersPerPixel ** 2);
+              // Use Ground-Truth Area from DXF Units (immune to alignment distortion)
+              const area = ext.originalArea * (syncMultiplier ** 2);
               updateZone(overlapping.zoneId, { 
                 geometryArea: area,
                 isAreaManual: false 
@@ -967,7 +967,7 @@ export function AirBalanceTable() {
               newDxfOutlines.push({
                 id: crypto.randomUUID(),
                 points: ext.points,
-                area: calculatePolygonArea(ext.points) * (metersPerPixel ** 2)
+                area: ext.originalArea * (syncMultiplier ** 2)
               });
             }
           });
@@ -976,7 +976,7 @@ export function AirBalanceTable() {
           useCanvasStore.getState().updateFloorState(activeFloorId, {
             polygons: updatedPolygons,
             dxfOutlines: [...(currentCanvasFloor.dxfOutlines || []), ...newDxfOutlines],
-            scaleFactor: metersPerPixel // AUTO-CALIBRATE scale from CAD multiplier and alignment
+            // scaleFactor: metersPerPixel // REVERTED: Do not overwrite project scale automatically
           });
 
           // 2. WATT TOPOLOGY EXTRACTION (Opcjonalne)
@@ -990,17 +990,19 @@ export function AirBalanceTable() {
              const rawWattData = extractWattTopology(syncDxfData, footprintLayers, courtyardLayers, windowLayers);
              console.log('[WATT] Extracted:', { footprint: rawWattData.buildingFootprint.outer.length, windows: rawWattData.windows.length });
              
-              // Transform outer footprint and SCALE TO METERS
+              // Transform outer footprint and SCALE TO METERS using CURRENT PROJECT SCALE
+              // This ensures consistency with existing zones and reference origin
+              const projectScale = currentCanvasFloor.scaleFactor || 1.0;
               const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
                  const t = alignment.transformFn(pt.x, pt.y);
-                 return { x: t.x * metersPerPixel, y: t.y * metersPerPixel };
+                 return { x: t.x * projectScale, y: t.y * projectScale };
               });
 
              // Transform courtyards and SCALE TO METERS
              const transformedCourtyards = rawWattData.buildingFootprint.courtyards.map(polygon => {
                 return polygon.map(pt => {
                    const t = alignment.transformFn(pt.x, pt.y);
-                   return { x: t.x * metersPerPixel, y: t.y * metersPerPixel };
+                   return { x: t.x * projectScale, y: t.y * projectScale };
                 });
              });
 
@@ -1008,10 +1010,11 @@ export function AirBalanceTable() {
               const transformedWindows = rawWattData.windows.map(win => {
                  if (!win.centroid) return win;
                  const tCenter = alignment.transformFn(win.centroid.x, win.centroid.y);
+                 const projectScale = currentCanvasFloor.scaleFactor || 1.0;
                  return {
                     ...win,
                     width: win.width * syncMultiplier, // Width is relative to DXF so multiply by DXF factor
-                    centroid: { x: tCenter.x * metersPerPixel, y: tCenter.y * metersPerPixel }
+                    centroid: { x: tCenter.x * projectScale, y: tCenter.y * projectScale }
                  };
               });
 

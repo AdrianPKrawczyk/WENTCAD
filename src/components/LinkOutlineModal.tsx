@@ -2,8 +2,6 @@ import { useMemo } from 'react';
 import { X, Link } from 'lucide-react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { useCanvasStore } from '../stores/useCanvasStore';
-import { calculatePolygonArea } from '../lib/geometryUtils';
-
 interface LinkOutlineModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -52,8 +50,8 @@ export function LinkOutlineModal({ isOpen, onClose, outlineId }: LinkOutlineModa
     });
 
     // 5. Aktualizuj dane strefy (Powierzchnia)
-    const scaleFactor = activeCanvasFloor.scaleFactor || 1;
-    const areaSqM = calculatePolygonArea(outline.points) * (scaleFactor ** 2);
+    // Use the stored Ground-Truth area from the DXF outline
+    const areaSqM = outline.area;
     updateZone(zoneId, {
         geometryArea: areaSqM,
         isAreaManual: false

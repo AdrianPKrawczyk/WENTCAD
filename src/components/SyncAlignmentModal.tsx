@@ -99,7 +99,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       }
 
       // Wyliczanie współczynników macierzy afinicznej
-      const a = (p1Canvas.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.x - p3Canvas.x) + (p2Canvas.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
+      const a = (p1Canvas.x * (p2Dxf.y - p3Dxf.y) - p1Dxf.y * (p2Canvas.x - p3Canvas.x) + (p2Canvas.x * p3Dxf.y - p3Canvas.x * p2Dxf.y)) / det;
       const b = (p1Dxf.x * (p2Canvas.x - p3Canvas.x) - p1Canvas.x * (p2Dxf.x - p3Dxf.x) + (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x)) / det;
       const c = (p1Dxf.x * (p2Dxf.y * p3Canvas.x - p3Dxf.y * p2Canvas.x) - p1Dxf.y * (p2Dxf.x * p3Canvas.x - p3Dxf.x * p2Canvas.x) + p1Canvas.x * (p2Dxf.x * p3Dxf.y - p3Dxf.x * p2Dxf.y)) / det;
 

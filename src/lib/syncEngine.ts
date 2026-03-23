@@ -1,9 +1,11 @@
+import { calculatePolygonArea } from './geometryUtils';
+
 export function extractAndTransformPolygons(
   dxfData: any,
   targetLayer: string,
   transformFn: (x: number, y: number) => { x: number; y: number }
-): Array<{ points: number[]; centerX: number; centerY: number }> {
-  const extracted: Array<{ points: number[]; centerX: number; centerY: number }> = [];
+): Array<{ points: number[]; centerX: number; centerY: number, originalArea: number }> {
+  const extracted: Array<{ points: number[]; centerX: number; centerY: number, originalArea: number }> = [];
 
   dxfData.entities?.forEach((ent: any) => {
     if (ent.layer !== targetLayer) return;
@@ -13,11 +15,13 @@ export function extractAndTransformPolygons(
       if (!ent.vertices || ent.vertices.length < 3) return;
 
       const points: number[] = [];
+      const rawPoints: number[] = [];
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
       ent.vertices.forEach((v: any) => {
         const transformed = transformFn(v.x, v.y);
         points.push(transformed.x, transformed.y);
+        rawPoints.push(v.x, v.y);
         
         if (transformed.x < minX) minX = transformed.x;
         if (transformed.x > maxX) maxX = transformed.x;
@@ -27,8 +31,9 @@ export function extractAndTransformPolygons(
 
       const centerX = minX + (maxX - minX) / 2;
       const centerY = minY + (maxY - minY) / 2;
+      const area = calculatePolygonArea(rawPoints);
 
-      extracted.push({ points, centerX, centerY });
+      extracted.push({ points, centerX, centerY, originalArea: area });
     }
   });
 

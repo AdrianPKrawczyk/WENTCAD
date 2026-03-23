@@ -1010,8 +1010,8 @@
 ### Iteracja 3.7.1 (Marzec 2026) - Poprawki Błędów i Skalowanie CAD
 - **Cel**: Wyeliminowanie krytycznych błędów (crash, scaling) oraz poprawa UX narzędzia pomiarowego.
 - **Zmiany**:
-    - **CAD Scale Fix (Critical)**: Naprawiono błąd skalowania powierzchni (15m2 vs 19.25m2). Rozwiązanie polega na wyliczaniu rzeczywistej skali transformacji (px/unit) w `SyncAlignmentModal.tsx` i użyciu jej do wyznaczenia poprawnego współczynnika `metersPerPixel`.
-    - **Auto-Kalibracja**: Synchronizacja z CAD teraz automatycznie aktualizuje `scaleFactor` kondygnacji, co gwarantuje poprawność wszystkich przyszłych pomiarów.
+    - **CAD Scale Fix (Correction)**: Rozwiązano problem zniekształceń przy niejednolitym skalowaniu (skew). Zastosowano metodę **Ground-Truth Area** – pole powierzchni pobierane jest bezpośrednio z geometrii DXF, co gwarantuje 100% dokładności (np. zawsze 15m2) niezależnie od zniekształceń tła. Wyłączono automatyczną nadpisywanie skali rzutu, aby zachować spójność z istniejącą kalibracją użytkownika.
+    - **Fix Shift**: Poprawiono pozycjonowanie topologii WATT poprzez synchronizację ze stałym `scaleFactor` projektu.
     - **Fix Crash**: Dodano null-checki w `LinkOutlineModal.tsx` dla `polygons`, zapobiegając zawieszeniu aplikacji przy łączeniu pomieszczeń.
     - **Measuring Tool**: Dodano dynamiczną etykietę odległości "live-preview" oraz powiadomienie toast z wynikiem końcowym w `Workspace2D.tsx`.
     - **Data Integrity**: Wdrożono helper `createDefaultZone` w `useZoneStore.ts`, ujednolicając inicjalizację stref (w tym nowych pól WATT) w całym systemie.

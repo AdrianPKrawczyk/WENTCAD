@@ -1501,8 +1501,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                        dxfOutlines: filteredOutlines,
                        polygons: [...filteredPolys, newPoly] 
                     });
-                    const floorScale = scaleFactor || 1;
-                    const areaSqM = calculatePolygonArea(outline.points) * (floorScale ** 2);
+                    const areaSqM = outline.area;
                     updateZone(linkingZoneId, { 
                       geometryArea: areaSqM,
                       isAreaManual: false
@@ -1620,7 +1619,8 @@ export function Workspace2D({ className }: Workspace2DProps) {
                       const updatedPolygons = [...finalPolygons, { id: crypto.randomUUID(), zoneId: linkingZoneId, points: newPoints }];
                       updateFloorState(activeFloorId, { polygons: updatedPolygons });
                       const floorScale = useCanvasStore.getState().getFloorState(activeFloorId).scaleFactor || 1;
-                      const areaSqM = calculatePolygonArea(newPoints) * (floorScale ** 2);
+                      const sourceZone = useZoneStore.getState().zones[poly.zoneId];
+                      const areaSqM = sourceZone?.geometryArea || (calculatePolygonArea(newPoints) * (floorScale ** 2));
                       updateZone(linkingZoneId, { 
                         geometryArea: areaSqM,
                         isAreaManual: false
