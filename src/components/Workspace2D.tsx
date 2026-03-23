@@ -154,6 +154,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const floorSwitcherPosition = useUIStore((s) => s.floorSwitcherPosition);
   const setFloorSwitcherPosition = useUIStore((s) => s.setFloorSwitcherPosition);
   const isUnderlayVisible = useUIStore((s) => s.isUnderlayVisible);
+  const setIsUnderlayVisible = useUIStore((s) => s.setIsUnderlayVisible);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -977,6 +978,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           const img = new window.Image();
           img.onload = () => {
             setUnderlay(dataUrl, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+            setIsUnderlayVisible(true);
             setIsLoading(false);
           };
           img.src = dataUrl;
@@ -1014,6 +1016,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
           const img = new window.Image();
           img.onload = () => {
             setUnderlay(url, { width: img.naturalWidth, height: img.naturalHeight }, file.name);
+            setIsUnderlayVisible(true);
             setIsLoading(false);
           };
           img.onerror = () => {
@@ -3254,6 +3257,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
                   { width: result.width, height: result.height }, 
                   `[DXF] ${pendingDxfFile?.name}`
                 );
+                setIsUnderlayVisible(true);
                 setScaleFactor(multiplier);
                 toast.success(`Zaimportowano DXF. Jednostki: ${unitLabel}`);
               } else {
