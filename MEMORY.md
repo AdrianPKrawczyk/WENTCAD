@@ -45,6 +45,12 @@
         - [x] **Izolacja Interakcji**: Blokada kliknięć w strefy i metki (`listening={false}`) podczas rysowania instalacji.
         - [x] **Fix Disappearing Rooms**: Rozwiązanie konfliktu Shift+Click (Orto vs Usuwanie strefy).
         - [x] Wizualny podgląd linii draftu w kolorze aktywnego systemu.
+- [x] **WATT REWIZJA 4: Zaawansowana Termodynamika i Integracja CSV/IFC**:
+    - [x] Rozbudowa modelu o parametry Lato/Zima i zyski ciepła/wilgoci.
+    - [x] Naprawa widoczności podkładów PDF (wymuszenie widoczności po imporcie).
+    - [x] Naprawa skalowania okien CAD (Vetted Multiplier oparty na dopasowaniu).
+    - [x] Eksport danych termodynamicznych do IFC (Pset_SpaceThermalDesign).
+    - [x] Kreator aktualizacji danych termicznych via CSV.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -151,10 +157,12 @@
     * **Synchronizacja Selekcji**: Implementacja `selectedHorizontalBoundaryId` w `useZoneStore` zapewnia spójne podświetlanie (fioletowa poświata w 3D / aktywny stan w 2D) wybranego stropu we wszystkich oknach aplikacji.
     * **FIX (JSX Nesting)**: Naprawiono krytyczny błąd składni w `Building3DViewer.tsx` (brakujące zamknięcie tagu `<group>`), który uniemożliwiał uruchomienie strony.
 
-* **WATT Module Fix (ESM/Vite Export Error)**:
-    * **Type Separation**: Moved all WATT-specific interfaces (`OpeningInstance`, `ZoneBoundary`, etc.) to a dedicated file `src/lib/wattTypes.ts`.
-    * **Import Optimization**: Converted all WATT type imports to `import type` to prevent Vite from attempting to resolve them as runtime exports, fixing the "does not provide an export named 'OpeningInstance'" crash.
-    * **Interface Cleanup**: Fixed duplicated property definitions in `ZoneStore` interface and missing semicolons in `src/types.ts`.
+* **WATT REWIZJA 4 (Termodynamika i Poprawki Importu)**:
+    * **Zaawansowana Termodynamika**: Rozszerzono model stref o parametry `winter/summer` (Temp, RH) oraz zyski ciepła jawnego (`heatGain`) i wilgoci (`moistureGain`). `PhysicsEngine.ts` wspiera teraz trzy tryby bilansowania.
+    * **Fix: Widoczność Podkładu PDF**: Rozwiązano problem, w którym podkłady PDF stawały się niewidoczne po nawigacji. `Workspace2D.tsx` teraz bezwarunkowo wymusza `setIsUnderlayVisible(true)` po każdym pomyślnym załadowaniu pliku.
+    * **Fix: Skalowanie Okien CAD (Vetted Multiplier)**: Rozwiązano błąd 10-krotnego przeskalowania okien (np. 12cm zamiast 120cm). System dynamicznie wylicza `derivedMultiplier` z kalibracji 3-punktowej i wykonuje "Snap" do standardowych jednostek (mm, cm, m), zapewniając spójność wymiarową rzutu i dancyh analitycznych.
+    * **BIM / IFC**: Eksport IFC zawiera teraz pełny `Pset_SpaceThermalDesign`, mapując parametry bilansowe stref na standardowe właściwości IFC.
+    * **CSV Update Module**: Wdrożono `ThermodynamicUpdateModal`, pozwalający na porównawczą aktualizację danych termicznych stref z plików zewnętrznych, z funkcją selektywnego wyboru zmian.
 
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.

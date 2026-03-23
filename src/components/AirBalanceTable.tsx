@@ -907,15 +907,36 @@ export function AirBalanceTable() {
           if (!syncDxfData || !selectedSyncLayer) return;
 
           // 1. OBRYSY POMIESZCZEŃ
-          const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, alignment.transformFn);
-          if (extracted.length === 0) {
-            toast.error(`Nie znaleziono zamkniętych polilinii na warstwie: ${selectedSyncLayer}`);
-            return;
+          const currentCanvasFloor = useCanvasStore.getState().getFloorState(activeFloorId);
+          const projectScale = currentCanvasFloor?.scaleFactor || 1.0;
+
+          // DETERMINISTYCZNY MNOŻNIK SKALI (Vetted Multiplier)
+          // Wyliczamy rzeczywisty mnożnik na podstawie fizycznego dopasowania punktów (alignment)
+          // i skali projektu (projectScale). Unikamy błędu rzędu wielkości (np. mm vs cm) 
+          // wywołanego błędnym wyborem jednostek przez użytkownika.
+          const derivedMultiplier = alignment.pxPerUnit * projectScale;
+          const standardMultipliers = [0.001, 0.01, 0.1, 1.0, 0.0254, syncMultiplier]; // mm, cm, dm, m, inch + user-selected hint
+          let vettedMultiplier = syncMultiplier; // Default to user-selected if 1-point alignment
+
+          // If alignment defines a scale (pxPerUnit !== 1.0 or we are in 3-point mode), try to derive/snap
+          if (alignment.pxPerUnit !== 1.0) {
+            vettedMultiplier = derivedMultiplier;
+            for (const sm of standardMultipliers) {
+              const ratio = derivedMultiplier / sm;
+              if (ratio > 0.9 && ratio < 1.1) {
+                vettedMultiplier = sm;
+                console.log(`[WATT] Vetted Multiplier: Snapped ${derivedMultiplier.toFixed(6)} -> ${sm} (Ratio: ${ratio.toFixed(4)})`);
+                break;
+              }
+            }
           }
 
+          if (vettedMultiplier === derivedMultiplier) {
+            console.log(`[WATT] Vetted Multiplier: Using custom derived value ${derivedMultiplier.toFixed(6)}`);
+          }
 
-
-          const currentCanvasFloor = useCanvasStore.getState().getFloorState(activeFloorId);
+          // 1. OBRYSY POMIESZCZEŃ
+          const extracted = extractAndTransformPolygons(syncDxfData, selectedSyncLayer, alignment.transformFn);
           const floorPolygons = currentCanvasFloor.polygons || [];
           
           let updatedPolygons = [...floorPolygons];
@@ -940,8 +961,8 @@ export function AirBalanceTable() {
                 p.id === overlapping.id ? { ...p, points: ext.points } : p
               );
               
-              // Use Ground-Truth Area from DXF Units (immune to alignment distortion)
-              const area = ext.originalArea * (syncMultiplier ** 2);
+              // Use Ground-Truth Area from DXF Units scaled by vetted multiplier
+              const area = ext.originalArea * (vettedMultiplier ** 2);
               updateZone(overlapping.zoneId, { 
                 geometryArea: area,
                 isAreaManual: false 
@@ -951,7 +972,7 @@ export function AirBalanceTable() {
               newDxfOutlines.push({
                 id: crypto.randomUUID(),
                 points: ext.points,
-                area: ext.originalArea * (syncMultiplier ** 2)
+                area: ext.originalArea * (vettedMultiplier ** 2)
               });
             }
           });
@@ -976,7 +997,6 @@ export function AirBalanceTable() {
              
               // Transform outer footprint and SCALE TO METERS using CURRENT PROJECT SCALE
               // This ensures consistency with existing zones and reference origin
-              const projectScale = currentCanvasFloor.scaleFactor || 1.0;
               const transformedOuter = rawWattData.buildingFootprint.outer.map(pt => {
                  const t = alignment.transformFn(pt.x, pt.y);
                  return { x: t.x * projectScale, y: t.y * projectScale };
@@ -994,10 +1014,9 @@ export function AirBalanceTable() {
               const transformedWindows = rawWattData.windows.map(win => {
                  if (!win.centroid) return win;
                  const tCenter = alignment.transformFn(win.centroid.x, win.centroid.y);
-                 const projectScale = currentCanvasFloor.scaleFactor || 1.0;
                  return {
                     ...win,
-                    width: win.width * syncMultiplier, // Width is relative to DXF so multiply by DXF factor
+                    width: win.width * vettedMultiplier, // Use vetted multiplier based on alignment
                     centroid: { x: tCenter.x * projectScale, y: tCenter.y * projectScale }
                  };
               });
