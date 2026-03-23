@@ -1014,7 +1014,9 @@
     - **Fix Shift**: Poprawiono pozycjonowanie topologii WATT poprzez synchronizację ze stałym `scaleFactor` projektu.
     - **Fix Crash**: Dodano null-checki w `LinkOutlineModal.tsx` dla `polygons`, zapobiegając zawieszeniu aplikacji przy łączeniu pomieszczeń.
     - **Measuring Tool**: Dodano dynamiczną etykietę odległości "live-preview" oraz powiadomienie toast z wynikiem końcowym w `Workspace2D.tsx`.
-    - **Data Integrity**: Wdrożono helper `createDefaultZone` w `useZoneStore.ts`, ujednolicając inicjalizację stref (w tym nowych pól WATT) w całym systemie.
+    - **CSV Import Expansion**: Rozbudowano modal mapowania CSV (`CsvMappingModal.tsx`) o opcjonalne pola termodynamiczne (Temp Lato/Zima, wilgotność, zyski/straty manualne).
+    - **Smart Data Import**: Implementacja w `AirBalanceTable.tsx` automatycznie ustawia flagi `isManual` dla zaimportowanych zysków i strat, integrując dane z modułem WATT już na etapie wczytywania pliku.
+    - **Refactor**: Ujednolicono tworzenie stref przy imporcie przy użyciu `createDefaultZone`, co zapewnia spójność modelu danych.
 - **Pliki**: `src/components/SyncAlignmentModal.tsx`, `src/components/AirBalanceTable.tsx`, `src/components/LinkOutlineModal.tsx`, `src/components/Workspace2D.tsx`, `src/stores/useZoneStore.ts`.
 
 ### Iteracja 3.7.0 (Marzec 2026) - Integracja Termodynamiki WATT

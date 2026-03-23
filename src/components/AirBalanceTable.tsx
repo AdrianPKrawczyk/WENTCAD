@@ -557,76 +557,44 @@ export function AirBalanceTable() {
   };
 
   const handleCsvImport = (mappedData: any[]) => {
+    // Determine target floor ID
+    const targetFloorId = activeFloorId === '__all__' 
+      ? Object.keys(useZoneStore.getState().floors)[0] 
+      : activeFloorId;
+
     mappedData.forEach((row, index) => {
       const area = row.area || 15;
       const height = row.height || 3;
       const name = row.name || `Pokój ${index + 1}`;
       const nr = row.nr || `P-${(Object.keys(zones).length + index + 1).toString().padStart(2, '0')}`;
       
+      const newZoneId = `zone-${Date.now()}-${index}`;
+      const defaultZone = createDefaultZone(newZoneId, nr, name, targetFloorId);
+
       addZone({
-        id: `zone-${Date.now()}-${index}`,
+        ...defaultZone,
+        id: newZoneId,
         nr,
         name,
-        activityType: 'CUSTOM',
-        calculationMode: 'AUTO_MAX',
-        systemSupplyId: 'N1',
-        systemExhaustId: 'W1',
         area: Math.round(area * 100) / 100,
         manualArea: Math.round(area * 100) / 100,
         height,
-        geometryArea: null,
         isAreaManual: true,
-        occupants: 1,
-        dosePerOccupant: 30,
-        isTargetACHManual: false,
-        manualTargetACH: null,
-        targetACH: 0,
-        normativeVolume: 0,
-        normativeExhaust: 0,
-        totalHeatGain: 0,
-        roomTemp: 24,
-        roomRH: 50,
-        supplyTemp: 16,
-        supplyRH: 80,
-        acousticAbsorption: 'MEDIUM',
-        maxAllowedDbA: 35,
-        isMaxDbAManual: false,
-        manualMaxAllowedDbA: null,
-        transferIn: [],
-        transferOut: [],
-        calculatedVolume: 0,
-        calculatedExhaust: 0,
-        transferInSum: 0,
-        transferOutSum: 0,
-        netBalance: 0,
-        realACH: 0,
-        volume: 0,
-        manualVolume: 0,
-        geometryVolume: null,
-        isVolumeManual: false,
-        floorId: activeFloorId === '__all__' ? Object.keys(useZoneStore.getState().floors)[0] : activeFloorId,
-        roomTempSummer: 24,
-        roomRHSummer: 50,
-        supplyTempSummer: 18,
-        supplyRHSummer: 90,
-        roomTempWinter: 20,
-        roomRHWinter: 40,
-        supplyTempWinter: 25,
-        supplyRHWinter: 20,
-        wattHeatLoss: 0,
-        manualHeatLoss: 0,
-        isHeatLossManual: false,
-        heatLossUnit: 'W',
-        wattSensibleGain: 0,
-        manualSensibleGain: 0,
-        isSensibleGainManual: false,
-        sensibleGainUnit: 'W',
-        wattMoistureGain: 0,
-        manualMoistureGain: 0,
-        isMoistureGainManual: false,
-        moistureGainUnit: 'g/s',
-        techSensibleGain: 0,
-        techMoistureGain: 0
+        // Thermodynamic Imports from CSV
+        roomTempSummer: row.roomTempSummer ?? defaultZone.roomTempSummer,
+        roomRHSummer: row.roomRHSummer ?? defaultZone.roomRHSummer,
+        supplyTempSummer: row.supplyTempSummer ?? defaultZone.supplyTempSummer,
+        supplyRHSummer: row.supplyRHSummer ?? defaultZone.supplyRHSummer,
+        roomTempWinter: row.roomTempWinter ?? defaultZone.roomTempWinter,
+        roomRHWinter: row.roomRHWinter ?? defaultZone.roomRHWinter,
+        supplyTempWinter: row.supplyTempWinter ?? defaultZone.supplyTempWinter,
+        supplyRHWinter: row.supplyRHWinter ?? defaultZone.supplyRHWinter,
+        manualHeatLoss: row.manualHeatLoss ?? defaultZone.manualHeatLoss,
+        isHeatLossManual: row.manualHeatLoss !== undefined,
+        manualSensibleGain: row.manualSensibleGain ?? defaultZone.manualSensibleGain,
+        isSensibleGainManual: row.manualSensibleGain !== undefined,
+        manualMoistureGain: row.manualMoistureGain ?? defaultZone.manualMoistureGain,
+        isMoistureGainManual: row.manualMoistureGain !== undefined,
       });
     });
     
@@ -634,6 +602,7 @@ export function AirBalanceTable() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    toast.success(`Zaimportowano ${mappedData.length} pomieszczeń z pliku CSV.`);
   };
 
   const gridComponents = useMemo(() => ({
