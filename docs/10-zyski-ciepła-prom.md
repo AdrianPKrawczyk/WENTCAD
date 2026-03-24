@@ -96,7 +96,7 @@ Obliczenie chwilowych zysków ciepła ($Q_{sc}$) przenikających do pomieszczeni
 ### 2.3. Tablice referencyjne (wymagane w bazie danych aplikacji)
 *   Tabela bazowych wartości **równoważnej różnicy temperatury ($\Delta t_r$)** - zależna od godziny słonecznej, typu przegrody, orientacji oraz masy jednostkowej.
 *   Tabela **współczynników poprawkowych ($\beta$)** - zależna od typu przegrody, jej masy oraz współczynnika przezroczystości atmosfery.
-
+Znajdują się w pliku docs\10-zyski-ciepla-prom.tabelice-referencyjne_2.3.json
 ---
 
 ## 3. PROCEDURA OBLICZENIOWA (KROK PO KROKU)

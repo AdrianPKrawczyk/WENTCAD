@@ -1,0 +1,61 @@
+{
+  "nazwa_tablicy": "Zyski ciepła jawnego [W] pochodzące od jednej osoby w zależności od temperatury oraz stopnia aktywności fizycznej",
+  "dane": [
+    {
+      "aktywnosc_kategoria_W": "Mała 0 ÷ 200",
+      "czynnosc": "Odpoczynek w pozycji siedzącej",
+      "temperatury_C": {
+        "15": 95, "16": 93, "17": 92, "18": 90, "19": 87, "20": 85, "21": 82, "22": 79, "23": 76, "24": 72, "25": 68, "26": 64, "27": 59, "28": 54, "29": 48, "30": 42, "31": 35, "32": 27, "33": 19, "34": 10, "35": 0
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Mała 0 ÷ 200",
+      "czynnosc": "Odpoczynek w pozycji stojącej (np. widz w teatrze, uczeń szkoły podstawowej)",
+      "temperatury_C": {
+        "15": 106, "16": 103, "17": 101, "18": 98, "19": 94, "20": 91, "21": 87, "22": 83, "23": 79, "24": 75, "25": 70, "26": 65, "27": 60, "28": 54, "29": 48, "30": 41, "31": 34, "32": 27, "33": 19, "34": 10, "35": 1
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Mała 0 ÷ 200",
+      "czynnosc": "Bardzo lekka praca fizyczna (np. praca biurowa, kreślarz, szwaczka, dźwigowy, uczeń szkoły średniej)",
+      "temperatury_C": {
+        "15": 116, "16": 113, "17": 109, "18": 106, "19": 101, "20": 94, "21": 92, "22": 87, "23": 82, "24": 76, "25": 71, "26": 65, "27": 59, "28": 53, "29": 46, "30": 40, "31": 33, "32": 27, "33": 20, "34": 13, "35": 6
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Mała 0 ÷ 200",
+      "czynnosc": "Lekka praca fizyczna (np. sprzedawca sklepowy, ślusarz, spawacz, prasowaczka, pracownik hotelowy, student, pracownik wyższej uczelni, pracownik w domach towarowych)",
+      "temperatury_C": {
+        "15": 130, "16": 125, "17": 119, "18": 113, "19": 108, "20": 102, "21": 96, "22": 90, "23": 84, "24": 77, "25": 71, "26": 65, "27": 59, "28": 52, "29": 46, "30": 40, "31": 34, "32": 28, "33": 22, "34": 16, "35": 10
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Średnia 200 ÷ 300",
+      "czynnosc": "Średnio ciężka praca fizyczna (np. kowal, walcownik, tokarz, tkacz, aptekarz, pracownik bankowy)",
+      "temperatury_C": {
+        "15": 135, "16": 130, "17": 125, "18": 119, "19": 113, "20": 107, "21": 100, "22": 93, "23": 86, "24": 79, "25": 72, "26": 65, "27": 58, "28": 52, "29": 46, "30": 40, "31": 35, "32": 31, "33": 27, "34": 24, "35": 22
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Średnia 200 ÷ 300",
+      "czynnosc": "Średnio ciężka praca fizyczna (np. kelner w kawiarni, restauracji)",
+      "temperatury_C": {
+        "15": 165, "16": 159, "17": 152, "18": 144, "19": 137, "20": 129, "21": 121, "22": 112, "23": 104, "24": 95, "25": 87, "26": 78, "27": 70, "28": 61, "29": 53, "30": 44, "31": 36, "32": 28, "33": 20, "34": 12, "35": 5
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Duża >300",
+      "czynnosc": "Ciężka praca fizyczna (np. tragarz, ładowacz)",
+      "temperatury_C": {
+        "15": 189, "16": 181, "17": 172, "18": 163, "19": 155, "20": 146, "21": 138, "22": 130, "23": 122, "24": 114, "25": 106, "26": 98, "27": 90, "28": 82, "29": 75, "30": 67, "31": 60, "32": 53, "33": 46, "34": 39, "35": 32
+      }
+    },
+    {
+      "aktywnosc_kategoria_W": "Duża >300",
+      "czynnosc": "Ciężka praca fizyczna (np. taniec)",
+      "temperatury_C": {
+        "15": 238, "16": 225, "17": 212, "18": 201, "19": 190, "20": 180, "21": 171, "22": 163, "23": 154, "24": 146, "25": 138, "26": 135, "27": 121, "28": 112, "29": 103, "30": 93, "31": 81, "32": 69, "33": 56, "34": 41, "35": 25
+      }
+    }
+  ]
+}

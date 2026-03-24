@@ -12,13 +12,34 @@ function normalizeAngle(p1: {x:number, y:number}, p2: {x:number, y:number}): num
 }
 
 /**
+ * Ensures vertices are in Counter-Clockwise order (in Y-down space).
+ * Area > 0 in our coords (Y-down) means CCW.
+ */
+function ensureCCW(vertices: {x:number, y:number}[]): {x:number, y:number}[] {
+  if (vertices.length < 3) return vertices;
+  let area = 0;
+  for (let i = 0; i < vertices.length; i++) {
+    const p1 = vertices[i];
+    const p2 = vertices[(i + 1) % vertices.length];
+    area += (p2.x - p1.x) * (p2.y + p1.y);
+  }
+  // area > 0 means CCW in Y-down coordinate system
+  if (area < 0) return [...vertices].reverse();
+  return vertices;
+}
+
+/**
  * Calculates azimuth (0-360) where 0 is North (+Y in our coordinate system)
  */
 export function calculateAzimuth(p1: {x:number, y:number}, p2: {x:number, y:number}): number {
-  // DXF/Canvas: 0 is East (+X). Let's convert to Compass: 0 North, 90 East.
-  // Math.atan2 gives angle from X axis.
+  // Angle of segment (0 is East, 90 is South in Y-down)
   let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-  let azimuth = 90 - angle; 
+  
+  // For CCW winding: Outward Normal = Segment Angle + 90 deg.
+  // Segment Azimuth (CW from North=0) = angle + 90.
+  // Outward Normal Azimuth = (angle + 90) + 90 = angle + 180.
+  let azimuth = angle + 180; 
+  
   while (azimuth < 0) azimuth += 360;
   while (azimuth >= 360) azimuth -= 360;
   return azimuth;
@@ -40,7 +61,8 @@ function distPointToSegment(p: {x:number, y:number}, v: {x:number, y:number}, w:
  */
 export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: number = 1.0, maxDist: number = 0.6): ZoneBoundary[] {
   const boundaries: ZoneBoundary[] = [];
-  const verticesA = (zoneA as any)._vertices || []; 
+  // NORMALIZE TO CCW FOR ACCURATE NORMAL CALCULATION
+  const verticesA = ensureCCW((zoneA as any)._vertices || []); 
   
   if (verticesA.length < 2) return [];
 

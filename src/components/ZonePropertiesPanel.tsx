@@ -976,7 +976,7 @@ export function ZonePropertiesPanel() {
                                       </div>
                                     </td>
                                     <td className="p-1 text-center font-bold text-slate-600">
-                                      {getCompassDirection(b.geometry.azimuth)}
+                                      {getCompassDirection(b.geometry.azimuth - northAzimuth)}
                                     </td>
                                     <td className="p-1 text-center text-gray-500">{wallHeight.toFixed(2)}</td>
                                     <td className="p-1 text-center text-gray-500">{b.geometry.lengthNet.toFixed(2)}</td>
@@ -1070,7 +1070,7 @@ export function ZonePropertiesPanel() {
                                         </div>
                                       </td>
                                       <td className="p-1 text-center text-sky-600 font-bold opacity-50">
-                                        {getCompassDirection(b.geometry.azimuth)}
+                                        {getCompassDirection(b.geometry.azimuth - northAzimuth)}
                                       </td>
                                       <td className="p-1 text-center text-sky-700">{op.height.toFixed(2)}</td>
                                       <td className="p-1 text-center text-sky-700">{op.width.toFixed(2)}</td>

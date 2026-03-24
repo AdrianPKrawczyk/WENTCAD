@@ -1,0 +1,246 @@
+[
+  {
+    "miasto": "Kołobrzeg",
+    "plik_txt": "wmo121000iso.txt"
+  },
+  {
+    "miasto": "Koszalin",
+    "plik_txt": "wmo121050iso.txt"
+  },
+  {
+    "miasto": "Ustka",
+    "plik_txt": "wmo121150iso.txt"
+  },
+  {
+    "miasto": "Łeba",
+    "plik_txt": "wmo121200iso.txt"
+  },
+  {
+    "miasto": "Lębork",
+    "plik_txt": "wmo121250iso.txt"
+  },
+  {
+    "miasto": "Hel",
+    "plik_txt": "wmo121350iso.txt"
+  },
+  {
+    "miasto": "Gdańsk Port Północny",
+    "plik_txt": "wmo121400iso.txt"
+  },
+  {
+    "miasto": "Elbląg",
+    "plik_txt": "wmo121600iso.txt"
+  },
+  {
+    "miasto": "Kętrzyn",
+    "plik_txt": "wmo121850iso.txt"
+  },
+  {
+    "miasto": "Suwałki",
+    "plik_txt": "wmo121950iso.txt"
+  },
+  {
+    "miasto": "Świnoujście",
+    "plik_txt": "wmo122000iso.txt"
+  },
+  {
+    "miasto": "Szczecin Dąbie",
+    "plik_txt": "wmo122050iso.txt"
+  },
+  {
+    "miasto": "Resko",
+    "plik_txt": "wmo122100iso.txt"
+  },
+  {
+    "miasto": "Szczecinek",
+    "plik_txt": "wmo122150iso.txt"
+  },
+  {
+    "miasto": "Piła",
+    "plik_txt": "wmo122300iso.txt"
+  },
+  {
+    "miasto": "Chojnice",
+    "plik_txt": "wmo122350iso.txt"
+  },
+  {
+    "miasto": "Bydgoszcz",
+    "plik_txt": "wmo122400iso.txt"
+  },
+  {
+    "miasto": "Toruń",
+    "plik_txt": "wmo122500iso.txt"
+  },
+  {
+    "miasto": "Mława",
+    "plik_txt": "wmo122700iso.txt"
+  },
+  {
+    "miasto": "Olsztyn",
+    "plik_txt": "wmo122720iso.txt"
+  },
+  {
+    "miasto": "Mikołajki",
+    "plik_txt": "wmo122800iso.txt"
+  },
+  {
+    "miasto": "Ostrołęka",
+    "plik_txt": "wmo122850iso.txt"
+  },
+  {
+    "miasto": "Białystok",
+    "plik_txt": "wmo122950iso.txt"
+  },
+  {
+    "miasto": "Gorzów Wlkp.",
+    "plik_txt": "wmo123000iso.txt"
+  },
+  {
+    "miasto": "Słubice",
+    "plik_txt": "wmo123100iso.txt"
+  },
+  {
+    "miasto": "Poznań",
+    "plik_txt": "wmo123300iso.txt"
+  },
+  {
+    "miasto": "Koło",
+    "plik_txt": "wmo123450iso.txt"
+  },
+  {
+    "miasto": "Płock Trzepowo",
+    "plik_txt": "wmo123600iso.txt"
+  },
+  {
+    "miasto": "Warszawa Okęcie",
+    "plik_txt": "wmo123750iso.txt"
+  },
+  {
+    "miasto": "Siedlce",
+    "plik_txt": "wmo123850iso.txt"
+  },
+  {
+    "miasto": "Terespol",
+    "plik_txt": "wmo123990iso.txt"
+  },
+  {
+    "miasto": "Zielona Góra",
+    "plik_txt": "wmo124000iso.txt"
+  },
+  {
+    "miasto": "Legnica",
+    "plik_txt": "wmo124150iso.txt"
+  },
+  {
+    "miasto": "Leszno Strzyżewice",
+    "plik_txt": "wmo124180iso.txt"
+  },
+  {
+    "miasto": "Wrocław",
+    "plik_txt": "wmo124240iso.txt"
+  },
+  {
+    "miasto": "Kalisz",
+    "plik_txt": "wmo124350iso.txt"
+  },
+  {
+    "miasto": "Wieluń",
+    "plik_txt": "wmo124550iso.txt"
+  },
+  {
+    "miasto": "Łódź Lublinek",
+    "plik_txt": "wmo124650iso.txt"
+  },
+  {
+    "miasto": "Sulejów",
+    "plik_txt": "wmo124690iso.txt"
+  },
+  {
+    "miasto": "Lublin Radawiec",
+    "plik_txt": "wmo124950iso.txt"
+  },
+  {
+    "miasto": "Włodawa",
+    "plik_txt": "wmo124970iso.txt"
+  },
+  {
+    "miasto": "Jelenia Góra",
+    "plik_txt": "wmo125000iso.txt"
+  },
+  {
+    "miasto": "Śnieżka",
+    "plik_txt": "wmo125100iso.txt"
+  },
+  {
+    "miasto": "Kłodzko",
+    "plik_txt": "wmo125200iso.txt"
+  },
+  {
+    "miasto": "Opole",
+    "plik_txt": "wmo125300iso.txt"
+  },
+  {
+    "miasto": "Racibórz Studzienna",
+    "plik_txt": "wmo125400iso.txt"
+  },
+  {
+    "miasto": "Częstochowa",
+    "plik_txt": "wmo125500iso.txt"
+  },
+  {
+    "miasto": "Katowice",
+    "plik_txt": "wmo125600iso.txt"
+  },
+  {
+    "miasto": "Kraków Balice",
+    "plik_txt": "wmo125660iso.txt"
+  },
+  {
+    "miasto": "Kielce Suków",
+    "plik_txt": "wmo125700iso.txt"
+  },
+  {
+    "miasto": "Tarnów",
+    "plik_txt": "wmo125750iso.txt"
+  },
+  {
+    "miasto": "Rzeszów Jasionka",
+    "plik_txt": "wmo125800iso.txt"
+  },
+  {
+    "miasto": "Sandomierz",
+    "plik_txt": "wmo125850iso.txt"
+  },
+  {
+    "miasto": "Zamość",
+    "plik_txt": "wmo125950iso.txt"
+  },
+  {
+    "miasto": "Bielsko Biała",
+    "plik_txt": "wmo126000iso.txt"
+  },
+  {
+    "miasto": "Zakopane",
+    "plik_txt": "wmo126250iso.txt"
+  },
+  {
+    "miasto": "Kasprowy Wierch",
+    "plik_txt": "wmo126500iso.txt"
+  },
+  {
+    "miasto": "Nowy Sącz",
+    "plik_txt": "wmo126600iso.txt"
+  },
+  {
+    "miasto": "Krosno",
+    "plik_txt": "wmo126700iso.txt"
+  },
+  {
+    "miasto": "Lesko",
+    "plik_txt": "wmo126900iso.txt"
+  },
+  {
+    "miasto": "Przemyśl",
+    "plik_txt": "wmo126950iso.txt"
+  }
+]

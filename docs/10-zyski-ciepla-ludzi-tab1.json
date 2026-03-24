@@ -1,0 +1,25 @@
+{
+  "nazwa_tablicy": "Zalecane wartości współczynnika jednoczesności przebywania ludzi w pomieszczeniu",
+  "dane": [
+    {
+      "rodzaj_pomieszczenia": "Biura, duże sale",
+      "wspolczynnik_jednoczesnosci_phi": "0,75 ÷ 0,95"
+    },
+    {
+      "rodzaj_pomieszczenia": "Hotele (recepcje), pokoje wieloosobowe",
+      "wspolczynnik_jednoczesnosci_phi": "0,40 ÷ 0,60"
+    },
+    {
+      "rodzaj_pomieszczenia": "Domy towarowe",
+      "wspolczynnik_jednoczesnosci_phi": "0,80 ÷ 0,90"
+    },
+    {
+      "rodzaj_pomieszczenia": "Pomieszczenia technologiczne",
+      "wspolczynnik_jednoczesnosci_phi": "0,90 ÷ 1,0"
+    },
+    {
+      "rodzaj_pomieszczenia": "Teatry, kina, małe pomieszczenia o różnym przeznaczeniu",
+      "wspolczynnik_jednoczesnosci_phi": "1,0"
+    }
+  ]
+}

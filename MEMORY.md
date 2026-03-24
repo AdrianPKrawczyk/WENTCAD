@@ -100,6 +100,9 @@
     - [x] Store: Dodanie `northArrowPos` do `useZoneStore` i `ProjectStateData` (Zustand/Persistency).
     - [x] UI: Przycisk "Północ" (Lucide Compass) w pasku narzędzi Building2DViewer do przełączania widoczności.
     - [x] Logic: Synchronizacja rotacji strzałki w 2D z globalnym `northAzimuth` wykorzystywanym m.in. w 3D.
+    - [x] Fix: Dynamiczne przeliczanie kierunków (N, S, E, W) w tabeli właściwości strefy na podstawie `azimuth - northAzimuth`.
+    - [x] Fix: Ujednolicenie układu współrzędnych topologii (0° = GÓRA) ze znacznikiem 2D (Red Pointer = GÓRA).
+    - [x] Logic: Robustne obliczanie azymutu ściany jako **normalnej zewnętrznej** z detekcją uzwojenia (Winding) poligonu (Area > 0 = CCW).
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
