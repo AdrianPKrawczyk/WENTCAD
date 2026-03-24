@@ -1,6 +1,7 @@
 export type IfcMaterial = {
   id: string;
   name: string;
+  category: string;
   thermalConductivity: number; // lambda [W/(m*K)]
   massDensity: number; // rho [kg/m^3]
   specificHeatCapacity: number; // cp [J/(kg*K)]

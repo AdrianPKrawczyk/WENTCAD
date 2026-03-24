@@ -1,8 +1,58 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Plus, Trash2, Database, Layers, Thermometer, Info, Save } from 'lucide-react';
-import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType } from '../lib/wattTypes';
+import { X, Plus, Trash2, Database, Layers, Thermometer, Info, Save, LayoutGrid, List } from 'lucide-react';
+import type { IfcMaterial } from '../lib/wattTypes';
 import { WallTypeModal } from './WallTypeModal';
+import { useMemo } from 'react';
+
+const MaterialCard = ({ mat, removeMaterial, updateMaterial, existingCategories }: { 
+  mat: IfcMaterial, 
+  removeMaterial: (id: string) => void, 
+  updateMaterial: (id: string, updates: Partial<IfcMaterial>) => void,
+  existingCategories: string[]
+}) => (
+  <div key={mat.id} className="group p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-orange-200 hover:shadow-xl hover:shadow-orange-50 transition-all relative">
+    <button 
+      onClick={() => removeMaterial(mat.id)}
+      className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+    >
+      <Trash2 className="w-4 h-4" />
+    </button>
+    <div className="flex items-center gap-3 mb-3">
+      <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+        <Thermometer className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+         <input 
+           className="font-bold text-gray-800 bg-transparent border-none p-0 focus:ring-0 w-full text-sm outline-none truncate"
+           value={mat.name}
+           onChange={(e) => updateMaterial(mat.id, { name: e.target.value })}
+         />
+         <div className="relative mt-0.5 text-[9px] font-bold text-gray-400 group-hover:text-orange-400 transition-colors uppercase">
+            <select 
+              className="bg-transparent border-none p-0 focus:ring-0 text-[10px] cursor-pointer appearance-none outline-none"
+              value={mat.category}
+              onChange={(e) => updateMaterial(mat.id, { category: e.target.value })}
+            >
+              {existingCategories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+         </div>
+      </div>
+    </div>
+    <div className="space-y-2">
+      <div className="flex justify-between text-[10px] uppercase font-bold text-gray-400">
+        <span>Lambda (λ)</span>
+        <span className="text-gray-800">{mat.thermalConductivity} W/mK</span>
+      </div>
+      <input 
+        type="range" min="0.01" max="3.0" step="0.005"
+        value={mat.thermalConductivity}
+        onChange={(e) => updateMaterial(mat.id, { thermalConductivity: parseFloat(e.target.value) })}
+        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+      />
+    </div>
+  </div>
+);
 
 export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const materials = useZoneStore((state) => state.materials);
@@ -18,14 +68,59 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const removeWallTypeTemplate = useZoneStore((state) => state.removeWallTypeTemplate);
 
   const [activeTab, setActiveTab] = useState<'MATERIALS' | 'WALL_TYPES'>('MATERIALS');
+  const [materialViewMode, setMaterialViewMode] = useState<'GRID' | 'TABLE'>('GRID');
+  const [selectedCategory, setSelectedCategory] = useState('WSZYSTKO');
   const [isWallTypeModalOpen, setIsWallTypeModalOpen] = useState(false);
 
 
   // Material Form State
   const [mName, setMName] = useState('');
+  const [mCategory, setMCategory] = useState('Mury i Konstrukcja');
   const [mLambda, setMLambda] = useState(0.04);
   const [mDensity, setMDensity] = useState(20);
   const [mCp, setMCp] = useState(1460);
+
+  const existingCategories = useMemo(() => {
+    const cats = new Set(Object.values(materials).map(m => m.category).filter(Boolean));
+    return Array.from(cats).sort();
+  }, [materials]);
+
+  const categoryTabLabels: Record<string, string> = {
+    'WSZYSTKO': 'Wszystko',
+    'CONSTRUCTION': 'Mury i Konstrukcja',
+    'INSULATION': 'Izolacje',
+    'FINISH': 'Wykończenie',
+    'WOOD': 'Drewno',
+    'OTHER': 'Inne',
+    'KAMIEN': 'Kamień',
+    'METAL': 'Metal'
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    const upper = cat.toUpperCase();
+    return categoryTabLabels[upper] || cat;
+  };
+
+  const allCategories = useMemo(() => ['WSZYSTKO', ...existingCategories], [existingCategories]);
+
+  const filteredMaterials = useMemo(() => {
+    if (selectedCategory === 'WSZYSTKO') return materials;
+    const filtered: Record<string, IfcMaterial> = {};
+    Object.entries(materials).forEach(([id, mat]) => {
+      if (mat.category === selectedCategory) filtered[id] = mat;
+    });
+    return filtered;
+  }, [materials, selectedCategory]);
+
+  const groupedFilteredMaterials = useMemo(() => {
+    const groups: Record<string, IfcMaterial[]> = {};
+    Object.values(filteredMaterials).forEach(mat => {
+      const cat = mat.category || 'Inne';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(mat);
+    });
+    return groups;
+  }, [filteredMaterials]);
 
   if (!isOpen) return null;
 
@@ -66,44 +161,153 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
           >
             Typy Przegród
           </button>
+          
+          {activeTab === 'MATERIALS' && (
+            <div className="ml-auto flex items-center gap-2 px-8 invisible">
+               {/* Spacer to keep tab alignment if needed, but we'll move the real buttons */}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 bg-white">
           {activeTab === 'MATERIALS' && (
             <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.values(materials).map(mat => (
-                  <div key={mat.id} className="group p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-orange-200 hover:shadow-xl hover:shadow-orange-50 transition-all relative">
-                    <button 
-                      onClick={() => removeMaterial(mat.id)}
-                      className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+              {/* Category Sub-tabs and View Switcher */}
+              <div className="flex items-center gap-4 border-b border-gray-100 mb-6 bg-gray-50/50 p-1.5 rounded-2xl">
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1">
+                  {allCategories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
+                        selectedCategory === cat 
+                          ? 'bg-white text-orange-600 shadow-sm ring-1 ring-gray-100' 
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {getCategoryLabel(cat)}
                     </button>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
-                        <Thermometer className="w-4 h-4" />
+                  ))}
+                </div>
+                
+                <div className="flex items-center gap-1 bg-white/50 p-1 rounded-xl border border-gray-100 shrink-0">
+                  <button 
+                    onClick={() => setMaterialViewMode('GRID')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-all ${
+                      materialViewMode === 'GRID' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>Siatka</span>
+                  </button>
+                  <button 
+                    onClick={() => setMaterialViewMode('TABLE')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-all ${
+                      materialViewMode === 'TABLE' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    <span>Tabela</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-12">
+                {materialViewMode === 'GRID' ? (
+                  selectedCategory === 'WSZYSTKO' ? (
+                    Object.entries(groupedFilteredMaterials).map(([category, mats]) => (
+                      <div key={category} className="space-y-4">
+                        <h3 className="text-xs font-black text-orange-600 uppercase tracking-[0.2em] flex items-center gap-2 px-1">
+                          <div className="w-8 h-[2px] bg-orange-600/20" />
+                          {category}
+                          <span className="text-[10px] font-bold text-gray-300 ml-auto bg-gray-50 px-2 py-0.5 rounded-full lowercase tracking-normal">
+                            {mats.length} {mats.length === 1 ? 'materiał' : 'materiały'}
+                          </span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {mats.map(mat => (
+                            <MaterialCard key={mat.id} mat={mat} removeMaterial={removeMaterial} updateMaterial={updateMaterial} existingCategories={existingCategories} />
+                          ))}
+                        </div>
                       </div>
-                      <input 
-                        className="font-bold text-gray-800 bg-transparent border-none p-0 focus:ring-0 w-full"
-                        value={mat.name}
-                        onChange={(e) => updateMaterial(mat.id, { name: e.target.value })}
-                      />
+                    ))
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Object.values(filteredMaterials).map(mat => (
+                        <MaterialCard key={mat.id} mat={mat} removeMaterial={removeMaterial} updateMaterial={updateMaterial} existingCategories={existingCategories} />
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] uppercase font-bold text-gray-400">
-                        <span>Lambda (λ)</span>
-                        <span className="text-gray-800">{mat.thermalConductivity} W/mK</span>
-                      </div>
-                      <input 
-                        type="range" min="0.01" max="3.0" step="0.005"
-                        value={mat.thermalConductivity}
-                        onChange={(e) => updateMaterial(mat.id, { thermalConductivity: parseFloat(e.target.value) })}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                      />
-                    </div>
+                  )
+                ) : (
+                  <div className="border border-gray-100 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                        <tr>
+                          <th className="px-6 py-4">Nazwa</th>
+                          <th className="px-6 py-4">Kategoria</th>
+                          <th className="px-6 py-4">λ [W/mK]</th>
+                          <th className="px-6 py-4">ρ [kg/m³]</th>
+                          <th className="px-6 py-4">Cp [J/kgK]</th>
+                          <th className="px-6 py-4 text-right">Akcje</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {Object.values(filteredMaterials).sort((a,b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)).map(mat => (
+                          <tr key={mat.id} className="hover:bg-orange-50/30 transition-colors group">
+                            <td className="px-6 py-4">
+                              <input 
+                                value={mat.name}
+                                onChange={(e) => updateMaterial(mat.id, { name: e.target.value })}
+                                className="bg-transparent border-none p-0 focus:ring-0 w-full font-medium text-gray-700 outline-none"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              <select 
+                                value={mat.category}
+                                onChange={(e) => updateMaterial(mat.id, { category: e.target.value })}
+                                className="bg-transparent border-none p-0 focus:ring-0 text-xs text-gray-500 uppercase font-bold cursor-pointer appearance-none outline-none"
+                              >
+                                {existingCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs">
+                              <input 
+                                type="number" step="0.001"
+                                value={mat.thermalConductivity}
+                                onChange={(e) => updateMaterial(mat.id, { thermalConductivity: parseFloat(e.target.value) })}
+                                className="bg-transparent border-none p-0 focus:ring-0 w-20 font-bold text-gray-600"
+                              />
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs text-gray-500">
+                              <input 
+                                type="number" step="10"
+                                value={mat.massDensity}
+                                onChange={(e) => updateMaterial(mat.id, { massDensity: parseFloat(e.target.value) })}
+                                className="bg-transparent border-none p-0 focus:ring-0 w-16"
+                              />
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs text-gray-500">
+                              <input 
+                                type="number" step="10"
+                                value={mat.specificHeatCapacity}
+                                onChange={(e) => updateMaterial(mat.id, { specificHeatCapacity: parseFloat(e.target.value) })}
+                                className="bg-transparent border-none p-0 focus:ring-0 w-16"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button 
+                                onClick={() => removeMaterial(mat.id)}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Add Material Footer */}
@@ -123,12 +327,41 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                       className="w-full border border-orange-200 p-2.5 rounded-xl outline-none focus:border-orange-400 shadow-sm text-sm" 
                     />
                   </div>
-                  <div className="w-32 space-y-1">
+                  <div className="w-48 space-y-1">
+                    <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">Kategoria</label>
+                    <div className="relative">
+                       <input 
+                         type="text" list="existing-cats"
+                         value={mCategory} onChange={e => setMCategory(e.target.value)}
+                         className="w-full border border-orange-200 p-2.5 rounded-xl outline-none focus:border-orange-400 shadow-sm text-sm" 
+                       />
+                       <datalist id="existing-cats">
+                          {existingCategories.map(c => <option key={c} value={c} />)}
+                       </datalist>
+                    </div>
+                  </div>
+                  <div className="w-24 space-y-1">
                     <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">λ [W/mK]</label>
                     <input 
                       type="number" step="0.001"
                       value={mLambda} onChange={e => setMLambda(parseFloat(e.target.value))}
                       className="w-full border border-orange-200 p-2.5 rounded-xl outline-none focus:border-orange-400 shadow-sm text-sm font-bold" 
+                    />
+                  </div>
+                   <div className="w-24 space-y-1">
+                    <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">ρ [kg/m³]</label>
+                    <input 
+                      type="number" step="10"
+                      value={mDensity} onChange={e => setMDensity(parseFloat(e.target.value))}
+                      className="w-full border border-orange-200 p-2.5 rounded-xl outline-none focus:border-orange-400 shadow-sm text-sm" 
+                    />
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">Cp [J/kgK]</label>
+                    <input 
+                      type="number" step="10"
+                      value={mCp} onChange={e => setMCp(parseFloat(e.target.value))}
+                      className="w-full border border-orange-200 p-2.5 rounded-xl outline-none focus:border-orange-400 shadow-sm text-sm" 
                     />
                   </div>
                   <button 
@@ -137,6 +370,7 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                         addMaterial({
                           id: `mat-${Date.now()}`,
                           name: mName,
+                          category: mCategory || 'Inne',
                           thermalConductivity: mLambda,
                           massDensity: mDensity,
                           specificHeatCapacity: mCp

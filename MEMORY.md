@@ -54,6 +54,12 @@
     - [x] Fix: Vertical Topology Mismatch (Roof vs Interior Ceiling).
     - [x] Feature: Dodanie kolumny "Grubość ścian" (d [m]) do zestawienia OZC.
     - [x] Fix: Z-index conflict and UI overlap for WATT/Import modals.
+- [x] **WATT REWIZJA 5: Katalog Materiałów i Optymalizacja UX**:
+    - [x] Implementacja widoku tabelarycznego w `WATTManagerModal` z edycją inline wszystkich parametrów (λ, ρ, Cp, kategoria).
+    - [x] System podzakładek (tabs) dla kategorii materiałów (WSZYSTKO, Mury, Izolacje itd.).
+    - [x] Usprawnienie przełącznika widoku (Siatka/Tabela) z czytelnymi etykietami tekstowymi.
+    - [x] Grupowanie materiałów wg kategorii w widoku "Wszystko" i płaska lista w widokach szczegółowych.
+    - [x] Automatyczne mapowanie nazw technicznych na język polski w interfejsie zakładek.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*

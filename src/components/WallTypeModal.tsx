@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Plus, Trash2, Layers, ChevronUp, ChevronDown, Save } from 'lucide-react';
+import { X, Plus, Trash2, Layers, Save } from 'lucide-react';
 import type { IfcMaterialLayer, IfcMaterialLayerSet, IfcWallType } from '../lib/wattTypes';
 import { calculateUValue } from '../lib/thermalUtils';
 
@@ -14,8 +14,6 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
   const materials = useZoneStore((state) => state.materials);
   const addWallType = useZoneStore((state) => state.addWallType);
   const addLayerSet = useZoneStore((state) => state.addLayerSet);
-  const wallTypeTemplates = useZoneStore((state) => state.wallTypeTemplates);
-  
   const addWallTypeTemplate = useZoneStore((state) => state.addWallTypeTemplate);
   
   const [name, setName] = useState(editingWallType?.name || '');
@@ -188,8 +186,19 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
                       value={layer.materialId} onChange={e => updateLayer(layer.id, { materialId: e.target.value })}
                       className="flex-1 bg-transparent border-none p-0 focus:ring-0 text-sm font-medium"
                     >
-                      {Object.values(materials).map(mat => (
-                        <option key={mat.id} value={mat.id}>{mat.name} (λ={mat.thermalConductivity})</option>
+                      {Object.entries(
+                        Object.values(materials).reduce((acc, mat) => {
+                          const cat = mat.category || 'Inne';
+                          if (!acc[cat]) acc[cat] = [];
+                          acc[cat].push(mat);
+                          return acc;
+                        }, {} as Record<string, typeof materials[string][]>)
+                      ).map(([category, mats]) => (
+                        <optgroup key={category} label={category}>
+                          {mats.sort((a,b) => a.name.localeCompare(b.name)).map(mat => (
+                            <option key={mat.id} value={mat.id}>{mat.name} (λ={mat.thermalConductivity})</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                     <div className="flex items-center gap-2">
