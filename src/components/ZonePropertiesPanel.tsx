@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ActivityType, ZoneData, AcousticAbsorptionIndicator } from '../types';
 import { getCompassDirection } from '../lib/geometryHelpers';
+import { calculateUValue } from '../lib/thermalUtils';
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
@@ -960,10 +961,17 @@ export function ZonePropertiesPanel() {
                                           }}
                                           className="w-full text-[9px] bg-transparent border-none text-indigo-600 font-medium focus:ring-0 p-0 hover:underline"
                                         >
-                                           <option value="">Wybierz konstrukcję...</option>
-                                           {Object.values(wallTypes).filter(wt => wt.isExternal === (b.type === 'EXTERIOR')).map(wt => (
+                                          <option value="">Wybierz konstrukcję...</option>
+                                          <optgroup label={b.type === 'EXTERIOR' ? "Dedykowane Zewnętrzne" : "Dedykowane Wewnętrzne"}>
+                                            {Object.values(wallTypes).filter(wt => wt.isExternal === (b.type === 'EXTERIOR')).map(wt => (
                                               <option key={wt.id} value={wt.id}>{wt.name}</option>
-                                           ))}
+                                            ))}
+                                          </optgroup>
+                                          <optgroup label="Pozostałe">
+                                            {Object.values(wallTypes).filter(wt => wt.isExternal !== (b.type === 'EXTERIOR')).map(wt => (
+                                              <option key={wt.id} value={wt.id}>{wt.name}</option>
+                                            ))}
+                                          </optgroup>
                                         </select>
                                       </div>
                                     </td>
@@ -975,7 +983,19 @@ export function ZonePropertiesPanel() {
                                     <td className="p-1 text-center text-gray-500 font-mono">{(b.geometry.thickness || 0).toFixed(2)}</td>
                                     <td className="p-1 text-right text-slate-400 font-mono">{grossArea.toFixed(2)}</td>
                                     <td className="p-1 text-right text-indigo-700 font-black font-mono">{netArea.toFixed( netArea < 0 ? 0 : 2)}</td>
-                                    <td className="p-1 text-right text-indigo-600 font-bold">1.25</td> {/* To be calculated from U-ref */}
+                                    <td className="p-1 text-right text-indigo-600 font-bold">
+                                      {(() => {
+                                        const wallType = b.relatedWallTypeId ? wallTypes[b.relatedWallTypeId] : null;
+                                        if (wallType) {
+                                          const layerSet = (useZoneStore.getState() as any).layerSets[wallType.layerSetId];
+                                          const materials = (useZoneStore.getState() as any).materials;
+                                          if (layerSet && materials) {
+                                            return calculateUValue(layerSet.layers, materials, wallType.isExternal).toFixed(2);
+                                          }
+                                        }
+                                        return '-';
+                                      })()}
+                                    </td>
                                   </tr>
 
                                   {/* OPENINGS ROWS (Sub-rows) */}
@@ -1135,7 +1155,20 @@ export function ZonePropertiesPanel() {
                                   <td className="p-1 text-center text-gray-300">-</td>
                                   <td className="p-1 text-right text-slate-400 font-mono">{hb.area.toFixed(2)}</td>
                                   <td className="p-1 text-right text-indigo-700 font-black font-mono">{hb.area.toFixed(2)}</td>
-                                  <td className="p-1 text-right text-indigo-600 font-bold">0.30</td>
+                                  <td className="p-1 text-right text-indigo-600 font-bold">
+                                    {(() => {
+                                      const wallType = hb.uValueRef ? wallTypes[hb.uValueRef] : null;
+                                      if (wallType) {
+                                        const layerSet = (useZoneStore.getState() as any).layerSets[wallType.layerSetId];
+                                        const materials = (useZoneStore.getState() as any).materials;
+                                        if (layerSet && materials) {
+                                          const isExternal = hb.type === 'ROOF' || hb.type === 'FLOOR_GROUND' || hb.type === 'FLOOR_EXTERIOR';
+                                          return calculateUValue(layerSet.layers, materials, isExternal).toFixed(2);
+                                        }
+                                      }
+                                      return '-';
+                                    })()}
+                                  </td>
                                 </tr>
                               );
                             })}

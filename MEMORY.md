@@ -60,6 +60,8 @@
     - [x] Usprawnienie przełącznika widoku (Siatka/Tabela) z czytelnymi etykietami tekstowymi.
     - [x] Grupowanie materiałów wg kategorii w widoku "Wszystko" i płaska lista w widokach szczegółowych.
     - [x] Automatyczne mapowanie nazw technicznych na język polski w interfejsie zakładek.
+    - [x] Fix: Dynamiczne wyliczanie współczynnika U w zestawieniu przegród na podstawie rzeczywistych warstw materiałów.
+    - [x] UX: Elastyczne przypisywanie typów konstrukcji do ścian (grupy "Dedykowane" i "Pozostałe" w select).
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
