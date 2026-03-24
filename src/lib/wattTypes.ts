@@ -34,6 +34,7 @@ export type IfcWindowStyle = {
   name: string;
   overallUValue: number; // Uw [W/(m^2*K)]
   solarHeatGainCoefficient: number; // g [0-1]
+  type?: 'WINDOW' | 'DOOR'; 
 };
 
 export type OpeningInstance = {

@@ -73,6 +73,10 @@
 - [x] **WATT REWIZJA 7: Edycja Definicji Przegród**:
     - [x] Dodanie funkcji edycji istniejących przegród warstwowych (ikona ołówka w katalogu).
     - [x] Rozbudowa `WallTypeModal.tsx` o tryb edycji i dynamiczne ładowanie warstw z `layerSet`.
+- [x] **WATT REWIZJA 8: Kategoryzacja i Stolarka**:
+    - [x] Podział "Typów Przegród" na podzakładki (Ściany Zewn/Wewn, Stropy, Podłogi, Okna, Drzwi).
+    - [x] Implementacja `OpeningStyleModal.tsx` do zarządzania biblioteką okien i drzwi w katalogu.
+    - [x] Dodanie widoków Siatka/Tabela dla wszystkich kategorii przegród i stolarki.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*

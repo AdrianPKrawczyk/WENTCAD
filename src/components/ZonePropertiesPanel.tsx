@@ -1022,7 +1022,7 @@ export function ZonePropertiesPanel() {
                                                 const val = e.target.value;
                                                 if (val === 'NEW') {
                                                   const id = `ws-${Date.now()}`;
-                                                  addWindowStyle({ id, name: `Okna Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5 });
+                                                   addWindowStyle({ id, name: `Okna Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5, type: 'WINDOW' });
                                                   const nextB = [...activeZone.boundaries!];
                                                   nextB[bIdx].openings[opIdx].windowStyleId = id;
                                                   updateZone(activeZone.id, { boundaries: nextB });
