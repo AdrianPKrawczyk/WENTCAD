@@ -1058,7 +1058,6 @@ export function ZonePropertiesPanel() {
                                       <td className="p-1 text-center text-gray-300">-</td>
                                       <td className="p-1 text-center text-gray-300">-</td>
                                       <td className="p-1 text-right text-sky-800 font-bold">{(op.width * op.height).toFixed(2)}</td>
-                                      <td className="p-1 text-right text-gray-300">-</td>
                                       <td className="p-1 text-right text-sky-600 font-bold">
                                         {style ? style.overallUValue.toFixed(2) : '-'}
                                       </td>

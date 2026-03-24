@@ -62,6 +62,7 @@
     - [x] Automatyczne mapowanie nazw technicznych na język polski w interfejsie zakładek.
     - [x] Fix: Dynamiczne wyliczanie współczynnika U w zestawieniu przegród na podstawie rzeczywistych warstw materiałów.
     - [x] UX: Elastyczne przypisywanie typów konstrukcji do ścian (grupy "Dedykowane" i "Pozostałe" w select).
+    - [x] Fix: Naprawa wyrównania kolumn dla okien w tabeli termicznej (usunięcie nadmiarowej komórki <td>).
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
