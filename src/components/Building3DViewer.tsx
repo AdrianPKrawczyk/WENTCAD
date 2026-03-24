@@ -120,7 +120,8 @@ export function Building3DViewer() {
              position: [cx, cy, cz],
              rotation: [0, -angle, 0],
              size: [len, wallHeight, isSelected ? thickness * 1.5 : thickness],
-             isSelected
+             isSelected,
+             hasAssignment: !!b.relatedWallTypeId
            });
 
            if (b.openings) {
@@ -243,7 +244,16 @@ export function Building3DViewer() {
                >
                  <boxGeometry args={wall.size} />
                  <meshStandardMaterial 
-                   color={wall.isSelected ? '#4f46e5' : (wall.type === 'EXTERIOR' ? '#f97316' : '#f8fafc')} 
+                   color={wall.isSelected ? '#4f46e5' : (() => {
+                      const diagMode = useZoneStore.getState().showAssignmentDiagnostic;
+                      const wtActive = useZoneStore.getState().wtMode; const quickActive = useZoneStore.getState().quickMode;
+                      if (diagMode) {
+                        if (wtActive) return '#22c55e';
+                        if (quickActive) return '#facc15';
+                        return wall.hasAssignment ? '#60a5fa' : '#ef4444';
+                      }
+                      return wall.type === 'EXTERIOR' ? '#f97316' : '#f8fafc';
+                    })()} 
                    opacity={wall.isSelected ? 1 : (wall.type === 'INTERIOR' ? 0.6 : 0.9)} 
                    transparent={!wall.isSelected}
                    roughness={0.8}

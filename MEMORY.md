@@ -77,6 +77,24 @@
     - [x] Podział "Typów Przegród" na podzakładki (Ściany Zewn/Wewn, Stropy, Podłogi, Okna, Drzwi).
     - [x] Implementacja `OpeningStyleModal.tsx` do zarządzania biblioteką okien i drzwi w katalogu.
     - [x] Dodanie widoków Siatka/Tabela dla wszystkich kategorii przegród i stolarki.
+- [x] **WATT REWIZJA 9: Globalny System Przypisywania Przegród**:
+    - [x] Plik `src/data/wt2021.json` z wartościami Umax wg WT2021 dla wszystkich typów przegród (ściany, dachy, podłogi, okna, drzwi).
+    - [x] Rozszerzenie `IfcWallType` o: `isDefault`, `defaultAssignMode` ('ALL'|'BY_THICKNESS'), `defaultTolerancePlus`, `defaultToleranceMinus`.
+    - [x] Nowy typ `QuickProfile` z edytowalnymi per-kluczowymi wartościami Umax.
+    - [x] Store: pola `wtMode`, `quickMode`, `wtStandard`, `activeQuickProfileId`, `quickProfiles`, `globalRoofWallTypeId`, `globalFloorGroundWallTypeId`, `showAssignmentDiagnostic`.
+    - [x] Akcja `runAutoAssign()`: automatyczne przypisanie przegród wg flagi domyślnej, metoda ALL lub BY_THICKNESS (z tolerancją). Grubość stropów wewn. = `floor.heightTotal - floor.heightNet`.
+    - [x] Nowa zakładka "Przypisanie Przegród" w `WATTManagerModal`: tryb WT2021 (zielony badge WT), tryb QUICK (niebieski badge Q, profil zapisywalny), auto-assign z podglądem statystyk, globalne dropdowny strop/dach i podłoga na gruncie, diagnostyka wizualna.
+    - [x] Tryb WT i QUICK obejmują: ściany zewn/wewn, dachy, stropy, podłogi na gruncie, okna, drzwi — zarówno w tabeli ścian (`relatedWallTypeId`) jak i w stolarce (`openings`) i poziomych granicach (`horizontalBoundaries`).
+    - [x] Okna bez przypisanej konstrukcji: w trybie WT/QUICK wyświetlają wartość regulacyjną (WINDOW/DOOR klucz z Umax).
+    - [x] Sekcja "Przegroda Domyślna" w `WallTypeModal` z checkbox, radio ALL/BY_THICKNESS, tolerancje ±cm.
+    - [x] Kolumna "Domyślna" w tabeli Typów Przegród — gwiazdka ★ i tryb (Każda/Gr.) dla przegrody domyślnej.
+    - [x] Diagnostyka wizualna 2D/3D: niebieski=przypisana ręcznie, czerwony=brak przypisania, zielony=tryb WT.
+- [x] **WATT REWIZJA 9.1: Poprawki Trybu QUICK i Diagnostyki**:
+    - [x] Fix: Tryb QUICK obejmuje teraz wszystkie typy przegród (ściany pionowe, poziome, stolarka).
+    - [x] Fix: Tryb QUICK korzysta z aktywnego profilu (activeQuickProfileId) dla wszystkich obliczeń U-value w interfejsie.
+    - [x] UX: Zmiana koloru diagnostyki wizualnej dla trybu QUICK na żółty (#facc15).
+    - [x] UI: Aktualizacja legendy diagnostyki w WATTManagerModal (dodanie Trybu QUICK - żółty).
+    - [x] UI: Żółte badge (Q) w tabeli właściwości strefy dla trybu QUICK.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*

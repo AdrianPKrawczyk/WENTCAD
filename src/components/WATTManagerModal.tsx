@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Plus, Trash2, Database, Edit2, Thermometer, Info, Save, LayoutGrid, List } from 'lucide-react';
+import { X, Plus, Trash2, Database, Edit2, Thermometer, Info, Save, LayoutGrid, List, Zap, Shield, ToggleLeft, ToggleRight } from 'lucide-react';
 import type { IfcMaterial, IfcWallType, IfcWindowStyle } from '../lib/wattTypes';
 import { WallTypeModal } from './WallTypeModal';
 import { OpeningStyleModal } from './OpeningStyleModal';
@@ -70,8 +70,28 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const removeWallTypeTemplate = useZoneStore((state) => state.removeWallTypeTemplate);
   const windowStyles = useZoneStore((state) => state.windowStyles);
   const removeWindowStyle = useZoneStore((state) => state.removeWindowStyle);
+  const wtMode = useZoneStore((state) => state.wtMode);
+  const setWtMode = useZoneStore((state) => state.setWtMode);
+  const wtStandard = useZoneStore((state) => state.wtStandard);
+  const updateWtStandard = useZoneStore((state) => state.updateWtStandard);
+  const globalRoofWallTypeId = useZoneStore((state) => state.globalRoofWallTypeId);
+  const globalFloorGroundWallTypeId = useZoneStore((state) => state.globalFloorGroundWallTypeId);
+  const setGlobalRoofWallTypeId = useZoneStore((state) => state.setGlobalRoofWallTypeId);
+  const setGlobalFloorGroundWallTypeId = useZoneStore((state) => state.setGlobalFloorGroundWallTypeId);
+  const runAutoAssign = useZoneStore((state) => state.runAutoAssign);
+  const showAssignmentDiagnostic = useZoneStore((state) => state.showAssignmentDiagnostic);
+  const toggleAssignmentDiagnostic = useZoneStore((state) => state.toggleAssignmentDiagnostic);
+  const zones = useZoneStore((state) => state.zones);
+  const quickMode = useZoneStore((state) => state.quickMode);
+  const setQuickMode = useZoneStore((state) => state.setQuickMode);
+  const activeQuickProfileId = useZoneStore((state) => state.activeQuickProfileId);
+  const setActiveQuickProfileId = useZoneStore((state) => state.setActiveQuickProfileId);
+  const quickProfiles = useZoneStore((state) => state.quickProfiles);
+  const addQuickProfile = useZoneStore((state) => state.addQuickProfile);
+  const updateQuickProfile = useZoneStore((state) => state.updateQuickProfile);
+  const removeQuickProfile = useZoneStore((state) => state.removeQuickProfile);
 
-  const [activeTab, setActiveTab] = useState<'MATERIALS' | 'WALL_TYPES'>('MATERIALS');
+  const [activeTab, setActiveTab] = useState<'MATERIALS' | 'WALL_TYPES' | 'ASSIGNMENT'>('MATERIALS');
   const [materialViewMode, setMaterialViewMode] = useState<'GRID' | 'TABLE'>('GRID');
   const [selectedCategory, setSelectedCategory] = useState('WSZYSTKO');
   const [isWallTypeModalOpen, setIsWallTypeModalOpen] = useState(false);
@@ -170,6 +190,14 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
             }`}
           >
             Typy Przegród
+          </button>
+          <button
+            onClick={() => setActiveTab('ASSIGNMENT')}
+            className={`px-8 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${
+              activeTab === 'ASSIGNMENT' ? 'text-orange-600 border-orange-600 bg-white' : 'text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            Przypisanie Przegród
           </button>
           
           {activeTab === 'MATERIALS' && (
@@ -509,6 +537,7 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                                    <th className="px-6 py-4">Nazwa Przegrody</th>
                                    <th className="px-6 py-4 text-center">Typ</th>
                                    <th className="px-6 py-4 text-center">Warstwy</th>
+                                   <th className="px-6 py-4 text-center">Domyślna</th>
                                    <th className="px-6 py-4 text-right">Akcje</th>
                                 </tr>
                              </thead>
@@ -527,6 +556,15 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                                        <td className="px-6 py-4 text-center text-[10px] font-bold text-gray-400 uppercase">{wt.predefinedType}</td>
                                        <td className="px-6 py-4 text-center">
                                           <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold text-[10px]">{layerSets[wt.layerSetId]?.layers?.length || 0}</span>
+                                       </td>
+                                       <td className="px-6 py-4 text-center">
+                                          {wt.isDefault ? (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                              ★ {wt.defaultAssignMode === 'ALL' ? 'Każda' : 'Gr.'}
+                                            </span>
+                                          ) : (
+                                            <span className="text-gray-200 text-[10px]">—</span>
+                                          )}
                                        </td>
                                        <td className="px-6 py-4 text-right">
                                           <div className="flex justify-end gap-2">
@@ -696,6 +734,292 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
             </div>
           )}
         </div>
+
+        {/* ======== ASSIGNMENT TAB ======== */}
+        {activeTab === 'ASSIGNMENT' && (
+          <div className="space-y-6 p-6 overflow-y-auto flex-1">
+            {/* WT MODE */}
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-6 h-6 text-emerald-600" />
+                  <div>
+                    <h3 className="font-black text-emerald-800 text-sm">Tryb WT 2021</h3>
+                    <p className="text-[10px] text-emerald-600">Nadpisuje wartości U wg Warunków Technicznych</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setWtMode(!wtMode)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-bold text-sm"
+                  style={{ background: wtMode ? '#059669' : '#d1d5db', color: wtMode ? 'white' : '#6b7280' }}
+                >
+                  {wtMode ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  {wtMode ? 'AKTYWNY' : 'WYŁĄCZONY'}
+                </button>
+              </div>
+
+              {wtMode && (
+                <div className="bg-white/70 rounded-xl p-4 border border-emerald-100">
+                  <h4 className="text-[10px] font-bold text-emerald-700 uppercase mb-3">Wartości U_max [W/(m²·K)] — edytowalne</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(wtStandard.Umax).map(([key, value]) => (
+                      <div key={key} className="flex items-center gap-2 bg-emerald-50 rounded-lg px-3 py-2">
+                        <span className="text-[9px] font-bold text-emerald-800 uppercase flex-1 truncate">{key.replace(/_/g, ' ')}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={value}
+                          onChange={(e) => {
+                            const newUmax = { ...wtStandard.Umax, [key]: parseFloat(e.target.value) || 0 };
+                            updateWtStandard({ Umax: newUmax });
+                          }}
+                          className="w-16 text-right text-sm font-mono font-bold text-emerald-700 bg-white border border-emerald-200 rounded px-2 py-0.5"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* QUICK MODE */}
+            <div className="bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Zap className="w-6 h-6 text-sky-600" />
+                  <div>
+                    <h3 className="font-black text-sky-800 text-sm">Tryb QUICK</h3>
+                    <p className="text-[10px] text-sky-600">Własne profile wartości U — do szybkich analiz porównawczych</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setQuickMode(!quickMode)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-bold text-sm"
+                  style={{ background: quickMode ? '#0284c7' : '#d1d5db', color: quickMode ? 'white' : '#6b7280' }}
+                >
+                  {quickMode ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  {quickMode ? 'AKTYWNY' : 'WYŁĄCZONY'}
+                </button>
+              </div>
+
+              {/* Profile selector + creator */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={activeQuickProfileId || ''}
+                    onChange={(e) => setActiveQuickProfileId(e.target.value || null)}
+                    className="flex-1 text-xs bg-white border border-sky-200 rounded-xl p-2.5 font-medium text-sky-800 focus:outline-none focus:border-sky-400"
+                  >
+                    <option value="">— Wybierz profil QUICK —</option>
+                    {quickProfiles.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const id = `qp-${Date.now()}`;
+                      addQuickProfile({ id, name: `Profil ${quickProfiles.length + 1}`, Umax: { ...wtStandard.Umax } });
+                      setActiveQuickProfileId(id);
+                    }}
+                    className="px-3 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Nowy
+                  </button>
+                  {activeQuickProfileId && (
+                    <button
+                      onClick={() => removeQuickProfile(activeQuickProfileId)}
+                      className="p-2.5 text-gray-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {activeQuickProfileId && (() => {
+                  const profile = quickProfiles.find(p => p.id === activeQuickProfileId);
+                  if (!profile) return null;
+                  return (
+                    <div className="bg-white/70 rounded-xl p-4 border border-sky-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <label className="text-[10px] font-bold text-sky-700 uppercase">Nazwa:</label>
+                        <input
+                          type="text"
+                          value={profile.name}
+                          onChange={(e) => updateQuickProfile(profile.id, { name: e.target.value })}
+                          className="flex-1 text-xs border-b border-sky-200 bg-transparent focus:outline-none focus:border-sky-500 font-bold text-sky-800 py-0.5"
+                        />
+                      </div>
+                      <h4 className="text-[10px] font-bold text-sky-700 uppercase mb-2">Wartości U_max [W/(m²·K)]</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {Object.entries(profile.Umax).map(([key, value]) => (
+                          <div key={key} className="flex items-center gap-2 bg-sky-50 rounded-lg px-3 py-2">
+                            <span className="text-[9px] font-bold text-sky-800 uppercase flex-1 truncate">{key.replace(/_/g, ' ')}</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={value}
+                              onChange={(e) => {
+                                const newUmax = { ...profile.Umax, [key]: parseFloat(e.target.value) || 0 };
+                                updateQuickProfile(profile.id, { Umax: newUmax });
+                              }}
+                              className="w-16 text-right text-sm font-mono font-bold text-sky-700 bg-white border border-sky-200 rounded px-2 py-0.5"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* AUTO ASSIGN */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Zap className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h3 className="font-black text-blue-800 text-sm">Automatyczne Przypisanie</h3>
+                  <p className="text-[10px] text-blue-600">Przypisuje przegrody oznaczone jako domyślne do ścian</p>
+                </div>
+              </div>
+
+              {(() => {
+                const defaultWTs = Object.values(wallTypes).filter(wt => wt.isDefault);
+                const totalBoundaries = Object.values(zones).reduce((sum, z) => sum + (z.boundaries?.length || 0), 0);
+                const unassigned = Object.values(zones).reduce((sum, z) => 
+                  sum + (z.boundaries?.filter(b => !b.relatedWallTypeId).length || 0), 0
+                );
+                return (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-white rounded-xl p-3 border border-blue-100 text-center">
+                        <div className="text-2xl font-black text-blue-700">{defaultWTs.length}</div>
+                        <div className="text-[9px] text-blue-500 font-bold uppercase">Przegrody domyślne</div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3 border border-blue-100 text-center">
+                        <div className="text-2xl font-black text-slate-700">{totalBoundaries}</div>
+                        <div className="text-[9px] text-slate-500 font-bold uppercase">Ścian łącznie</div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3 border border-red-100 text-center">
+                        <div className={`text-2xl font-black ${unassigned > 0 ? 'text-red-600' : 'text-green-600'}`}>{unassigned}</div>
+                        <div className="text-[9px] text-red-500 font-bold uppercase">Bez przypisania</div>
+                      </div>
+                    </div>
+
+                    {defaultWTs.length > 0 && (
+                      <div className="bg-white/70 rounded-xl p-3 border border-blue-100">
+                        <h4 className="text-[10px] font-bold text-blue-700 uppercase mb-2">Przegrody domyślne</h4>
+                        {defaultWTs.map(dwt => {
+                          const ls = layerSets[dwt.layerSetId];
+                          const totalThickness = ls ? ls.layers.reduce((s, l) => s + l.thickness, 0) : 0;
+                          return (
+                            <div key={dwt.id} className="flex items-center gap-2 text-xs py-1 border-b border-blue-50 last:border-0">
+                              <span className="font-bold text-slate-700 flex-1">{dwt.name}</span>
+                              <span className="text-blue-600 font-mono">{(totalThickness * 100).toFixed(0)} cm</span>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${dwt.defaultAssignMode === 'ALL' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {dwt.defaultAssignMode === 'ALL' ? 'WSZYSTKIE' : `wg grubości`}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => {
+                        runAutoAssign();
+                        alert('Automatyczne przypisanie zakończone!');
+                      }}
+                      disabled={defaultWTs.length === 0}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-black text-sm rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-4 h-4" /> URUCHOM AUTOMATYCZNE PRZYPISANIE
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* GLOBAL HORIZONTAL ASSIGNMENTS */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Thermometer className="w-6 h-6 text-amber-600" />
+                <div>
+                  <h3 className="font-black text-amber-800 text-sm">Przypisanie Globalne (Stropy, Podłogi)</h3>
+                  <p className="text-[10px] text-amber-600">Jeden typ przegrody dla wszystkich dachów / podłóg na gruncie</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-xl p-4 border border-amber-100">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase block mb-2">Dach / Strop</label>
+                  <select 
+                    value={globalRoofWallTypeId || ''}
+                    onChange={(e) => setGlobalRoofWallTypeId(e.target.value || undefined)}
+                    className="w-full text-xs bg-amber-50 border border-amber-200 rounded-lg p-2 font-medium text-amber-800"
+                  >
+                    <option value="">— Brak globalnego —</option>
+                    {Object.values(wallTypes).filter(wt => wt.thermalType === 'ROOF' || wt.thermalType === 'FLOOR').map(wt => (
+                      <option key={wt.id} value={wt.id}>{wt.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-amber-100">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase block mb-2">Podłoga na Gruncie</label>
+                  <select 
+                    value={globalFloorGroundWallTypeId || ''}
+                    onChange={(e) => setGlobalFloorGroundWallTypeId(e.target.value || undefined)}
+                    className="w-full text-xs bg-amber-50 border border-amber-200 rounded-lg p-2 font-medium text-amber-800"
+                  >
+                    <option value="">— Brak globalnego —</option>
+                    {Object.values(wallTypes).filter(wt => wt.isGroundContact).map(wt => (
+                      <option key={wt.id} value={wt.id}>{wt.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* DIAGNOSTIC OVERLAY */}
+            <div className="bg-gradient-to-br from-slate-50 to-gray-100 border border-slate-200 rounded-2xl p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Info className="w-6 h-6 text-slate-500" />
+                  <div>
+                    <h3 className="font-black text-slate-700 text-sm">Diagnostyka Wizualna Przypisań</h3>
+                    <p className="text-[10px] text-slate-500">Koloruje ściany w widoku 2D/3D wg statusu przypisania</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={toggleAssignmentDiagnostic}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-bold text-sm"
+                  style={{ background: showAssignmentDiagnostic ? '#3b82f6' : '#d1d5db', color: showAssignmentDiagnostic ? 'white' : '#6b7280' }}
+                >
+                  {showAssignmentDiagnostic ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  {showAssignmentDiagnostic ? 'AKTYWNA' : 'WYŁĄCZONA'}
+                </button>
+              </div>
+              <div className="flex items-center gap-6 mt-3 text-[10px] font-bold uppercase">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-blue-400"></div> 
+                  <span className="text-blue-700">Ręcznie</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-red-500"></div> 
+                  <span className="text-red-600">Brak</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-green-500"></div> 
+                  <span className="text-green-700">Tryb WT</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-yellow-400"></div> 
+                  <span className="text-yellow-600">Tryb QUICK</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <WallTypeModal 
           isOpen={isWallTypeModalOpen}

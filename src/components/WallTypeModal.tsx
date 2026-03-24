@@ -27,6 +27,10 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
   
   const [layers, setLayers] = useState<IfcMaterialLayer[]>([]);
   const [thermalType, setThermalType] = useState<'WALL' | 'FLOOR' | 'ROOF'>('WALL');
+  const [isDefault, setIsDefault] = useState(false);
+  const [defaultAssignMode, setDefaultAssignMode] = useState<'ALL' | 'BY_THICKNESS'>('ALL');
+  const [tolerancePlus, setTolerancePlus] = useState(5); // cm
+  const [toleranceMinus, setToleranceMinus] = useState(4); // cm
 
   // Load data when editing
   useEffect(() => {
@@ -37,6 +41,10 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
         setIsGroundContact(editingWallType.isGroundContact || false);
         setType(editingWallType.predefinedType);
         setThermalType(editingWallType.thermalType || 'WALL');
+        setIsDefault(editingWallType.isDefault || false);
+        setDefaultAssignMode(editingWallType.defaultAssignMode || 'ALL');
+        setTolerancePlus((editingWallType.defaultTolerancePlus ?? 0.05) * 100);
+        setToleranceMinus((editingWallType.defaultToleranceMinus ?? 0.04) * 100);
         
         const layerSet = layerSets[editingWallType.layerSetId];
         if (layerSet) {
@@ -52,6 +60,10 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
         setIsGroundContact(false);
         setType('STANDARD');
         setThermalType('WALL');
+        setIsDefault(false);
+        setDefaultAssignMode('ALL');
+        setTolerancePlus(5);
+        setToleranceMinus(4);
         setLayers([]);
       }
       setSaveAsTemplate(false);
@@ -101,7 +113,11 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
         predefinedType: type,
         isExternal: isExternal,
         thermalType: thermalType,
-        isGroundContact: isGroundContact
+        isGroundContact: isGroundContact,
+        isDefault: isDefault,
+        defaultAssignMode: defaultAssignMode,
+        defaultTolerancePlus: tolerancePlus / 100,
+        defaultToleranceMinus: toleranceMinus / 100
       });
     } else {
       // CREATE MODE
@@ -119,7 +135,11 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
         predefinedType: type,
         isExternal: isExternal,
         thermalType: thermalType,
-        isGroundContact: isGroundContact
+        isGroundContact: isGroundContact,
+        isDefault: isDefault,
+        defaultAssignMode: defaultAssignMode,
+        defaultTolerancePlus: tolerancePlus / 100,
+        defaultToleranceMinus: toleranceMinus / 100
       };
 
       addLayerSet(layerSet);
@@ -216,6 +236,49 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
                 <p className="text-[10px] text-indigo-400 uppercase font-bold">Wyliczone U ({thermalType})</p>
                 <p className="text-2xl font-black text-indigo-700">{uValue.toFixed(3)} <span className="text-[10px] font-normal">W/m²K</span></p>
              </div>
+          </div>
+
+          {/* DEFAULT ASSIGNMENT SECTION */}
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded-sm border-gray-300"
+              />
+              <span className="text-xs font-bold text-blue-900 uppercase">Przegroda Domyślna</span>
+              <span className="text-[9px] text-blue-500">— używana w automatycznym przypisaniu</span>
+            </label>
+
+            {isDefault && (
+              <div className="pl-6 space-y-2">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="assignMode" value="ALL" checked={defaultAssignMode === 'ALL'} onChange={() => setDefaultAssignMode('ALL')} className="text-blue-600" />
+                    <span className="text-xs font-bold text-blue-800">Każda przegroda</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="assignMode" value="BY_THICKNESS" checked={defaultAssignMode === 'BY_THICKNESS'} onChange={() => setDefaultAssignMode('BY_THICKNESS')} className="text-blue-600" />
+                    <span className="text-xs font-bold text-blue-800">Wg grubości ściany</span>
+                  </label>
+                </div>
+
+                {defaultAssignMode === 'BY_THICKNESS' && (
+                  <div className="flex items-center gap-3 bg-white/60 rounded-lg p-2">
+                    <span className="text-[9px] font-bold text-blue-700 uppercase">Tolerancja:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-blue-600">+</span>
+                      <input type="number" value={tolerancePlus} onChange={e => setTolerancePlus(Number(e.target.value))} className="w-12 text-center text-xs border border-blue-200 rounded px-1 py-0.5 font-mono" />
+                      <span className="text-[9px] text-blue-500">cm</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-blue-600">−</span>
+                      <input type="number" value={toleranceMinus} onChange={e => setToleranceMinus(Number(e.target.value))} className="w-12 text-center text-xs border border-blue-200 rounded px-1 py-0.5 font-mono" />
+                      <span className="text-[9px] text-blue-500">cm</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-100 rounded-xl">

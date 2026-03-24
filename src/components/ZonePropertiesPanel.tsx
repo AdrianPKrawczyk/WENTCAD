@@ -985,6 +985,23 @@ export function ZonePropertiesPanel() {
                                     <td className="p-1 text-right text-indigo-700 font-black font-mono">{netArea.toFixed( netArea < 0 ? 0 : 2)}</td>
                                     <td className="p-1 text-right text-indigo-600 font-bold">
                                       {(() => {
+                                        const wtMode = useZoneStore.getState().wtMode;
+                                        const quickMode = useZoneStore.getState().quickMode;
+                                        const wtStandard = useZoneStore.getState().wtStandard;
+                                        const activeQPId = useZoneStore.getState().activeQuickProfileId;
+                                        const qp = useZoneStore.getState().quickProfiles.find((p: any) => p.id === activeQPId);
+                                        const uSource = quickMode && qp ? (qp as any).Umax : wtStandard.Umax;
+
+                                        if (wtMode || quickMode) {
+                                          const wtKey = b.type === 'EXTERIOR' ? 'EXT_WALL' : 'INT_WALL';
+                                          const wtU = uSource[wtKey];
+                                          return (
+                                            <span className="flex items-center gap-1 justify-end">
+                                              <span className={`text-[8px] ${wtMode ? 'bg-green-500' : 'bg-yellow-400'} text-white px-1 py-0.5 rounded font-bold`}>{wtMode ? 'WT' : 'Q'}</span>
+                                              {wtU?.toFixed(2) ?? '-'}
+                                            </span>
+                                          );
+                                        }
                                         const wallType = b.relatedWallTypeId ? wallTypes[b.relatedWallTypeId] : null;
                                         if (wallType) {
                                           const layerSet = (useZoneStore.getState() as any).layerSets[wallType.layerSetId];
@@ -1061,7 +1078,27 @@ export function ZonePropertiesPanel() {
                                       <td className="p-1 text-center text-gray-300">-</td>
                                       <td className="p-1 text-right text-sky-800 font-bold">{(op.width * op.height).toFixed(2)}</td>
                                       <td className="p-1 text-right text-sky-600 font-bold">
-                                        {style ? style.overallUValue.toFixed(2) : '-'}
+                                        {(() => {
+                                           const wtMode = useZoneStore.getState().wtMode;
+                                           const quickMode = useZoneStore.getState().quickMode;
+                                           const wtStandard = useZoneStore.getState().wtStandard;
+                                           const activeQPId = useZoneStore.getState().activeQuickProfileId;
+                                           const qp = useZoneStore.getState().quickProfiles.find((p: any) => p.id === activeQPId);
+                                           const uSource = quickMode && qp ? (qp as any).Umax : wtStandard.Umax;
+
+                                           if (wtMode || quickMode) {
+                                             const isDoor = style?.type === 'DOOR';
+                                             const wtKey = isDoor ? 'DOOR' : 'WINDOW';
+                                             const wtU = uSource[wtKey];
+                                             return (
+                                               <span className="flex items-center gap-1 justify-end">
+                                                 <span className={`text-[8px] ${wtMode ? 'bg-green-500' : 'bg-yellow-400'} text-white px-1 py-0.5 rounded font-bold`}>{wtMode ? 'WT' : 'Q'}</span>
+                                                 {wtU?.toFixed(2) ?? '-'}
+                                               </span>
+                                             );
+                                           }
+                                           return style ? style.overallUValue.toFixed(2) : '-';
+                                         })()}
                                       </td>
                                     </tr>
                                     
@@ -1158,6 +1195,27 @@ export function ZonePropertiesPanel() {
                                   <td className="p-1 text-right text-indigo-700 font-black font-mono">{hb.area.toFixed(2)}</td>
                                   <td className="p-1 text-right text-indigo-600 font-bold">
                                     {(() => {
+                                      const wtMode = useZoneStore.getState().wtMode;
+                                      const quickMode = useZoneStore.getState().quickMode;
+                                      const wtStandard = useZoneStore.getState().wtStandard;
+                                      const activeQPId = useZoneStore.getState().activeQuickProfileId;
+                                      const qp = useZoneStore.getState().quickProfiles.find(p => p.id === activeQPId);
+                                      const uSource = quickMode && qp ? qp.Umax : wtStandard.Umax;
+                                      if (wtMode || quickMode) {
+                                        const wtKeyMap: Record<string, string> = {
+                                          'ROOF': 'ROOF', 'CEILING_INTERIOR': 'CEILING_INTERIOR',
+                                          'FLOOR_GROUND': 'FLOOR_GROUND', 'FLOOR_INTERIOR': 'CEILING_INTERIOR',
+                                          'FLOOR_EXTERIOR': 'FLOOR_OVER_UNHEATED'
+                                        };
+                                        const wtKey = wtKeyMap[hb.type] || 'ROOF';
+                                        const wtU = uSource[wtKey];
+                                        return (
+                                          <span className="flex items-center gap-1 justify-end">
+                                            <span className={`text-[8px] ${wtMode ? 'bg-green-500' : 'bg-yellow-400'} text-white px-1 py-0.5 rounded font-bold`}>{wtMode ? 'WT' : 'Q'}</span>
+                                            {wtU?.toFixed(2) ?? '-'}
+                                          </span>
+                                        );
+                                      }
                                       const wallType = hb.uValueRef ? wallTypes[hb.uValueRef] : null;
                                       if (wallType) {
                                         const layerSet = (useZoneStore.getState() as any).layerSets[wallType.layerSetId];

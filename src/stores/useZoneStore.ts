@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import type { ZoneData, Floor, SystemDef, ProjectStateData, AnalysisPreset, StylePreset, GlobalTagSettings, TagFieldConfig, DxfExportSettings, OpeningInstance } from '../types';
-import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle } from '../lib/wattTypes';
+import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType, IfcWindowStyle, WtStandard, QuickProfile } from '../lib/wattTypes';
 import { DEFAULT_DXF_EXPORT_SETTINGS } from '../types';
 import { calculateZoneAirBalance } from '../lib/PhysicsEngine';
 import { checkAdjacency, checkBoundary, snapOpeningsToEdges } from '../lib/geometryUtils/topology';
@@ -328,6 +328,28 @@ interface ZoneStore {
   updateWindowStyle: (id: string, updates: Partial<IfcWindowStyle>) => void;
   removeWindowStyle: (id: string) => void;
   
+  // Global Assignment
+  wtMode: boolean;
+  wtStandard: WtStandard;
+  globalRoofWallTypeId?: string;
+  globalFloorGroundWallTypeId?: string;
+  showAssignmentDiagnostic: boolean;
+  setWtMode: (enabled: boolean) => void;
+  updateWtStandard: (updates: Partial<WtStandard>) => void;
+  setGlobalRoofWallTypeId: (id: string | undefined) => void;
+  setGlobalFloorGroundWallTypeId: (id: string | undefined) => void;
+  toggleAssignmentDiagnostic: () => void;
+  runAutoAssign: () => void;
+  // Quick Mode
+  quickMode: boolean;
+  activeQuickProfileId: string | null;
+  quickProfiles: QuickProfile[];
+  setQuickMode: (enabled: boolean) => void;
+  setActiveQuickProfileId: (id: string | null) => void;
+  addQuickProfile: (profile: QuickProfile) => void;
+  updateQuickProfile: (id: string, updates: Partial<QuickProfile>) => void;
+  removeQuickProfile: (id: string) => void;
+  
   // WATT UI State
   selectedBoundaryId: string | null;
   setSelectedBoundaryId: (id: string | null) => void;
@@ -381,11 +403,31 @@ export const useZoneStore = create<ZoneStore>()(
       selectedBoundaryId: null,
       selectedHorizontalBoundaryId: null,
       
+      // Global Assignment State
+      wtMode: false,
+      wtStandard: { standard: 'WT 2021', description: 'Warunki Techniczne 2021', Umax: { EXT_WALL: 0.20, INT_WALL: 1.00, ROOF: 0.15, FLOOR_GROUND: 0.30, FLOOR_OVER_UNHEATED: 0.25, CEILING_INTERIOR: 1.00, WINDOW: 0.90, DOOR: 1.30, ROOF_WINDOW: 1.10 } },
+      globalRoofWallTypeId: undefined,
+      globalFloorGroundWallTypeId: undefined,
+      showAssignmentDiagnostic: false,
+      quickMode: false,
+      activeQuickProfileId: null,
+      quickProfiles: [],
+      
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
       setPendingWindows: (windows) => set({ pendingWindows: windows }),
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
       setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
       setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
+      setWtMode: (enabled) => set({ wtMode: enabled }),
+      updateWtStandard: (updates) => set(s => ({ wtStandard: { ...s.wtStandard, ...updates } })),
+      setGlobalRoofWallTypeId: (id) => set({ globalRoofWallTypeId: id }),
+      setGlobalFloorGroundWallTypeId: (id) => set({ globalFloorGroundWallTypeId: id }),
+      toggleAssignmentDiagnostic: () => set(s => ({ showAssignmentDiagnostic: !s.showAssignmentDiagnostic })),
+      setQuickMode: (enabled) => set({ quickMode: enabled }),
+      setActiveQuickProfileId: (id) => set({ activeQuickProfileId: id }),
+      addQuickProfile: (profile) => set(s => ({ quickProfiles: [...s.quickProfiles, profile] })),
+      updateQuickProfile: (id, updates) => set(s => ({ quickProfiles: s.quickProfiles.map(p => p.id === id ? { ...p, ...updates } : p) })),
+      removeQuickProfile: (id) => set(s => ({ quickProfiles: s.quickProfiles.filter(p => p.id !== id), activeQuickProfileId: s.activeQuickProfileId === id ? null : s.activeQuickProfileId })),
 
       addMaterial: (material) => set(s => ({ materials: { ...s.materials, [material.id]: material } })),
       updateMaterial: (id, updates) => set(s => ({ 
@@ -425,6 +467,88 @@ export const useZoneStore = create<ZoneStore>()(
         const next = { ...s.windowStyles };
         delete next[id];
         return { windowStyles: next };
+      }),
+
+      runAutoAssign: () => set(s => {
+        const updatedZones = { ...s.zones };
+        const defaultWallTypes = Object.values(s.wallTypes).filter(wt => wt.isDefault);
+        
+        Object.values(updatedZones).forEach(zone => {
+          if (!zone.boundaries) return;
+          const updatedBoundaries = zone.boundaries.map(b => {
+            // Skip if already manually assigned
+            if (b.relatedWallTypeId) return b;
+            
+            // Find matching default wall type
+            for (const dwt of defaultWallTypes) {
+              // Match by external/internal
+              if (dwt.thermalType === 'WALL' && dwt.isExternal === (b.type === 'EXTERIOR')) {
+                if (dwt.defaultAssignMode === 'ALL') {
+                  return { ...b, relatedWallTypeId: dwt.id };
+                }
+                if (dwt.defaultAssignMode === 'BY_THICKNESS') {
+                  const layerSet = s.layerSets[dwt.layerSetId];
+                  if (layerSet) {
+                    const totalThickness = layerSet.layers.reduce((sum, l) => sum + l.thickness, 0);
+                    const tolPlus = dwt.defaultTolerancePlus ?? 0.05;
+                    const tolMinus = dwt.defaultToleranceMinus ?? 0.04;
+                    const wallThickness = b.geometry.thickness;
+                    if (wallThickness >= totalThickness - tolMinus && wallThickness <= totalThickness + tolPlus) {
+                      return { ...b, relatedWallTypeId: dwt.id };
+                    }
+                  }
+                }
+              }
+            }
+            return b;
+          });
+          
+          // Handle horizontal boundaries
+          if (zone.horizontalBoundaries) {
+            const updatedHB = zone.horizontalBoundaries.map(hb => {
+              if (hb.uValueRef) return hb; // Skip if already assigned
+              
+              if ((hb.type === 'ROOF' || hb.type === 'CEILING_INTERIOR') && s.globalRoofWallTypeId) {
+                return { ...hb, uValueRef: s.globalRoofWallTypeId };
+              }
+              if ((hb.type === 'FLOOR_GROUND') && s.globalFloorGroundWallTypeId) {
+                return { ...hb, uValueRef: s.globalFloorGroundWallTypeId };
+              }
+              
+              // Match floor/ceiling by thickness from floor data
+              if (hb.type === 'CEILING_INTERIOR' || hb.type === 'FLOOR_INTERIOR') {
+                const floor = s.floors[zone.floorId];
+                if (floor) {
+                  const slabThickness = floor.heightTotal - floor.heightNet;
+                  for (const dwt of defaultWallTypes) {
+                    if (dwt.thermalType === 'ROOF' || dwt.thermalType === 'FLOOR') {
+                      if (dwt.defaultAssignMode === 'ALL') {
+                        return { ...hb, uValueRef: dwt.id };
+                      }
+                      if (dwt.defaultAssignMode === 'BY_THICKNESS') {
+                        const layerSet = s.layerSets[dwt.layerSetId];
+                        if (layerSet) {
+                          const totalThickness = layerSet.layers.reduce((sum, l) => sum + l.thickness, 0);
+                          const tolPlus = dwt.defaultTolerancePlus ?? 0.05;
+                          const tolMinus = dwt.defaultToleranceMinus ?? 0.04;
+                          if (slabThickness >= totalThickness - tolMinus && slabThickness <= totalThickness + tolPlus) {
+                            return { ...hb, uValueRef: dwt.id };
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              return hb;
+            });
+            updatedZones[zone.id] = { ...zone, boundaries: updatedBoundaries, horizontalBoundaries: updatedHB };
+          } else {
+            updatedZones[zone.id] = { ...zone, boundaries: updatedBoundaries };
+          }
+        });
+        
+        return { zones: updatedZones };
       }),
 
       addWallTypeTemplate: (template) => set(s => ({ 

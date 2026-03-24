@@ -1717,7 +1717,20 @@ export function Workspace2D({ className }: Workspace2DProps) {
                      {/* 1. Walls Highlighting (All walls) */}
                      {zone.boundaries.map((b, bIdx) => {
                        const isSelected = b.id === selectedBoundaryId;
-                       let strokeColor = b.type === 'EXTERIOR' ? '#f59e0b' : (b.type === 'INTERIOR' ? '#94a3b8' : '#ef4444');
+                       
+                       // Diagnostic mode colors
+                       const diagMode = useZoneStore.getState().showAssignmentDiagnostic;
+                       const wtActive = useZoneStore.getState().wtMode;
+                       const quickActive = useZoneStore.getState().quickMode;
+                       let strokeColor: string;
+                       if (diagMode) {
+                         if (wtActive) strokeColor = '#22c55e'; // Green for WT mode
+                         else if (quickActive) strokeColor = '#facc15'; // Yellow for Quick mode
+                         else if (b.relatedWallTypeId) strokeColor = '#60a5fa'; // Blue for assigned
+                         else strokeColor = '#ef4444'; // Red for unassigned
+                       } else {
+                         strokeColor = b.type === 'EXTERIOR' ? '#f59e0b' : (b.type === 'INTERIOR' ? '#94a3b8' : '#ef4444');
+                       }
                        if (isSelected) strokeColor = '#4f46e5';
 
                        return (

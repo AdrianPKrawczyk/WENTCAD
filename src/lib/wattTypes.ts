@@ -25,8 +25,25 @@ export type IfcWallType = {
   layerSetId: string;
   predefinedType: 'SOLIDWALL' | 'PARTITIONING' | 'STANDARD';
   isExternal: boolean;
-  thermalType?: 'WALL' | 'FLOOR' | 'ROOF'; // NEW: for Rsi/Rse selection
-  isGroundContact?: boolean; // NEW: for Rse=0
+  thermalType?: 'WALL' | 'FLOOR' | 'ROOF'; // for Rsi/Rse selection
+  isGroundContact?: boolean; // for Rse=0
+  // Auto-assignment fields
+  isDefault?: boolean;
+  defaultAssignMode?: 'ALL' | 'BY_THICKNESS';
+  defaultTolerancePlus?: number;  // [m], default 0.05
+  defaultToleranceMinus?: number; // [m], default 0.04
+};
+
+export type WtStandard = {
+  standard: string;
+  description: string;
+  Umax: Record<string, number>;
+};
+
+export type QuickProfile = {
+  id: string;
+  name: string;
+  Umax: Record<string, number>;
 };
 
 export type IfcWindowStyle = {

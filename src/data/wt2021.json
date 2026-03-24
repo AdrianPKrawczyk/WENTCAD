@@ -1,0 +1,15 @@
+{
+  "standard": "WT 2021",
+  "description": "Warunki Techniczne 2021 – Wymagania Izolacyjności Cieplnej (Dz.U. poz. 2030)",
+  "Umax": {
+    "EXT_WALL": 0.20,
+    "INT_WALL": 1.00,
+    "ROOF": 0.15,
+    "FLOOR_GROUND": 0.30,
+    "FLOOR_OVER_UNHEATED": 0.25,
+    "CEILING_INTERIOR": 1.00,
+    "WINDOW": 0.90,
+    "DOOR": 1.30,
+    "ROOF_WINDOW": 1.10
+  }
+}
