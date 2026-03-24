@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Plus, Trash2, Database, Layers, Thermometer, Info, Save, LayoutGrid, List } from 'lucide-react';
-import type { IfcMaterial } from '../lib/wattTypes';
+import { X, Plus, Trash2, Database, Layers, Thermometer, Info, Save, LayoutGrid, List, Edit2 } from 'lucide-react';
+import type { IfcMaterial, IfcWallType } from '../lib/wattTypes';
 import { WallTypeModal } from './WallTypeModal';
 import { useMemo } from 'react';
 
@@ -71,6 +71,7 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const [materialViewMode, setMaterialViewMode] = useState<'GRID' | 'TABLE'>('GRID');
   const [selectedCategory, setSelectedCategory] = useState('WSZYSTKO');
   const [isWallTypeModalOpen, setIsWallTypeModalOpen] = useState(false);
+  const [editingWallType, setEditingWallType] = useState<IfcWallType | null>(null);
 
 
   // Material Form State
@@ -410,12 +411,24 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                             <h4 className="font-bold text-gray-800">{wt.name}</h4>
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Standard: {wt.predefinedType}</p>
                          </div>
-                         <button 
-                            onClick={() => removeWallType(wt.id)}
-                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                         >
-                            <Trash2 className="w-5 h-5" />
-                         </button>
+                         <div className="flex gap-2">
+                            <button 
+                               onClick={() => {
+                                 setEditingWallType(wt);
+                                 setIsWallTypeModalOpen(true);
+                               }}
+                               className="p-2 text-gray-300 hover:text-indigo-600 transition-colors"
+                               title="Edytuj układ warstw"
+                            >
+                               <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button 
+                               onClick={() => removeWallType(wt.id)}
+                               className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                               <Trash2 className="w-5 h-5" />
+                            </button>
+                         </div>
                       </div>
                     ))
                   )}
@@ -424,7 +437,10 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
                {/* Wall Type Creator */}
                <div className="mt-8">
                   <button 
-                    onClick={() => setIsWallTypeModalOpen(true)}
+                    onClick={() => {
+                      setEditingWallType(null);
+                      setIsWallTypeModalOpen(true);
+                    }}
                     className="w-full py-4 border-2 border-dashed border-orange-200 rounded-2xl text-orange-600 font-bold hover:bg-orange-50 transition-all flex items-center justify-center gap-2"
                   >
                     <Plus className="w-5 h-5" /> Stwórz nową przegrodę wielowarstwową
@@ -469,7 +485,11 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
 
         <WallTypeModal 
           isOpen={isWallTypeModalOpen}
-          onClose={() => setIsWallTypeModalOpen(false)}
+          editingWallType={editingWallType || undefined}
+          onClose={() => {
+            setIsWallTypeModalOpen(false);
+            setEditingWallType(null);
+          }}
         />
       </div>
     </div>

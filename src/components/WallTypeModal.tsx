@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
 import { X, Plus, Trash2, Layers, Save } from 'lucide-react';
 import type { IfcMaterialLayer, IfcMaterialLayerSet, IfcWallType } from '../lib/wattTypes';
@@ -12,18 +12,51 @@ interface WallTypeModalProps {
 
 export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModalProps) {
   const materials = useZoneStore((state) => state.materials);
+  const layerSets = useZoneStore((state) => state.layerSets);
   const addWallType = useZoneStore((state) => state.addWallType);
+  const updateWallType = useZoneStore((state) => state.updateWallType);
   const addLayerSet = useZoneStore((state) => state.addLayerSet);
+  const updateLayerSet = useZoneStore((state) => state.updateLayerSet);
   const addWallTypeTemplate = useZoneStore((state) => state.addWallTypeTemplate);
   
-  const [name, setName] = useState(editingWallType?.name || '');
-  const [isExternal, setIsExternal] = useState(editingWallType?.isExternal ?? true);
-  const [isGroundContact, setIsGroundContact] = useState(editingWallType?.isGroundContact ?? false);
-  const [type, setType] = useState<IfcWallType['predefinedType']>(editingWallType?.predefinedType || 'STANDARD');
+  const [name, setName] = useState('');
+  const [isExternal, setIsExternal] = useState(true);
+  const [isGroundContact, setIsGroundContact] = useState(false);
+  const [type, setType] = useState<IfcWallType['predefinedType']>('STANDARD');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   
   const [layers, setLayers] = useState<IfcMaterialLayer[]>([]);
-  const [thermalType, setThermalType] = useState<'WALL' | 'FLOOR' | 'ROOF'>(editingWallType?.thermalType || 'WALL');
+  const [thermalType, setThermalType] = useState<'WALL' | 'FLOOR' | 'ROOF'>('WALL');
+
+  // Load data when editing
+  useEffect(() => {
+    if (isOpen) {
+      if (editingWallType) {
+        setName(editingWallType.name);
+        setIsExternal(editingWallType.isExternal);
+        setIsGroundContact(editingWallType.isGroundContact || false);
+        setType(editingWallType.predefinedType);
+        setThermalType(editingWallType.thermalType || 'WALL');
+        
+        const layerSet = layerSets[editingWallType.layerSetId];
+        if (layerSet) {
+           // Create deep copy to avoid direct mutation issues
+           setLayers([...layerSet.layers.map(l => ({ ...l }))]);
+        } else {
+           setLayers([]);
+        }
+      } else {
+        // Reset for new
+        setName('');
+        setIsExternal(true);
+        setIsGroundContact(false);
+        setType('STANDARD');
+        setThermalType('WALL');
+        setLayers([]);
+      }
+      setSaveAsTemplate(false);
+    }
+  }, [isOpen, editingWallType, layerSets]);
 
   const uValue = useMemo(() => calculateUValue(layers, materials, isExternal, thermalType, isGroundContact), [layers, materials, isExternal, thermalType, isGroundContact]);
 
@@ -58,28 +91,43 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
        return;
     }
 
-    const layerSetId = crypto.randomUUID();
-    const layerSet: IfcMaterialLayerSet = {
-      id: layerSetId,
-      name: `LS for ${name}`,
-      layers: layers
-    };
+    if (editingWallType) {
+      // UPDATE MODE
+      updateLayerSet(editingWallType.layerSetId, {
+        layers: layers
+      });
+      updateWallType(editingWallType.id, {
+        name: name,
+        predefinedType: type,
+        isExternal: isExternal,
+        thermalType: thermalType,
+        isGroundContact: isGroundContact
+      });
+    } else {
+      // CREATE MODE
+      const layerSetId = crypto.randomUUID();
+      const layerSet: IfcMaterialLayerSet = {
+        id: layerSetId,
+        name: `LS for ${name}`,
+        layers: layers
+      };
 
-    const wallType: IfcWallType = {
-      id: crypto.randomUUID(),
-      name: name,
-      layerSetId: layerSetId,
-      predefinedType: type,
-      isExternal: isExternal,
-      thermalType: thermalType,
-      isGroundContact: isGroundContact
-    };
+      const wallType: IfcWallType = {
+        id: crypto.randomUUID(),
+        name: name,
+        layerSetId: layerSetId,
+        predefinedType: type,
+        isExternal: isExternal,
+        thermalType: thermalType,
+        isGroundContact: isGroundContact
+      };
 
-    addLayerSet(layerSet);
-    addWallType(wallType);
-    
-    if (saveAsTemplate) {
-       addWallTypeTemplate(wallType);
+      addLayerSet(layerSet);
+      addWallType(wallType);
+      
+      if (saveAsTemplate) {
+         addWallTypeTemplate(wallType);
+      }
     }
     
     onClose();
@@ -94,8 +142,8 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-800">Kreator Typu Przegrody</h3>
-              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Definiowanie układu warstw</p>
+              <h3 className="font-bold text-gray-800">{editingWallType ? 'Edytuj Typ Przegrody' : 'Kreator Typu Przegrody'}</h3>
+              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{editingWallType ? 'Aktualizacja parametrów' : 'Definiowanie układu warstw'}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">

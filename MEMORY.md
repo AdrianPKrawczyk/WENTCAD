@@ -70,6 +70,9 @@
     - [x] Fix: Nadpisywanie właściwości `isExternal` z biblioteki rzeczywistym kontekstem topologicznym w tabeli Zestawienia Przegród.
     - [x] UX: Dodanie pola wyboru "Kontakt z gruntem" w kreatorze konstrukcji wielowarstwowych.
     - [x] Weryfikacja: Potwierdzenie wyników dla betonu 24cm (U=3.21 dla ścian/gruntu, U=2.49 dla wewn., U=2.08 dla stropów).
+- [x] **WATT REWIZJA 7: Edycja Definicji Przegród**:
+    - [x] Dodanie funkcji edycji istniejących przegród warstwowych (ikona ołówka w katalogu).
+    - [x] Rozbudowa `WallTypeModal.tsx` o tryb edycji i dynamiczne ładowanie warstw z `layerSet`.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
