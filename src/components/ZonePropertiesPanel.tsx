@@ -915,7 +915,8 @@ export function ZonePropertiesPanel() {
                               <th className="p-1 px-2 min-w-[120px]">Przegroda / Konstrukcja</th>
                               <th className="p-1 px-2 w-12 text-center text-[9px]">Orient.</th>
                               <th className="p-1 px-2 w-12 text-center text-[9px]">H [m]</th>
-                               <th className="p-1 px-2 w-12 text-center text-[9px]">d [m]</th>
+                              <th className="p-1 px-2 w-12 text-center text-[9px]">W/L [m]</th>
+                              <th className="p-1 px-2 w-12 text-center text-[9px]">d [m]</th>
                               <th className="p-1 px-2 w-16 text-right text-[9px]">A [m²]</th>
                               <th className="p-1 px-2 w-16 text-right text-[9px]">Aobl [m²]</th>
                               <th className="p-1 px-2 w-16 text-right text-[9px]">U [W/m²K]</th>
@@ -970,8 +971,8 @@ export function ZonePropertiesPanel() {
                                       {getCompassDirection(b.geometry.azimuth)}
                                     </td>
                                     <td className="p-1 text-center text-gray-500">{wallHeight.toFixed(2)}</td>
-                                    <td className="p-1 text-center text-gray-500 font-mono">{b.geometry.lengthNet.toFixed(2)}</td>
-                                    <td className="p-1 text-center text-indigo-600 font-bold font-mono">{(b.geometry.thickness || 0).toFixed(2)}</td>
+                                    <td className="p-1 text-center text-gray-500">{b.geometry.lengthNet.toFixed(2)}</td>
+                                    <td className="p-1 text-center text-gray-500 font-mono">{(b.geometry.thickness || 0).toFixed(2)}</td>
                                     <td className="p-1 text-right text-slate-400 font-mono">{grossArea.toFixed(2)}</td>
                                     <td className="p-1 text-right text-indigo-700 font-black font-mono">{netArea.toFixed( netArea < 0 ? 0 : 2)}</td>
                                     <td className="p-1 text-right text-indigo-600 font-bold">1.25</td> {/* To be calculated from U-ref */}
@@ -1034,6 +1035,7 @@ export function ZonePropertiesPanel() {
                                       </td>
                                       <td className="p-1 text-center text-sky-700">{op.height.toFixed(2)}</td>
                                       <td className="p-1 text-center text-sky-700">{op.width.toFixed(2)}</td>
+                                      <td className="p-1 text-center text-gray-300">-</td>
                                       <td className="p-1 text-center text-gray-300">-</td>
                                       <td className="p-1 text-right text-sky-800 font-bold">{(op.width * op.height).toFixed(2)}</td>
                                       <td className="p-1 text-right text-gray-300">-</td>
