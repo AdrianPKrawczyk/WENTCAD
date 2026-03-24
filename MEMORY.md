@@ -51,6 +51,12 @@
     - [x] Naprawa skalowania okien CAD (Vetted Multiplier oparty na dopasowaniu).
     - [x] Eksport danych termodynamicznych do IFC (Pset_SpaceThermalDesign).
     - [x] Kreator aktualizacji danych termicznych via CSV.
+    ### **Vertical Topology (Bidirectional)**
+    - **Issue**: Stale "Roof" boundaries on lower floors after adding levels above.
+    - **Solution**: `updateZoneTopology` now recursively re-analyzes zones on `floorAbove` and `floorBelow`.
+    - **Recursion Guard**: Uses `skipNeighbors` flag to prevent infinite loops (depth = 1).
+    - [x] Fix: Vertical Topology Mismatch (Roof vs Interior Ceiling). Implemented bidirectional recursive analysis in `updateZoneTopology`.
+    - [x] Memory Update: Documented Vetted Multiplier and Vertical Analysis logic.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -163,6 +169,12 @@
     * **Fix: Skalowanie Okien CAD (Vetted Multiplier)**: Rozwiązano błąd 10-krotnego przeskalowania okien (np. 12cm zamiast 120cm). System dynamicznie wylicza `derivedMultiplier` z kalibracji 3-punktowej i wykonuje "Snap" do standardowych jednostek (mm, cm, m), zapewniając spójność wymiarową rzutu i dancyh analitycznych.
     * **BIM / IFC**: Eksport IFC zawiera teraz pełny `Pset_SpaceThermalDesign`, mapując parametry bilansowe stref na standardowe właściwości IFC.
     * **CSV Update Module**: Wdrożono `ThermodynamicUpdateModal`, pozwalający na porównawczą aktualizację danych termicznych stref z plików zewnętrznych, z funkcją selektywnego wyboru zmian.
+    ### **Vertical Topology (Bidirectional)**
+    - **Issue**: Stale "Roof" boundaries on lower floors after adding levels above.
+    - **Solution**: `updateZoneTopology` now recursively re-analyzes zones on `floorAbove` and `floorBelow`.
+    - **Recursion Guard**: Uses `skipNeighbors` flag to prevent infinite loops (depth = 1).
+    - [x] Fix: Vertical Topology Mismatch (Roof vs Interior Ceiling). Implemented bidirectional recursive analysis in `updateZoneTopology`.
+    - [x] Memory Update: Documented Vetted Multiplier and Vertical Analysis logic.
 
 ### Krok 1.12: Zarządzanie wieloma pomieszczeniami (Bulk Edit)
 - **Stan:** Dodano `bulkUpdateZones` i `bulkDeleteZones` do `useZoneStore`.

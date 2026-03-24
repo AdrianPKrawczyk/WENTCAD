@@ -308,7 +308,7 @@ interface ZoneStore {
   setBuildingFootprint: (footprint: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] }) => void;
   setPendingWindows: (windows: OpeningInstance[]) => void;
   setNorthAzimuth: (azimuth: number) => void;
-  updateZoneTopology: (zoneId: string) => void;
+  updateZoneTopology: (zoneId: string, skipNeighbors?: boolean) => void;
   analyzeAllZones: () => void;
   
   // WATT Actions
@@ -436,10 +436,12 @@ export const useZoneStore = create<ZoneStore>()(
 
 
 
-      updateZoneTopology: (zoneId) => {
+      updateZoneTopology: (zoneId, skipNeighbors = false) => {
         const state = get();
         const zone = state.zones[zoneId];
         if (!zone) return;
+
+        console.log(`[WATT] Updating topology for zone: ${zone.name} (${zoneId}), skipNeighbors: ${skipNeighbors}`);
 
         const canvasState = useCanvasStore.getState();
         const floorCanvas = canvasState.floors[zone.floorId];
@@ -527,6 +529,25 @@ export const useZoneStore = create<ZoneStore>()(
             [zoneId]: { ...zone, boundaries, horizontalBoundaries }
           }
         }));
+
+        // AUTOMATIC VERTICAL RECURSION
+        // If we are not skipping neighbors, re-analyze zones on adjacent floors to catch ceiling/floor swaps
+        if (!skipNeighbors) {
+           if (floorAbove) {
+              const zonesAboveOnFloor = Object.values(get().zones).filter(z => z.floorId === floorAbove.id);
+              if (zonesAboveOnFloor.length > 0) {
+                 console.log(`[WATT] Re-analyzing ${zonesAboveOnFloor.length} zones on floor above (${floorAbove.id})`);
+                 zonesAboveOnFloor.forEach(z => get().updateZoneTopology(z.id, true));
+              }
+           }
+           if (floorBelow) {
+              const zonesBelowOnFloor = Object.values(get().zones).filter(z => z.floorId === floorBelow.id);
+              if (zonesBelowOnFloor.length > 0) {
+                 console.log(`[WATT] Re-analyzing ${zonesBelowOnFloor.length} zones on floor below (${floorBelow.id})`);
+                 zonesBelowOnFloor.forEach(z => get().updateZoneTopology(z.id, true));
+              }
+           }
+        }
       },
       
       setColumnState: (state) => set({ columnState: state }),
