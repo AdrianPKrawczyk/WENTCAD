@@ -3,9 +3,9 @@
 > **[CRITICAL DIRECTIVE]**
 > This file is the Agent's persistent memory. Read this file BEFORE executing any task. Update it AFTER completing any task. Do not delete historical entries.
 
-## CURRENT STATE: FAZA 3.4 (Algorytm Propagacji Przepływów DFS)
-* **Active Step:** FAZA 3.4 - Implementacja DFS dla propagacji przepływów
-* **Test Status:** Pending - wymaga testów manualnych
+## CURRENT STATE: WATT REWIZJA 6 (Zgodność Cieplna PN-EN ISO 6946)
+* **Active Step:** WATT REWIZJA 6 - Pełne uszczelnienie silnika cieplnego
+* **Status:** Done - weryfikacja 5 scenariuszy wykazala 100% zgodności
 * **Pending Task:** FAZA 3.5 (Bilansowanie i ścieżka krytyczna)
 
 ## PROGRESS LOG
@@ -63,6 +63,13 @@
     - [x] Fix: Dynamiczne wyliczanie współczynnika U w zestawieniu przegród na podstawie rzeczywistych warstw materiałów.
     - [x] UX: Elastyczne przypisywanie typów konstrukcji do ścian (grupy "Dedykowane" i "Pozostałe" w select).
     - [x] Fix: Naprawa wyrównania kolumn dla okien w tabeli termicznej (usunięcie nadmiarowej komórki <td>).
+- [x] **WATT REWIZJA 6: Pełna Zgodność Cieplna (PN-EN ISO 6946)**:
+    - [x] Implementacja kontekstowego dobierania oporów $R_{si}$ i $R_{se}$ na podstawie fizycznej roli przegrody (Ściana, Dach, Podłoga).
+    - [x] Obsługa kontaktu z gruntem ($R_{se}=0$) poprzez atrybut `isGroundContact` i dedykowaną obsługę w `thermalUtils.ts`.
+    - [x] Standaryzacja oporów: 0,13 (Ściana), 0,10 (Strumień w górę), 0,17 (Strumień w dół).
+    - [x] Fix: Nadpisywanie właściwości `isExternal` z biblioteki rzeczywistym kontekstem topologicznym w tabeli Zestawienia Przegród.
+    - [x] UX: Dodanie pola wyboru "Kontakt z gruntem" w kreatorze konstrukcji wielowarstwowych.
+    - [x] Weryfikacja: Potwierdzenie wyników dla betonu 24cm (U=3.21 dla ścian/gruntu, U=2.49 dla wewn., U=2.08 dla stropów).
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*

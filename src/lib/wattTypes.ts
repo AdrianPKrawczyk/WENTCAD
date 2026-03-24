@@ -25,6 +25,8 @@ export type IfcWallType = {
   layerSetId: string;
   predefinedType: 'SOLIDWALL' | 'PARTITIONING' | 'STANDARD';
   isExternal: boolean;
+  thermalType?: 'WALL' | 'FLOOR' | 'ROOF'; // NEW: for Rsi/Rse selection
+  isGroundContact?: boolean; // NEW: for Rse=0
 };
 
 export type IfcWindowStyle = {

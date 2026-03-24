@@ -7,12 +7,19 @@ import type { IfcMaterialLayer, IfcMaterial } from './wattTypes';
 export function calculateUValue(
   layers: IfcMaterialLayer[], 
   materials: Record<string, IfcMaterial>,
-  isExternal: boolean = true
+  isExternal: boolean = true,
+  type: 'WALL' | 'FLOOR' | 'ROOF' = 'WALL',
+  isGroundContact: boolean = false
 ): number {
-  // Standard surface thermal resistances [m2K/W]
-  // Vertical heat flow (walls)
-  const Rsi = 0.13;
-  const Rse = isExternal ? 0.04 : 0.13; // Rse = Rsi if both sides are internal
+  if (layers.length === 0) return 0;
+  
+  // Standard surface thermal resistances [m2K/W] according to ISO 6946
+  let Rsi = 0.13; // Horizontal heat flow (walls)
+  if (type === 'ROOF') Rsi = 0.10; // Upwards heat flow
+  if (type === 'FLOOR') Rsi = 0.17; // Downwards heat flow
+
+  // Rse logic: 0 for ground contact, 0.04 for external, or same as Rsi for internal
+  const Rse = isGroundContact ? 0 : (isExternal ? 0.04 : Rsi);
 
   let R_layers = 0;
 

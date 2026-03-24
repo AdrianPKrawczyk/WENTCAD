@@ -990,7 +990,9 @@ export function ZonePropertiesPanel() {
                                           const layerSet = (useZoneStore.getState() as any).layerSets[wallType.layerSetId];
                                           const materials = (useZoneStore.getState() as any).materials;
                                           if (layerSet && materials) {
-                                            return calculateUValue(layerSet.layers, materials, wallType.isExternal).toFixed(2);
+                                            // Force context based on boundary type, NOT wall type definition
+                                            const isExternal = b.type === 'EXTERIOR';
+                                            return calculateUValue(layerSet.layers, materials, isExternal, 'WALL').toFixed(2);
                                           }
                                         }
                                         return '-';
@@ -1162,7 +1164,9 @@ export function ZonePropertiesPanel() {
                                         const materials = (useZoneStore.getState() as any).materials;
                                         if (layerSet && materials) {
                                           const isExternal = hb.type === 'ROOF' || hb.type === 'FLOOR_GROUND' || hb.type === 'FLOOR_EXTERIOR';
-                                          return calculateUValue(layerSet.layers, materials, isExternal).toFixed(2);
+                                          const isGround = hb.type === 'FLOOR_GROUND';
+                                          const thermalContext = hb.type === 'ROOF' ? 'ROOF' : 'FLOOR';
+                                          return calculateUValue(layerSet.layers, materials, isExternal, thermalContext, isGround).toFixed(2);
                                         }
                                       }
                                       return '-';

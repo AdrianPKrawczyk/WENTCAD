@@ -18,12 +18,14 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
   
   const [name, setName] = useState(editingWallType?.name || '');
   const [isExternal, setIsExternal] = useState(editingWallType?.isExternal ?? true);
+  const [isGroundContact, setIsGroundContact] = useState(editingWallType?.isGroundContact ?? false);
   const [type, setType] = useState<IfcWallType['predefinedType']>(editingWallType?.predefinedType || 'STANDARD');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   
   const [layers, setLayers] = useState<IfcMaterialLayer[]>([]);
+  const [thermalType, setThermalType] = useState<'WALL' | 'FLOOR' | 'ROOF'>(editingWallType?.thermalType || 'WALL');
 
-  const uValue = useMemo(() => calculateUValue(layers, materials, isExternal), [layers, materials, isExternal]);
+  const uValue = useMemo(() => calculateUValue(layers, materials, isExternal, thermalType, isGroundContact), [layers, materials, isExternal, thermalType, isGroundContact]);
 
   if (!isOpen) return null;
 
@@ -68,7 +70,9 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
       name: name,
       layerSetId: layerSetId,
       predefinedType: type,
-      isExternal: isExternal
+      isExternal: isExternal,
+      thermalType: thermalType,
+      isGroundContact: isGroundContact
     };
 
     addLayerSet(layerSet);
@@ -110,16 +114,29 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
                 className="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:border-indigo-400 text-sm font-bold"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Rodzaj</label>
-              <select 
-                value={type} onChange={e => setType(e.target.value as any)}
-                className="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:border-indigo-400 text-sm"
-              >
-                <option value="STANDARD">Standardowa</option>
-                <option value="SOLIDWALL">Pełna (Konstrukcyjna)</option>
-                <option value="PARTITIONING">Działowa</option>
-              </select>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Rodzaj</label>
+                <select 
+                  value={type} onChange={e => setType(e.target.value as any)}
+                  className="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:border-indigo-400 text-sm"
+                >
+                  <option value="STANDARD">Standardowa</option>
+                  <option value="SOLIDWALL">Pełna</option>
+                  <option value="PARTITIONING">Działowa</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Kategoria (U)</label>
+                <select 
+                  value={thermalType} onChange={e => setThermalType(e.target.value as any)}
+                  className="w-full border border-gray-200 p-2.5 rounded-xl outline-none focus:border-indigo-400 text-sm font-bold text-indigo-600"
+                >
+                  <option value="WALL">Ściana</option>
+                  <option value="FLOOR">Podłoga</option>
+                  <option value="ROOF">Dach / Strop</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -130,12 +147,25 @@ export function WallTypeModal({ isOpen, onClose, editingWallType }: WallTypeModa
                      type="checkbox" checked={isExternal} onChange={e => setIsExternal(e.target.checked)}
                      className="w-4 h-4 text-indigo-600 rounded-sm border-gray-300"
                    />
-                   <span className="text-xs font-bold text-indigo-900 uppercase">Przegroda Zewnętrzna</span>
                 </label>
-                <p className="text-[9px] text-indigo-400 mt-0.5">Wpływa na współczynnik przejmowania ciepła Rse</p>
+                <p className="text-[9px] text-indigo-400 mt-0.5">Wpływa na opór przejmowania ciepła Rse</p>
              </div>
+             
+             {isExternal && (
+               <div className="flex-1 border-l border-indigo-100 pl-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                     <input 
+                       type="checkbox" checked={isGroundContact} onChange={e => setIsGroundContact(e.target.checked)}
+                       className="w-4 h-4 text-indigo-600 rounded-sm border-gray-300"
+                     />
+                     <span className="text-xs font-bold text-indigo-900 uppercase">Kontakt z Gruntem</span>
+                  </label>
+                  <p className="text-[9px] text-indigo-400 mt-0.5">Rse = 0,00 (wg normy)</p>
+               </div>
+             )}
+
              <div className="text-right">
-                <p className="text-[10px] text-indigo-400 uppercase font-bold">Wyliczone U</p>
+                <p className="text-[10px] text-indigo-400 uppercase font-bold">Wyliczone U ({thermalType})</p>
                 <p className="text-2xl font-black text-indigo-700">{uValue.toFixed(3)} <span className="text-[10px] font-normal">W/m²K</span></p>
              </div>
           </div>
