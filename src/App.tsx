@@ -16,6 +16,9 @@ import { Building2DViewer } from './components/Building2DViewer';
 import { TopBar } from './components/TopBar';
 import { Workspace2D } from './components/Workspace2D';
 import { useUIStore } from './stores/useUIStore';
+import { WATTManagerModal } from './components/WATTManagerModal';
+import { ProjectImportModal } from './components/ProjectImportModal';
+import { importProjectService } from './lib/importProjectService';
 import { 
   Calculator, 
   Layers, 
@@ -148,6 +151,11 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const isWattModalOpen = useUIStore((s) => s.isWattModalOpen);
+  const setIsWattModalOpen = useUIStore((s) => s.setIsWattModalOpen);
+  const isProjectImportModalOpen = useUIStore((s) => s.isProjectImportModalOpen);
+  const setIsProjectImportModalOpen = useUIStore((s) => s.setIsProjectImportModalOpen);
 
   // If no project is selected, show Dashboard
   if (!activeProject) {
@@ -378,7 +386,25 @@ function App() {
 
       {/* POWIADOMIENIA */}
       <Toaster position="top-center" richColors />
+
+      {/* MODALE GLOBALNE */}
+      <WATTManagerModal
+        isOpen={isWattModalOpen}
+        onClose={() => setIsWattModalOpen(false)}
+      />
       
+      <ProjectImportModal
+        isOpen={isProjectImportModalOpen}
+        onClose={() => setIsProjectImportModalOpen(false)}
+        currentProjectId={activeProject?.id}
+        onImport={async (data, options) => {
+          try {
+            await importProjectService.execute(data, options);
+          } catch (e: any) {
+            alert('Błąd importu: ' + e.message);
+          }
+        }}
+      />
     </div>
   )
 }

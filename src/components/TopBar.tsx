@@ -1,4 +1,3 @@
-import React from 'react';
 import { useStore } from 'zustand';
 import { 
   Settings2, 
@@ -18,9 +17,7 @@ import { useZoneStore } from '../stores/useZoneStore';
 import { useDuctStore } from '../stores/useDuctStore';
 import { useProjectStore } from '../stores/useProjectStore';
 import { exportCurrentProjectData, downloadProjectFile } from '../lib/projectTransfer';
-import { ProjectImportModal } from './ProjectImportModal';
-import { importProjectService } from '../lib/importProjectService';
-import { WATTManagerModal } from './WATTManagerModal';
+import { toast } from 'sonner';
 import { Database, Zap } from 'lucide-react';
 
 const STAGE_NAMES: Record<number, string> = {
@@ -43,8 +40,8 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
   const setActiveProject = useProjectStore((s) => s.setActiveProject);
   const currentStage = useUIStore((s) => s.currentStage);
   
-  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
-  const [isWattModalOpen, setIsWattModalOpen] = React.useState(false);
+  const setIsWattModalOpen = useUIStore((s) => s.setIsWattModalOpen);
+  const setIsProjectImportModalOpen = useUIStore((s) => s.setIsProjectImportModalOpen);
   
   // Temporal store for Undo/Redo
   const zoneTemporalStore = useZoneStore.temporal;
@@ -178,11 +175,7 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
           <button
             onClick={() => setIsWattModalOpen(true)}
             title="Katalog Przegród i Materiałów (WATT)"
-            className={`p-1.5 rounded-md transition-all ${
-              isWattModalOpen 
-                ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' 
-                : 'text-gray-400 hover:bg-gray-100 hover:text-orange-500'
-            }`}
+            className="p-1.5 rounded-md transition-all text-gray-400 hover:bg-gray-100 hover:text-orange-500"
           >
             <Database className="w-5 h-5" />
           </button>
@@ -204,7 +197,7 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
       
       <div className="flex items-center space-x-3">
         <button 
-          onClick={() => setIsImportModalOpen(true)}
+          onClick={() => setIsProjectImportModalOpen(true)}
           className="p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-all flex items-center gap-2 text-sm font-medium border border-transparent hover:border-slate-300"
           title="Wczytaj i połącz plik projektu (.wentcad)"
         >
@@ -247,22 +240,6 @@ export function TopBar({ onOpenVersionHistory, isVersionPanelOpen }: TopBarProps
         </div>
       </div>
 
-      <ProjectImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        currentProjectId={activeProject?.id}
-        onImport={async (data, options) => {
-          try {
-            await importProjectService.execute(data, options);
-          } catch (e: any) {
-             alert('Błąd importu: ' + e.message);
-          }
-        }}
-      />
-      <WATTManagerModal
-        isOpen={isWattModalOpen}
-        onClose={() => setIsWattModalOpen(false)}
-      />
     </header>
   );
 }

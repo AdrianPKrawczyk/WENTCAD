@@ -53,6 +53,7 @@
     - [x] Kreator aktualizacji danych termicznych via CSV.
     - [x] Fix: Vertical Topology Mismatch (Roof vs Interior Ceiling).
     - [x] Feature: Dodanie kolumny "Grubość ścian" (d [m]) do zestawienia OZC.
+    - [x] Fix: Z-index conflict and UI overlap for WATT/Import modals.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
@@ -1041,3 +1042,16 @@
     - Przebudowano UI w `ZonePropertiesPanel.tsx`, wprowadzając dynamiczną sekcję "Termodynamika i Bilans" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
     - Zapewniono domyślne inicjalizowanie parametrów klimatycznych dla nowych pomieszczeń w `AirBalanceTable.tsx`.
 - **Status**: Zakończone. Funkcjonalność gotowa do testów projektowych.
+
+* **WATT REWIZJA 5 (Z-index Fix & OZC Enhancement) - 2026-03-24**:
+    * **Global Modal Context**: Relokowano `WATTManagerModal` oraz `ProjectImportModal` do głównego komponentu `App.tsx`. Rozwiązało to problem nakładania się UI (np. Toolbar, Dashboard) na modale poprzez wyrwanie ich z ograniczonego stacking contextu paska górnego.
+    * **State Management**: Zcentralizowano widoczność modali w `useUIStore.ts`, umożliwiając ich reaktywne sterowanie z dowolnego miejsca w aplikacji.
+    * **Z-index Standardization**: Wymuszono `z-[1000]` dla `WATTManagerModal`, zapewniając jego priorytet nad wszystkimi elementami interfejsu.
+    * **OZC Table Refactoring**: 
+        * Dodano kolumnę "Grubość ścian" (`d [m]`) wyliczaną na podstawie geometrii.
+        * Przywrócono brakujące nagłówki `W/L [m]`.
+        * Ujednolicono strukturę tabeli do 10 kolumn dla wszystkich typów przegród (Exterior, Interior, Roof, Ground), zapobiegając przesunięciom danych.
+    * **Topology & Scaling**:
+        * **Vertical Sync**: Wprowadzono rekurencyjną aktualizację topologii pionowej (góra/dół) przy analizie stref, eliminując błędy nadmiarowych dachów/podłóg.
+        * **CAD Scaling**: Usunięto 10-krotny błąd skalowania wymiarów stolarki (`windowWidth`) oraz poprawiono pozycjonowanie topologii względem kalibracji projektu.
+        * **PDF Visibility**: Wymuszono flagę `isUnderlayVisible: true` po imporcie podkładu, poprawiając UX procesu synchronizacji.

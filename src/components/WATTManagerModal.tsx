@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useZoneStore } from '../stores/useZoneStore';
-import { X, Plus, Trash2, Database, Layers, Thermometer, Info } from 'lucide-react';
+import { X, Plus, Trash2, Database, Layers, Thermometer, Info, Save } from 'lucide-react';
 import type { IfcMaterial, IfcMaterialLayerSet, IfcWallType } from '../lib/wattTypes';
 import { WallTypeModal } from './WallTypeModal';
 
@@ -30,7 +30,7 @@ export function WATTManagerModal({ isOpen, onClose }: { isOpen: boolean; onClose
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex justify-between items-center px-8 py-5 border-b border-gray-100 bg-white shrink-0">
