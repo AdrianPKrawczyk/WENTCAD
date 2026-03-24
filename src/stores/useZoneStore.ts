@@ -305,9 +305,11 @@ interface ZoneStore {
   pendingWindows: OpeningInstance[]; 
  // Loose windows from DXF awaiting topology assignment
   northAzimuth: number;
+  northArrowPos: { x: number; y: number } | null;
   setBuildingFootprint: (footprint: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] }) => void;
   setPendingWindows: (windows: OpeningInstance[]) => void;
   setNorthAzimuth: (azimuth: number) => void;
+  setNorthArrowPos: (pos: { x: number; y: number } | null) => void;
   updateZoneTopology: (zoneId: string, skipNeighbors?: boolean) => void;
   analyzeAllZones: () => void;
   
@@ -400,6 +402,7 @@ export const useZoneStore = create<ZoneStore>()(
       wallTypeTemplates: [],
       pendingWindows: [],
       northAzimuth: 0,
+      northArrowPos: null,
       selectedBoundaryId: null,
       selectedHorizontalBoundaryId: null,
       
@@ -416,6 +419,7 @@ export const useZoneStore = create<ZoneStore>()(
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
       setPendingWindows: (windows) => set({ pendingWindows: windows }),
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
+      setNorthArrowPos: (pos) => set({ northArrowPos: pos }),
       setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
       setSelectedHorizontalBoundaryId: (id) => set({ selectedHorizontalBoundaryId: id }),
       setWtMode: (enabled) => set({ wtMode: enabled }),
@@ -876,7 +880,8 @@ export const useZoneStore = create<ZoneStore>()(
           windowStyles: stateData.windowStyles || {},
           wallTypeTemplates: stateData.wallTypeTemplates || [],
           pendingWindows: stateData.pendingWindows || [],
-          northAzimuth: stateData.northAzimuth || 0
+          northAzimuth: stateData.northAzimuth || 0,
+          northArrowPos: stateData.northArrowPos || null
         });
       },
 

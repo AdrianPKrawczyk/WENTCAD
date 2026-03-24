@@ -1,11 +1,14 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Workspace2D } from './Workspace2D';
 import { useUIStore } from '../stores/useUIStore';
-import { Eye, EyeOff, Layers } from 'lucide-react';
+import { Eye, EyeOff, Layers, Compass } from 'lucide-react';
+import { useZoneStore } from '../stores/useZoneStore';
 
 export function Building2DViewer() {
   const isUnderlayVisible = useUIStore((s) => s.isUnderlayVisible);
   const setIsUnderlayVisible = useUIStore((s) => s.setIsUnderlayVisible);
+  const northArrowPos = useZoneStore((s) => s.northArrowPos);
+  const setNorthArrowPos = useZoneStore((s) => s.setNorthArrowPos);
 
   // Domyślnie wyłączamy podkład przy wejściu do tego widoku
   useEffect(() => {
@@ -34,6 +37,24 @@ export function Building2DViewer() {
         >
           {isUnderlayVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           Podkład CAD
+        </button>
+
+        <button
+          onClick={() => {
+            if (northArrowPos) {
+              setNorthArrowPos(null);
+            } else {
+              setNorthArrowPos({ x: 500, y: 500 });
+            }
+          }}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            northArrowPos 
+              ? 'bg-rose-600 text-white shadow-md' 
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <Compass className="w-4 h-4" />
+          Północ
         </button>
       </div>
 

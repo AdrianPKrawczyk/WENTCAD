@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Text, Group, Rect, Transformer } from 'react-konva';
 import Konva from 'konva';
 import { useCanvasStore, type Point, type FloorCanvasState } from '../stores/useCanvasStore';
 import { useZoneStore, createDefaultZone } from '../stores/useZoneStore';
@@ -148,6 +148,85 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
   return size;
 }
 
+function NorthArrow2D({ pos, azimuth, onTransform, onDragEnd, isSelected, onSelect, scale }: { 
+  pos: { x: number, y: number }, 
+  azimuth: number, 
+  onTransform: (az: number) => void,
+  onDragEnd: (p: { x: number, y: number }) => void,
+  isSelected: boolean,
+  onSelect: (e: any) => void,
+  scale: number
+}) {
+  const shapeRef = useRef<Konva.Group>(null);
+  const trRef = useRef<Konva.Transformer>(null);
+
+  useEffect(() => {
+    if (isSelected && trRef.current && shapeRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [isSelected]);
+
+  return (
+    <>
+      <Group
+        ref={shapeRef}
+        x={pos.x}
+        y={pos.y}
+        rotation={azimuth}
+        draggable
+        onClick={(e) => {
+           e.cancelBubble = true;
+           onSelect(e);
+        }}
+        onTap={(e) => {
+           e.cancelBubble = true;
+           onSelect(e);
+        }}
+        onDragEnd={(event) => {
+          onDragEnd({ x: event.target.x(), y: event.target.y() });
+        }}
+        onTransformEnd={(_event) => {
+          if (shapeRef.current) {
+            onTransform(shapeRef.current.rotation());
+          }
+        }}
+      >
+        <Circle radius={25} fill="white" stroke="#1e293b" strokeWidth={2} shadowBlur={5} shadowOpacity={0.2} />
+        <Line 
+          points={[0, -20, 10, 5, -10, 5]} 
+          closed 
+          fill="#ef4444" 
+        />
+        <Line 
+          points={[0, 20, 10, -5, -10, -5]} 
+          closed 
+          fill="#334155" 
+        />
+        <Text 
+          text="N" 
+          x={-5} 
+          y={-38} 
+          fontSize={14} 
+          fontStyle="bold" 
+          fill="#ef4444" 
+        />
+      </Group>
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          rotateEnabled={true}
+          resizeEnabled={false}
+          borderEnabled={true}
+          anchorSize={8 / scale}
+          padding={5 / scale}
+          centeredScaling={true}
+        />
+      )}
+    </>
+  );
+}
+
 export function Workspace2D({ className }: Workspace2DProps) {
   const currentStage = useUIStore((s) => s.currentStage);
   const isFloorSwitcherVisible = useUIStore((s) => s.isFloorSwitcherVisible);
@@ -291,6 +370,12 @@ export function Workspace2D({ className }: Workspace2DProps) {
   const setLinkingZoneId = useZoneStore((s) => s.setLinkingZoneId);
   const selectedDxfOutlineId = useZoneStore((s) => s.selectedDxfOutlineId);
   const setSelectedDxfOutlineId = useZoneStore((s) => s.setSelectedDxfOutlineId);
+
+  const northArrowPos = useZoneStore((s) => s.northArrowPos);
+  const setNorthArrowPos = useZoneStore((s) => s.setNorthArrowPos);
+  const northAzimuth = useZoneStore((s) => s.northAzimuth);
+  const setNorthAzimuth = useZoneStore((s) => s.setNorthAzimuth);
+  const [isNorthArrowSelected, setIsNorthArrowSelected] = useState(false);
 
   const generateTagText = useCallback((zoneId: string) => {
     const zone = zones[zoneId];
@@ -1415,6 +1500,7 @@ export function Workspace2D({ className }: Workspace2DProps) {
         onMouseUp={handleMouseUp}
         onClick={() => {
           setSelectedDxfOutlineId(null);
+          setIsNorthArrowSelected(false);
           
           if (!activeDuctTool && !currentTool) {
              setSelectedBoundaryId(null); // Clicked on empty space clears wall selection
@@ -2443,6 +2529,23 @@ export function Workspace2D({ className }: Workspace2DProps) {
               </Group>
             );
           })}
+          
+          {/* North Arrow 2D indicator */}
+          {northArrowPos && (
+            <NorthArrow2D 
+              pos={northArrowPos}
+              azimuth={northAzimuth}
+              isSelected={isNorthArrowSelected}
+              onSelect={(_e) => {
+                 setIsNorthArrowSelected(true);
+                 setSelectedBoundaryId(null);
+                 setSelectedDxfOutlineId(null);
+              }}
+              onDragEnd={setNorthArrowPos}
+              onTransform={setNorthAzimuth}
+              scale={scale}
+            />
+          )}
         </Layer>
 
         {/* === WARSTWA UI (siatka, punkt 0,0) - NAD PODKŁADEM === */}

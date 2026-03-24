@@ -430,6 +430,7 @@ export interface ProjectStateData {
   windowStyles?: Record<string, IfcWindowStyle>;
   pendingWindows?: OpeningInstance[];
   northAzimuth?: number; // 0 is North, clockwise degrees
+  northArrowPos?: { x: number; y: number } | null;
   wallTypeTemplates?: IfcWallType[];
 }
 

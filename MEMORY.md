@@ -95,6 +95,11 @@
     - [x] UX: Zmiana koloru diagnostyki wizualnej dla trybu QUICK na żółty (#facc15).
     - [x] UI: Aktualizacja legendy diagnostyki w WATTManagerModal (dodanie Trybu QUICK - żółty).
     - [x] UI: Żółte badge (Q) w tabeli właściwości strefy dla trybu QUICK.
+- [x] **WATT REWIZJA 9.2: Interaktywny Znacznik Północy (2D)**:
+    - [x] Feat: Draggable i rotatable strzałka północy w widoku "Budynek 2D".
+    - [x] Store: Dodanie `northArrowPos` do `useZoneStore` i `ProjectStateData` (Zustand/Persistency).
+    - [x] UI: Przycisk "Północ" (Lucide Compass) w pasku narzędzi Building2DViewer do przełączania widoczności.
+    - [x] Logic: Synchronizacja rotacji strzałki w 2D z globalnym `northAzimuth` wykorzystywanym m.in. w 3D.
 
 ## ARCHITECTURE DECISIONS (Single Source of Truth)
 *(Agent must log key technical decisions, Zustand store names, and crucial file paths here during development)*
