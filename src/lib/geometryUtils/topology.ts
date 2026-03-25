@@ -57,11 +57,11 @@ function distPointToSegment(p: {x:number, y:number}, v: {x:number, y:number}, w:
 }
 
 /**
- * Checks if two segments are parallel and close to each other
+ * Checks if two segments are parallel and identifies overlapping fragments.
+ * Splits the original wall into multiple pieces: INTERIOR (matches) and UNRESOLVED (gaps).
  */
 export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: number = 1.0, maxDist: number = 0.6): ZoneBoundary[] {
   const boundaries: ZoneBoundary[] = [];
-  // NORMALIZE TO CCW FOR ACCURATE NORMAL CALCULATION
   const verticesA = ensureCCW((zoneA as any)._vertices || []); 
   
   if (verticesA.length < 2) return [];
@@ -70,14 +70,15 @@ export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: n
     const p1 = verticesA[i];
     const p2 = verticesA[(i + 1) % verticesA.length];
     
-    // SCALE TO METERS BEFORE ANALYSIS
     const sp1 = { x: p1.x * scale, y: p1.y * scale };
     const sp2 = { x: p2.x * scale, y: p2.y * scale };
 
-    const angleA = normalizeAngle(sp1, sp2);
-    const lenA = Math.hypot(sp2.x - sp1.x, sp2.y - sp1.y);
+    const v = { x: sp2.x - sp1.x, y: sp2.y - sp1.y };
+    const L2 = v.x * v.x + v.y * v.y;
+    if (L2 < 0.0001) continue;
 
-    let matched = false;
+    const angleA = normalizeAngle(sp1, sp2);
+    const overlaps: { tStart: number, tEnd: number, zoneId: string, dist: number }[] = [];
 
     for (const zoneB of otherZones) {
       if (zoneB.id === zoneA.id) continue;
@@ -92,46 +93,93 @@ export function checkAdjacency(zoneA: ZoneData, otherZones: ZoneData[], scale: n
 
         const angleB = normalizeAngle(sq1, sq2);
 
-
         // 1. Parallel check (tolerance 2 degrees)
         if (Math.abs(angleA - angleB) < 2 || Math.abs(angleA - angleB) > 178) {
-          const midA = { x: (sp1.x + sp2.x) / 2, y: (sp1.y + sp2.y) / 2 };
-          const dist = distPointToSegment(midA, sq1, sq2);
+          // Project sq1, sq2 onto line sp1-sp2 to find the interval [t1, t2]
+          const t1 = ((sq1.x - sp1.x) * v.x + (sq1.y - sp1.y) * v.y) / L2;
+          const t2 = ((sq2.x - sp1.x) * v.x + (sq2.y - sp1.y) * v.y) / L2;
 
-          if (dist > 0.01 && dist <= maxDist) {
-            boundaries.push({
-              id: `wall-${zoneA.id}-${zoneB.id}-${i}`,
-              type: 'INTERIOR',
-              isExternal: false,
-              adjacentZoneId: zoneB.id,
-              geometry: {
-                p1: sp1, p2: sp2,
-                lengthNet: lenA,
-                azimuth: calculateAzimuth(sp1, sp2),
-                thickness: dist
-              },
-              openings: []
-            });
-            matched = true;
-            break;
+          const tStart = Math.max(0, Math.min(t1, t2));
+          const tEnd = Math.min(1, Math.max(t1, t2));
+
+          if (tEnd - tStart > 0.01) { // Min 1cm overlap
+            const midT = (tStart + tEnd) / 2;
+            const midPointOnA = { x: sp1.x + midT * v.x, y: sp1.y + midT * v.y };
+            const dist = distPointToSegment(midPointOnA, sq1, sq2);
+
+            if (dist > 0.01 && dist <= maxDist) {
+              overlaps.push({ tStart, tEnd, zoneId: zoneB.id, dist });
+            }
           }
         }
       }
-      if (matched) break;
     }
 
-    if (!matched) {
-       boundaries.push({
-         id: `unresolved-${zoneA.id}-${i}`,
-         type: 'UNRESOLVED',
-         isExternal: false,
-         geometry: { p1: sp1, p2: sp2, lengthNet: lenA, azimuth: calculateAzimuth(sp1, sp2), thickness: 0 },
-         openings: []
-       });
+    // Sort overlaps by start position
+    overlaps.sort((a, b) => a.tStart - b.tStart);
+
+    // Merge/fill gaps to create boundary segments
+    let currentT = 0;
+    let subIdx = 0;
+
+    for (const ov of overlaps) {
+      // Create UNRESOLVED segment for the gap before the overlap
+      if (ov.tStart > currentT + 0.001) {
+        boundaries.push(createBoundary(zoneA.id, null, i, subIdx++, 'UNRESOLVED', sp1, sp2, currentT, ov.tStart, 0));
+      }
+      // Create INTERIOR segment for the overlap
+      if (ov.tEnd > currentT + 0.001) {
+        const actualStart = Math.max(currentT, ov.tStart);
+        boundaries.push(createBoundary(zoneA.id, ov.zoneId, i, subIdx++, 'INTERIOR', sp1, sp2, actualStart, ov.tEnd, ov.dist));
+        currentT = ov.tEnd;
+      }
+    }
+
+    // Create UNRESOLVED segment for the remaining gap after last overlap
+    if (currentT < 0.999) {
+      boundaries.push(createBoundary(zoneA.id, null, i, subIdx++, 'UNRESOLVED', sp1, sp2, currentT, 1.0, 0));
     }
   }
 
   return boundaries;
+}
+
+/**
+ * Internal helper to create a sub-segment ZoneBoundary
+ */
+function createBoundary(
+  zoneAId: string, 
+  adjacentZoneId: string | null, 
+  edgeIdx: number, 
+  subIdx: number, 
+  type: 'INTERIOR' | 'UNRESOLVED',
+  p1: {x:number, y:number}, 
+  p2: {x:number, y:number}, 
+  t1: number, 
+  t2: number,
+  thickness: number
+): ZoneBoundary {
+  const v = { x: p2.x - p1.x, y: p2.y - p1.y };
+  const subP1 = { x: p1.x + t1 * v.x, y: p1.y + t1 * v.y };
+  const subP2 = { x: p1.x + t2 * v.x, y: p1.y + t2 * v.y };
+  const length = Math.hypot(subP2.x - subP1.x, subP2.y - subP1.y);
+
+  return {
+    id: adjacentZoneId 
+      ? `wall-${zoneAId}-${adjacentZoneId}-${edgeIdx}-${subIdx}`
+      : `unresolved-${zoneAId}-${edgeIdx}-${subIdx}`,
+    type,
+    isExternal: false,
+    adjacentZoneId: adjacentZoneId || undefined,
+    geometry: {
+      p1: subP1,
+      p2: subP2,
+      lengthNet: length,
+      azimuth: calculateAzimuth(subP1, subP2),
+      thickness
+    },
+    openings: []
+  };
 }
 
 /**

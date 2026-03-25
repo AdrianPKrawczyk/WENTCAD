@@ -1112,3 +1112,11 @@
     - **Improved Block Rendering**: Fixed `INSERT` entity scaling by correctly handling both `scale.x/y` and `xScale/yScale` properties from `dxf-parser`.
     - **UX**: Added a "DOPASUJ WIDOK" button to the DXF view toolbar for manual view reset.
 - **Pliki**: `src/components/SyncAlignmentModal.tsx`.
+
+### FAZA 2.14: Wall Splitting Algorithm (Topology) - 2026-03-25
+- **Problem**: Walls partially touching another room and partially facing a patio or exterior were being incorrectly treated as 100% internal (based on midpoint).
+- **Rozwiązanie**: 
+    - Przebudowano `checkAdjacency` w `topology.ts` na model rzutowania odcinków (**Fragment Splitting**).
+    - Ściany są teraz dzielone na fragmenty `INTERIOR` (ściśle stykające się) i `UNRESOLVED` (gapy).
+    - Dzięki temu analiza obrysu budynku poprawnie klasyfikuje przerwy (np. przy patiach) jako `EXTERIOR`.
+- **Pliki**: `src/lib/geometryUtils/topology.ts`.
