@@ -56,10 +56,74 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
       };
       window.addEventListener('resize', updateSizes);
       updateSizes();
-      setTimeout(updateSizes, 100);
+      // Delay auto-center to ensure containers have size
+      setTimeout(() => {
+        updateSizes();
+        if (dxfData && leftContainerRef.current) {
+           zoomToDxfExtents();
+        }
+      }, 150);
       return () => window.removeEventListener('resize', updateSizes);
     }
-  }, [isOpen]);
+  }, [isOpen, dxfData]);
+
+  const zoomToDxfExtents = () => {
+    if (!dxfData || !dxfData.entities || !leftContainerRef.current) return;
+    
+    // Calculate BBox
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    const processEntities = (ents: any[], blocks: any, offX: number, offY: number) => {
+      ents.forEach(ent => {
+        if (ent.type === 'LINE' && ent.vertices) {
+          ent.vertices.forEach((v: any) => {
+            if (v.x + offX < minX) minX = v.x + offX; if (v.x + offX > maxX) maxX = v.x + offX;
+            if (v.y + offY < minY) minY = v.y + offY; if (v.y + offY > maxY) maxY = v.y + offY;
+          });
+        } else if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
+          ent.vertices.forEach((v: any) => {
+            if (v.x + offX < minX) minX = v.x + offX; if (v.x + offX > maxX) maxX = v.x + offX;
+            if (v.y + offY < minY) minY = v.y + offY; if (v.y + offY > maxY) maxY = v.y + offY;
+          });
+        } else if (ent.type === 'CIRCLE' || ent.type === 'ARC') {
+          const cx = (ent.center?.x || 0) + offX;
+          const cy = (ent.center?.y || 0) + offY;
+          const r = ent.radius || 0;
+          if (cx - r < minX) minX = cx - r; if (cx + r > maxX) maxX = cx + r;
+          if (cy - r < minY) minY = cy - r; if (cy + r > maxY) maxY = cy + r;
+        } else if (ent.type === 'INSERT') {
+          const block = blocks[ent.name];
+          if (block && block.entities) {
+            processEntities(block.entities, blocks, offX + (ent.position?.x || 0), offY + (ent.position?.y || 0));
+          }
+        }
+      });
+    };
+
+    processEntities(dxfData.entities, dxfData.blocks || {}, 0, 0);
+
+    if (minX === Infinity) return;
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const padding = 40;
+    
+    const containerW = leftContainerRef.current.offsetWidth;
+    const containerH = leftContainerRef.current.offsetHeight;
+    
+    const scale = Math.min(
+      (containerW - padding * 2) / (width || 1),
+      (containerH - padding * 2) / (height || 1)
+    );
+
+    // Initial scale cap to avoid zooming in too much on tiny drawings
+    const finalScale = Math.min(scale, 50);
+
+    setDxfView({
+      x: (containerW / 2) - ((minX + width / 2) * finalScale),
+      y: (containerH / 2) + ((minY + height / 2) * finalScale), // Y is flipped
+      scale: finalScale
+    });
+  };
 
   // Reset points when mode changes
   useEffect(() => {
@@ -183,8 +247,8 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
               x={ent.position?.x || 0} 
               y={ent.position?.y || 0}
               rotation={ent.rotation || 0}
-              scaleX={ent.scale?.x || 1}
-              scaleY={ent.scale?.y || 1}
+              scaleX={ent.scale?.x !== undefined ? ent.scale.x : (ent.xScale !== undefined ? ent.xScale : 1)}
+              scaleY={ent.scale?.y !== undefined ? ent.scale.y : (ent.yScale !== undefined ? ent.yScale : 1)}
             >
               {renderDxfEntities(block.entities, isGhost)}
             </Group>
@@ -253,6 +317,7 @@ export function SyncAlignmentModal({ isOpen, dxfData, selectedLayer, underlayUrl
           </div>
           
           <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+             <button onClick={zoomToDxfExtents} className="px-3 py-1.5 bg-indigo-600 rounded-lg border border-indigo-500 hover:bg-indigo-500 text-[10px] font-bold text-white shadow-lg shadow-indigo-500/20">DOPASUJ WIDOK</button>
              <button onClick={() => setDxfPoints([])} className="px-3 py-1.5 bg-slate-900/90 rounded-lg border border-slate-700 hover:bg-slate-800 text-[10px] font-bold text-slate-400">RESET PUNKTÓW</button>
           </div>
 

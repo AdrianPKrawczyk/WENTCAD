@@ -1104,3 +1104,11 @@
         * **Vertical Sync**: Wprowadzono rekurencyjną aktualizację topologii pionowej (góra/dół) przy analizie stref, eliminując błędy nadmiarowych dachów/podłóg.
         * **CAD Scaling**: Usunięto 10-krotny błąd skalowania wymiarów stolarki (`windowWidth`) oraz poprawiono pozycjonowanie topologii względem kalibracji projektu.
         * **PDF Visibility**: Wymuszono flagę `isUnderlayVisible: true` po imporcie podkładu, poprawiając UX procesu synchronizacji.
+
+### FAZA 2.13: Smart Sync Calibration Fixes & UX - 2026-03-25
+- **Problem**: DXF outlines were not visible in the left panel of the "Smart Sync: Kalibracja" modal if their coordinates were far from (0,0) and initial scale was fixed.
+- **Rozwiązanie**: 
+    - **Auto-centering & Scaling**: Added `zoomToDxfExtents` function that calculates the bounding box of all DXF entities (including blocks) and automatically centers/scales the view on mount or data change.
+    - **Improved Block Rendering**: Fixed `INSERT` entity scaling by correctly handling both `scale.x/y` and `xScale/yScale` properties from `dxf-parser`.
+    - **UX**: Added a "DOPASUJ WIDOK" button to the DXF view toolbar for manual view reset.
+- **Pliki**: `src/components/SyncAlignmentModal.tsx`.
