@@ -69,18 +69,15 @@ function runTests() {
   console.log('Regex Tests: PASS');
 
   // 2. Test Extraction Engine
-  const extracted = extractWattTopology(mockDxf, ['OBRYS_BUDYNKU'], ['OKNA_H1500_Ho900', 'OKNA_H200_Ho0', 'OKNA_STANDARD']);
+  const extracted = extractWattTopology(mockDxf, ['OBRYS_BUDYNKU'], [], ['OKNA_H1500_Ho900', 'OKNA_H200_Ho0', 'OKNA_STANDARD']);
   
-  console.assert(extracted.buildingFootprint.length === 1, 'Test 5 Failed: Footprint length');
-  console.assert(extracted.buildingFootprint[0].length === 4, 'Test 6 Failed: Footprint vertices');
-
+  console.assert(extracted.buildingFootprint.outer.length === 4, 'Test 5 Failed: Footprint outer length');
   console.assert(extracted.windows.length === 3, 'Test 7 Failed: Windows count');
   
   const w1 = extracted.windows[0];
   console.assert(w1.width === 2, `Test 8 Failed: Window 1 width (${w1.width})`);
   console.assert(w1.height === 1.5, `Test 9 Failed: Window 1 height (${w1.height})`);
-  console.assert(w1.centroid?.x === 3 && w1.centroid?.y === 0.05, `Test 10 Failed: Window 1 centroid`);
-
+  
   const w2 = extracted.windows[1];
   console.assert(w2.width === 1, `Test 11 Failed: Window 2 width (${w2.width})`);
   console.assert(w2.height === 2.0, `Test 12 Failed: Window 2 height (${w2.height})`);

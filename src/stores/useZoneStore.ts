@@ -303,12 +303,13 @@ interface ZoneStore {
   wallTypes: Record<string, IfcWallType>;
   windowStyles: Record<string, IfcWindowStyle>;
   wallTypeTemplates: IfcWallType[]; // Global presets
-  pendingWindows: OpeningInstance[]; 
- // Loose windows from DXF awaiting topology assignment
+  openings: Record<string, OpeningInstance[]>; // floorId -> OpeningInstance[]
+  // Loose windows from DXF awaiting topology assignment
   northAzimuth: number;
   northArrowPos: { x: number; y: number } | null;
   setBuildingFootprint: (footprint: { outer: { x: number; y: number }[]; courtyards: { x: number; y: number }[][] }) => void;
-  setPendingWindows: (windows: OpeningInstance[]) => void;
+  addPendingWindows: (floorId: string, windows: OpeningInstance[]) => void;
+  clearPendingWindows: (floorId: string) => void;
   setNorthAzimuth: (azimuth: number) => void;
   setNorthArrowPos: (pos: { x: number; y: number } | null) => void;
   updateZoneTopology: (zoneId: string, skipNeighbors?: boolean) => void;
@@ -401,7 +402,7 @@ export const useZoneStore = create<ZoneStore>()(
       wallTypes: {},
       windowStyles: {},
       wallTypeTemplates: [],
-      pendingWindows: [],
+      openings: {},
       northAzimuth: 0,
       northArrowPos: null,
       selectedBoundaryId: null,
@@ -418,7 +419,6 @@ export const useZoneStore = create<ZoneStore>()(
       quickProfiles: [],
       
       setBuildingFootprint: (footprint) => set({ buildingFootprint: footprint }),
-      setPendingWindows: (windows) => set({ pendingWindows: windows }),
       setNorthAzimuth: (azimuth) => set({ northAzimuth: azimuth }),
       setNorthArrowPos: (pos) => set({ northArrowPos: pos }),
       setSelectedBoundaryId: (id) => set({ selectedBoundaryId: id }),
@@ -428,6 +428,14 @@ export const useZoneStore = create<ZoneStore>()(
       setGlobalRoofWallTypeId: (id) => set({ globalRoofWallTypeId: id }),
       setGlobalFloorGroundWallTypeId: (id) => set({ globalFloorGroundWallTypeId: id }),
       toggleAssignmentDiagnostic: () => set(s => ({ showAssignmentDiagnostic: !s.showAssignmentDiagnostic })),
+      addPendingWindows: (floorId, windows) => set((s) => ({ 
+        openings: { ...s.openings, [floorId]: [...(s.openings[floorId] || []), ...windows] } 
+      })),
+      clearPendingWindows: (floorId) => set((s) => {
+        const next = { ...s.openings };
+        delete next[floorId];
+        return { openings: next };
+      }),
       setQuickMode: (enabled) => set({ quickMode: enabled }),
       setActiveQuickProfileId: (id) => set({ activeQuickProfileId: id }),
       addQuickProfile: (profile) => set(s => ({ quickProfiles: [...s.quickProfiles, profile] })),
@@ -614,8 +622,9 @@ export const useZoneStore = create<ZoneStore>()(
         }
 
         // 3. Snap Windows from pending list
-        if (state.pendingWindows && state.pendingWindows.length > 0) {
-          boundaries = snapOpeningsToEdges(boundaries, state.pendingWindows, scaleFactor);
+        const floorOpenings = state.openings[zone.floorId] || [];
+        if (floorOpenings.length > 0) {
+          boundaries = snapOpeningsToEdges(boundaries, floorOpenings, 1.0);
         }
 
         // 4. Vertical Analysis (Horizontal Boundaries)
@@ -883,7 +892,7 @@ export const useZoneStore = create<ZoneStore>()(
           wallTypes: stateData.wallTypes || {},
           windowStyles: stateData.windowStyles || {},
           wallTypeTemplates: stateData.wallTypeTemplates || [],
-          pendingWindows: stateData.pendingWindows || [],
+          openings: stateData.openings || {},
           northAzimuth: stateData.northAzimuth || 0,
           northArrowPos: stateData.northArrowPos || null
         });
@@ -1086,7 +1095,7 @@ export const useZoneStore = create<ZoneStore>()(
         layerSets,
         wallTypes,
         windowStyles,
-        pendingWindows
+        openings
       } = state;
       return { 
         zones, 
@@ -1104,7 +1113,7 @@ export const useZoneStore = create<ZoneStore>()(
         layerSets,
         wallTypes,
         windowStyles,
-        pendingWindows
+        openings
       };
     },
   }

@@ -1026,7 +1026,8 @@ export function AirBalanceTable() {
                 outer: transformedOuter,
                 courtyards: transformedCourtyards
              });
-             useZoneStore.getState().setPendingWindows(transformedWindows);
+             useZoneStore.getState().clearPendingWindows(activeFloorId);
+             useZoneStore.getState().addPendingWindows(activeFloorId, transformedWindows);
              
              useCanvasStore.getState().setPendingWattSettings(null); // Clear pending settings
           }

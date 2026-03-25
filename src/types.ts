@@ -429,7 +429,7 @@ export interface ProjectStateData {
   layerSets?: Record<string, IfcMaterialLayerSet>;
   wallTypes?: Record<string, IfcWallType>;
   windowStyles?: Record<string, IfcWindowStyle>;
-  pendingWindows?: OpeningInstance[];
+  openings?: Record<string, OpeningInstance[]>;
   northAzimuth?: number; // 0 is North, clockwise degrees
   northArrowPos?: { x: number; y: number } | null;
   wallTypeTemplates?: IfcWallType[];

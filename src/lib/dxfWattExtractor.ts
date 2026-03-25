@@ -22,34 +22,41 @@ export interface WindowMetadata {
  * "OKNO_H1.5_Ho0.9" -> 1.5m, 0.9m
  */
 export function parseWindowMetadata(layerName: string): WindowMetadata {
-  const match = layerName.match(/_H([\d.]+)(?:cm|mm)?(?:_Ho([\d.]+)(?:cm|mm)?)?/i);
   const isDoor = layerName.toLowerCase().includes('drzwi') || layerName.toLowerCase().includes('door');
   const type: 'WINDOW' | 'DOOR' = isDoor ? 'DOOR' : 'WINDOW';
-  
-  if (!match) {
-    return { 
-      height: isDoor ? 2.0 : 1.5, 
-      sillHeight: isDoor ? 0.0 : 0.9, 
-      type 
-    };
-  }
 
-  const parseVal = (valStr: string, defaultVal: number) => {
+  // Use more robust individual matches (look for S, H, Ho anywhere after a boundary)
+  // Boundary is start of string, underscore, hyphen or space
+  const boundary = '(?:^|[\\s_-])';
+  // Capture value and optional unit
+  const heightMatch = layerName.match(new RegExp(`${boundary}H(\\d+(\\.\\d+)?)(cm|mm)?(?![oO])`, 'i'));
+  const sillMatch = layerName.match(new RegExp(`${boundary}Ho(\\d+(\\.\\d+)?)(cm|mm)?`, 'i'));
+  
+  // Also support WxH format (e.g. 90x200)
+  const dimMatch = layerName.match(/(\d+)x(\d+)/i);
+
+  const parseVal = (valStr: string | undefined, unit: string | undefined, defaultVal: number) => {
     if (!valStr) return defaultVal;
     const val = parseFloat(valStr);
-    // Detection logic:
-    // > 300 -> assume mm
-    // > 10 -> assume cm
-    // <= 10 -> assume meters
-    if (val > 300) return val / 1000;
-    if (val > 10) return val / 100;
+    const u = unit?.toLowerCase();
+
+    // 1. Explicit unit
+    if (u === 'mm') return val / 1000;
+    if (u === 'cm') return val / 100;
+    
+    // 2. Auto-detect if no unit
+    // > 500 -> assume mm (e.g. 1500 -> 1.5m, but 500 could be 500mm=0.5m)
+    // > 20 -> assume cm (e.g. 150 -> 1.5m, 250 -> 2.5m)
+    // <= 20 -> assume meters (e.g. 1.5 -> 1.5m)
+    if (val > 500) return val / 1000;
+    if (val > 20) return val / 100;
     return val;
   };
 
-  const hMeters = parseVal(match[1], isDoor ? 2.0 : 1.5);
-  const hoMeters = parseVal(match[2], isDoor ? 0.0 : 0.9);
+  const height = parseVal(heightMatch?.[1] || dimMatch?.[2], heightMatch?.[3], isDoor ? 2.0 : 1.5);
+  const sillHeight = parseVal(sillMatch?.[1], sillMatch?.[3], isDoor ? 0.0 : 0.9);
 
-  return { height: hMeters, sillHeight: hoMeters, type };
+  return { height, sillHeight, type };
 }
 
 /**
@@ -75,13 +82,14 @@ export function extractWattTopology(
   let windowIdCounter = 1;
 
   dxf.entities.forEach((ent: any) => {
+    const layer = ent.layer || '';
+
     // OUTER FOOTPRINT
-    if (footprintLayers.includes(ent.layer)) {
+    if (footprintLayers.includes(layer)) {
       if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
-        // Obrys budynku nie musi być zamknięty de jure, ale de facto powinien tworzyć pętlę
         if (ent.vertices.length >= 3) {
            if (footprint.outer.length === 0) {
-              console.log(`[WATT] Detected Footprint on layer: ${ent.layer}, points: ${ent.vertices.length}`);
+              console.log(`[WATT] Detected Footprint on layer: ${layer}, points: ${ent.vertices.length}`);
               footprint.outer = ent.vertices.map((v: any) => ({ x: v.x, y: v.y }));
            }
         }
@@ -89,7 +97,7 @@ export function extractWattTopology(
     }
 
     // COURTYARDS (Inner holes)
-    if (courtyardLayers.includes(ent.layer)) {
+    if (courtyardLayers.includes(layer)) {
       if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
         if (ent.vertices.length >= 3) {
            footprint.courtyards.push(ent.vertices.map((v: any) => ({ x: v.x, y: v.y })));
@@ -97,30 +105,35 @@ export function extractWattTopology(
       }
     }
 
-    // WINDOWS
-    if (windowLayers.includes(ent.layer)) {
-      // Relaxed vertex check: 4 (unclosed rect) or 5 (closed rect explicitly)
-      // or even more if drawn poorly but still rectangular
+    // WINDOWS & DOORS
+    // Permissive match: Check if the layer matches any of the prefixes exactly OR follows the prefix pattern
+    const isWindowLayer = windowLayers.some(wl => 
+      layer === wl || layer.startsWith(wl + '_') || layer.startsWith(wl + '-') || layer.startsWith(wl + ' ')
+    );
+
+    if (isWindowLayer) {
       if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
         const vCount = ent.vertices.length;
-        if (vCount >= 3) {
+        if (vCount >= 2) { // Allow even segments/lines drawn as polylines
           const v = ent.vertices;
           
-          // Calculate bounding box or simple distance
-          // For windows we usually expect 4 vertices forming a rectangle
-          // but we take first 4 to avoid issues with 5th point = 1st point
-          const d1 = Math.hypot(v[1].x - v[0].x, v[1].y - v[0].y);
-          const d2 = vCount >= 3 ? Math.hypot(v[2].x - v[1].x, v[2].y - v[1].y) : 0;
-          const width = Math.max(d1, d2); 
+          let width = 0;
+          if (vCount >= 3) {
+            const d1 = Math.hypot(v[1].x - v[0].x, v[1].y - v[0].y);
+            const d2 = Math.hypot(v[2].x - v[1].x, v[2].y - v[1].y);
+            width = Math.max(d1, d2);
+          } else if (vCount === 2) {
+            width = Math.hypot(v[1].x - v[0].x, v[1].y - v[0].y);
+          }
 
           // Centroid
           let sumX = 0, sumY = 0;
-          ent.vertices.forEach((p: any) => { sumX += p.x; sumY += p.y; });
+          v.forEach((p: any) => { sumX += p.x; sumY += p.y; });
           const cx = sumX / vCount;
           const cy = sumY / vCount;
 
-          const meta = parseWindowMetadata(ent.layer);
-          console.log(`[WATT] Detected Window: ${ent.layer}, w=${width.toFixed(2)}, h=${meta.height}`);
+          const meta = parseWindowMetadata(layer);
+          console.log(`[WATT] Detected Opening: ${layer}, w=${width.toFixed(2)}, type=${meta.type}`);
 
           windows.push({
             id: `win-${windowIdCounter++}`,
