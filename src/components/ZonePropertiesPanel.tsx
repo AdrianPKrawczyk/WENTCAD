@@ -1026,20 +1026,23 @@ export function ZonePropertiesPanel() {
                                     <React.Fragment key={`op-${op.id}`}>
                                     <tr className={`divide-x divide-gray-50 transition-all ${isEditing ? 'bg-indigo-50/50' : 'bg-sky-50/30'}`}>
                                       <td className="p-1 text-center text-[8px] text-gray-300 italic">{bIdx + 1}.{opIdx + 1}</td>
-                                      <td className="p-1 text-center opacity-40">
-                                        <div className="w-2 h-2 border border-sky-400 bg-sky-100 mx-auto rounded-sm" />
+                                      <td className="p-1 text-center opacity-60">
+                                        <div className={`w-2.5 h-2.5 border ${style?.type === 'DOOR' ? 'border-emerald-500 bg-emerald-200' : 'border-sky-400 bg-sky-100'} mx-auto rounded-sm`} />
                                       </td>
                                       <td className="p-1 px-2 pl-4">
                                         <div className="flex flex-col gap-0.5">
                                           <div className="flex items-center gap-1">
                                             <div className="w-2 h-2 border-l border-b border-gray-400 rounded-bl" />
+                                            <span className={`text-[8px] font-black px-1 rounded ${style?.type === 'DOOR' ? 'bg-emerald-600 text-white' : 'bg-sky-500 text-white'}`}>
+                                              {style?.type === 'DOOR' ? 'DRZW' : 'OKNO'}
+                                            </span>
                                             <select 
                                               value={op.windowStyleId || ''}
                                               onChange={(e) => {
                                                 const val = e.target.value;
                                                 if (val === 'NEW') {
                                                   const id = `ws-${Date.now()}`;
-                                                   addWindowStyle({ id, name: `Okna Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5, type: 'WINDOW' });
+                                                   addWindowStyle({ id, name: `Nowy Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5, type: 'WINDOW' });
                                                   const nextB = [...activeZone.boundaries!];
                                                   nextB[bIdx].openings[opIdx].windowStyleId = id;
                                                   updateZone(activeZone.id, { boundaries: nextB });

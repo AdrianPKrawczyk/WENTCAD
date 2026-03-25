@@ -1088,7 +1088,14 @@
 - **Zmiany**:
     - Rozszerzono `ZoneData` i `CalculationMode` o parametry sezonowe (Lato/Zima) oraz zyski i straty mocy/wilgoci.
     - Zaimplementowano w `PhysicsEngine.ts` obliczenia strumienia powietrza na podstawie bilansu cieplnego (straty/zyski) i wilgotnościowego.
-    - Przebudowano UI w `ZonePropertiesPanel.tsx`, wprowadzając dynamiczną sekcję "Termodynamika i Bilans" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
+    - Przebudowano UI w `ZonePropertiesPanel.tsx`, wprowadzając dynamicznie### FAZA 2.14: Algorytm Dzielenia Ścian (Topologia) - [Topology.ts](file:///d:/GitHub/WENTCAD/src/lib/geometryUtils/topology.ts)
+Wprowadzono robustowy algorytm oparty na przedziałach (intervals), który dzieli ściany na fragmenty `INTERIOR` i `UNRESOLVED` (zewnętrzne) zamiast polegać na jednym punkcie środkowym. Rozwiązuje to problem ścian przechodzących przez dziedzińce lub wiele stref.
+
+### FAZA 2.15: Logika Drzwi w WATT (Rendering i UI)
+- **3D Viewer**: Drzwi (`type: DOOR`) są teraz renderowane jako nieprzezroczyste bryły (brązowe), odróżniając się od błękitnych okien.
+- **Topologia UI**: W tabeli przegród (`ZonePropertiesPanel`) wprowadzono czytelne etykiety `DRZW` / `OKNO` oraz kodowanie kolorystyczne (szmaragdowy dla drzwi, błękitny dla okien).
+- **Style**: System poprawnie rozróżnia typy otworów przy przypisywaniu parametrów cieplnych (U-value).
+s" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
     - Zapewniono domyślne inicjalizowanie parametrów klimatycznych dla nowych pomieszczeń w `AirBalanceTable.tsx`.
 - **Status**: Zakończone. Funkcjonalność gotowa do testów projektowych.
 
@@ -1120,3 +1127,9 @@
     - Ściany są teraz dzielone na fragmenty `INTERIOR` (ściśle stykające się) i `UNRESOLVED` (gapy).
     - Dzięki temu analiza obrysu budynku poprawnie klasyfikuje przerwy (np. przy patiach) jako `EXTERIOR`.
 - **Pliki**: `src/lib/geometryUtils/topology.ts`.
+
+### FAZA 2.15: Logika Drzwi w WATT (Rendering i UI) - 2026-03-25
+- **3D Viewer**: Drzwi (`type: DOOR`) są teraz renderowane jako nieprzezroczyste bryły (brązowe), odróżniając się od błękitnych okien. Dodano legendę z podziałem na okna i drzwi.
+- **Topologia UI**: W tabeli przegród (`ZonePropertiesPanel`) wprowadzono czytelne etykiety `DRZW` / `OKNO` oraz kodowanie kolorystyczne (szmaragdowy dla drzwi, błękitny dla okien).
+- **Style**: System poprawnie rozróżnia typy otworów przy przypisywaniu parametrów cieplnych (U-value).
+- **Pliki**: `src/components/Building3DViewer.tsx`, `src/components/ZonePropertiesPanel.tsx`.

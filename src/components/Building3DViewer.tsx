@@ -35,6 +35,8 @@ export function Building3DViewer() {
   const selectedHorizontalBoundaryId = useZoneStore((s) => s.selectedHorizontalBoundaryId);
   const setSelectedHorizontalBoundaryId = useZoneStore((s) => s.setSelectedHorizontalBoundaryId);
   
+  const windowStyles = useZoneStore((s) => s.windowStyles);
+  
   // Przetworzenie danych topologicznych na tablicę obiektów 3D
   const elements = useMemo(() => {
     const walls: any[] = [];
@@ -131,11 +133,15 @@ export function Building3DViewer() {
                const wz = b.geometry.p1.y + dz * ratio;
                const wy = baseElev + op.sillHeight + op.height / 2;
 
+               const style = op.windowStyleId ? windowStyles[op.windowStyleId] : null;
+               const opType = style?.type || 'WINDOW';
+
                windows.push({
                  id: op.id,
                  position: [wx, wy, wz],
                  rotation: [0, -angle, 0],
-                 size: [op.width, op.height, thickness + 0.02]
+                 size: [op.width, op.height, thickness + 0.02],
+                 type: opType
                });
              });
            }
@@ -144,7 +150,7 @@ export function Building3DViewer() {
     });
 
     return { walls, windows, slabs };
-  }, [zones, floors, selectedBoundaryId, selectedHorizontalBoundaryId]);
+  }, [zones, floors, selectedBoundaryId, selectedHorizontalBoundaryId, windowStyles]);
 
   return (
     <div className="w-full h-full bg-slate-900 relative flex">
@@ -166,7 +172,11 @@ export function Building3DViewer() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-sky-400/80 border border-sky-300 rounded-sm"></div> 
-              Stolarka Okienna ({elements.windows.length})
+              Okna ({elements.windows.filter(win => win.type === 'WINDOW').length})
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-emerald-600 border border-emerald-400 rounded-sm"></div> 
+              Drzwi ({elements.windows.filter(win => win.type === 'DOOR').length})
             </div>
             {(selectedBoundaryId || selectedHorizontalBoundaryId) && (
               <div className="flex items-center gap-2 text-indigo-400 pt-2 border-t border-white/10 mt-2">
@@ -177,7 +187,7 @@ export function Building3DViewer() {
          </div>
          
          <p className="text-[9px] text-slate-500 mt-4 leading-relaxed max-w-[200px]">
-           Model 3D budowany jest na podstawie <b>analizy topologicznej</b>. Jeśli bryła jest niewidoczna, użyj przycisku ⚡ na górnym pasku.
+           Model 3D budowany jest na podstawie <b>analizy topologicznej</b>. Drzwi renderowane są jako pełne bryły.
          </p>
       </div>
 
@@ -263,7 +273,7 @@ export function Building3DViewer() {
                </mesh>
             ))}
 
-            {/* WINDOWS */}
+            {/* WINDOWS & DOORS */}
             {elements.windows.map((win: any) => (
                <mesh 
                  key={win.id} 
@@ -271,14 +281,22 @@ export function Building3DViewer() {
                  rotation={win.rotation}
                >
                  <boxGeometry args={win.size} />
-                 <meshPhysicalMaterial 
-                   color="#38bdf8" 
-                   transmission={0.8}
-                   opacity={1}
-                   roughness={0.1}
-                   metalness={0.1}
-                   transparent
-                 />
+                 {win.type === 'DOOR' ? (
+                   <meshStandardMaterial 
+                     color="#574332" 
+                     roughness={0.9}
+                     metalness={0.1}
+                   />
+                 ) : (
+                   <meshPhysicalMaterial 
+                     color="#38bdf8" 
+                     transmission={0.8}
+                     opacity={1}
+                     roughness={0.1}
+                     metalness={0.1}
+                     transparent
+                   />
+                 )}
                </mesh>
             ))}
           </group>
