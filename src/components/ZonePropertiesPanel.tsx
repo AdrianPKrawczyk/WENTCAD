@@ -1020,6 +1020,7 @@ export function ZonePropertiesPanel() {
                                   {/* OPENINGS ROWS (Sub-rows) */}
                                   {b.openings.map((op, opIdx) => {
                                     const style = op.windowStyleId ? windowStyles[op.windowStyleId] : null;
+                                    const isDoor = style ? style.type === 'DOOR' : op.type === 'DOOR';
                                     const isEditing = editingWindowStyleId === op.windowStyleId && op.windowStyleId;
 
                                     return (
@@ -1027,22 +1028,28 @@ export function ZonePropertiesPanel() {
                                     <tr className={`divide-x divide-gray-50 transition-all ${isEditing ? 'bg-indigo-50/50' : 'bg-sky-50/30'}`}>
                                       <td className="p-1 text-center text-[8px] text-gray-300 italic">{bIdx + 1}.{opIdx + 1}</td>
                                       <td className="p-1 text-center opacity-60">
-                                        <div className={`w-2.5 h-2.5 border ${style?.type === 'DOOR' ? 'border-emerald-500 bg-emerald-200' : 'border-sky-400 bg-sky-100'} mx-auto rounded-sm`} />
+                                        <div className={`w-2.5 h-2.5 border ${isDoor ? 'border-emerald-500 bg-emerald-200' : 'border-sky-400 bg-sky-100'} mx-auto rounded-sm`} />
                                       </td>
                                       <td className="p-1 px-2 pl-4">
                                         <div className="flex flex-col gap-0.5">
                                           <div className="flex items-center gap-1">
                                             <div className="w-2 h-2 border-l border-b border-gray-400 rounded-bl" />
-                                            <span className={`text-[8px] font-black px-1 rounded ${style?.type === 'DOOR' ? 'bg-emerald-600 text-white' : 'bg-sky-500 text-white'}`}>
-                                              {style?.type === 'DOOR' ? 'DRZW' : 'OKNO'}
+                                            <span className={`text-[8px] font-black px-1 rounded ${isDoor ? 'bg-emerald-600 text-white' : 'bg-sky-500 text-white'}`}>
+                                              {isDoor ? 'DRZW' : 'OKNO'}
                                             </span>
-                                            <select 
+                                            <select
                                               value={op.windowStyleId || ''}
                                               onChange={(e) => {
                                                 const val = e.target.value;
                                                 if (val === 'NEW') {
                                                   const id = `ws-${Date.now()}`;
-                                                   addWindowStyle({ id, name: `Nowy Typ ${Object.keys(windowStyles).length + 1}`, overallUValue: 1.1, solarHeatGainCoefficient: 0.5, type: 'WINDOW' });
+                                                   addWindowStyle({ 
+                                                     id, 
+                                                     name: `${isDoor ? 'Drzwi' : 'Okna'} Typ ${Object.keys(windowStyles).length + 1}`, 
+                                                     overallUValue: isDoor ? 1.3 : 0.9, 
+                                                     solarHeatGainCoefficient: 0.5, 
+                                                     type: isDoor ? 'DOOR' : 'WINDOW' 
+                                                   });
                                                   const nextB = [...activeZone.boundaries!];
                                                   nextB[bIdx].openings[opIdx].windowStyleId = id;
                                                   updateZone(activeZone.id, { boundaries: nextB });

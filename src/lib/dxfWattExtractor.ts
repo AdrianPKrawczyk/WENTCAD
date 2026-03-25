@@ -11,6 +11,7 @@ export interface ExtractedWattData {
 export interface WindowMetadata {
   height: number;
   sillHeight: number;
+  type: 'WINDOW' | 'DOOR';
 }
 
 /**
@@ -19,21 +20,28 @@ export interface WindowMetadata {
  */
 export function parseWindowMetadata(layerName: string): WindowMetadata {
   const match = layerName.match(/_H(\d+)(?:_Ho(\d+))?/i);
+  const isDoor = layerName.toLowerCase().includes('drzwi') || layerName.toLowerCase().includes('door');
+  const type: 'WINDOW' | 'DOOR' = isDoor ? 'DOOR' : 'WINDOW';
   
   if (!match) {
-    return { height: 1.5, sillHeight: 0.9 }; // Default 1.5m window, 0.9m sill
+    // Default values if no H metadata found
+    return { 
+      height: isDoor ? 2.0 : 1.5, 
+      sillHeight: isDoor ? 0.0 : 0.9, 
+      type 
+    };
   }
 
   const hRaw = parseInt(match[1], 10);
   const hMeters = hRaw > 300 ? hRaw / 1000 : (hRaw > 30 ? hRaw / 100 : hRaw);
   
-  let hoMeters = 0.9;
+  let hoMeters = isDoor ? 0.0 : 0.9;
   if (match[2]) {
     const hoRaw = parseInt(match[2], 10);
     hoMeters = hoRaw > 300 ? hoRaw / 1000 : (hoRaw > 30 ? hoRaw / 100 : hoRaw);
   }
 
-  return { height: hMeters, sillHeight: hoMeters };
+  return { height: hMeters, sillHeight: hoMeters, type };
 }
 
 /**
@@ -112,7 +120,8 @@ export function extractWattTopology(
             height: meta.height,
             sillHeight: meta.sillHeight,
             placement: 0, 
-            centroid: { x: cx, y: cy }
+            centroid: { x: cx, y: cy },
+            type: meta.type
           });
         }
       }

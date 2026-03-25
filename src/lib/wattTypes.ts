@@ -57,6 +57,7 @@ export type IfcWindowStyle = {
 export type OpeningInstance = {
   id: string;
   windowStyleId?: string; // Reference to IfcWindowStyle
+  type?: 'WINDOW' | 'DOOR';
   width: number; // B [m]
   height: number; // H [m]
   sillHeight: number; // Ho [m]

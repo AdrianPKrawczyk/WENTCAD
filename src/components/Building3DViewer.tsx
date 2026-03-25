@@ -134,7 +134,7 @@ export function Building3DViewer() {
                const wy = baseElev + op.sillHeight + op.height / 2;
 
                const style = op.windowStyleId ? windowStyles[op.windowStyleId] : null;
-               const opType = style?.type || 'WINDOW';
+               const opType = style?.type || op.type || 'WINDOW';
 
                windows.push({
                  id: op.id,
