@@ -16,15 +16,17 @@ export interface WindowMetadata {
 
 /**
  * Parses layer name to extract Window Height (H) and Sill Height (Ho)
- * Expected pattern: "ANYNAME_H2000_Ho900" or "WINDOWS_H1500" (cm or mm values, returned as meters)
+ * Expected patterns: 
+ * "OKNO_H1500_Ho900" -> 1.5m, 0.9m
+ * "OKNO_H150cm_Ho90cm" -> 1.5m, 0.9m
+ * "OKNO_H1.5_Ho0.9" -> 1.5m, 0.9m
  */
 export function parseWindowMetadata(layerName: string): WindowMetadata {
-  const match = layerName.match(/_H(\d+)(?:_Ho(\d+))?/i);
+  const match = layerName.match(/_H([\d.]+)(?:cm|mm)?(?:_Ho([\d.]+)(?:cm|mm)?)?/i);
   const isDoor = layerName.toLowerCase().includes('drzwi') || layerName.toLowerCase().includes('door');
   const type: 'WINDOW' | 'DOOR' = isDoor ? 'DOOR' : 'WINDOW';
   
   if (!match) {
-    // Default values if no H metadata found
     return { 
       height: isDoor ? 2.0 : 1.5, 
       sillHeight: isDoor ? 0.0 : 0.9, 
@@ -32,14 +34,20 @@ export function parseWindowMetadata(layerName: string): WindowMetadata {
     };
   }
 
-  const hRaw = parseInt(match[1], 10);
-  const hMeters = hRaw > 300 ? hRaw / 1000 : (hRaw > 30 ? hRaw / 100 : hRaw);
-  
-  let hoMeters = isDoor ? 0.0 : 0.9;
-  if (match[2]) {
-    const hoRaw = parseInt(match[2], 10);
-    hoMeters = hoRaw > 300 ? hoRaw / 1000 : (hoRaw > 30 ? hoRaw / 100 : hoRaw);
-  }
+  const parseVal = (valStr: string, defaultVal: number) => {
+    if (!valStr) return defaultVal;
+    const val = parseFloat(valStr);
+    // Detection logic:
+    // > 300 -> assume mm
+    // > 10 -> assume cm
+    // <= 10 -> assume meters
+    if (val > 300) return val / 1000;
+    if (val > 10) return val / 100;
+    return val;
+  };
+
+  const hMeters = parseVal(match[1], isDoor ? 2.0 : 1.5);
+  const hoMeters = parseVal(match[2], isDoor ? 0.0 : 0.9);
 
   return { height: hMeters, sillHeight: hoMeters, type };
 }

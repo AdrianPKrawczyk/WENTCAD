@@ -1129,8 +1129,9 @@ s" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
 - **Pliki**: `src/lib/geometryUtils/topology.ts`.
 
 ### FAZA 2.15: Logika Drzwi w WATT (Import, Rendering i UI) - 2026-03-25
-- **Import DXF**: Rozszerzono `dxfWattExtractor.ts` o detekcję drzwi na podstawie nazw warstw zawierających "DRZWI" lub "DOOR" (case-insensitive). Drzwi otrzymują domyślną wysokość progu `sillHeight: 0.0m`.
-- **Typowanie**: Dodano pole `type` do `OpeningInstance`, co pozwala na zachowanie informacji o typie otworu z DXF nawet przed przypisaniem stylu.
-- **3D Viewer**: Drzwi (`type: DOOR`) są renderowane jako nieprzezroczyste bryły (brązowe), odróżniając się od błękitnych okien. Dodano legendę.
+- **Import DXF**: Rozszerzono `dxfWattExtractor.ts` o detekcję drzwi na podstawie nazw warstw zawierających "DRZWI" lub "DOOR".
+- **Sill Height (Ho)**: Poprawiono parser metadanych otworów. Obsługuje teraz jednostki `cm`/`mm` w nazwie warstwy (np. `H150cm_Ho90cm`) oraz liczby zmiennoprzecinkowe. Wartości są inteligentnie konwertowane na metry.
+- **Typowanie**: Dodano pole `type` do `OpeningInstance`, co pozwala na zachowanie informacji o typie otworu z DXF.
+- **3D Viewer**: Drzwi (`type: DOOR`) są renderowane jako nieprzezroczyste bryły (brązowe). Dodano legendę.
 - **Topologia UI**: W tabeli przegród (`ZonePropertiesPanel`) wprowadzono etykiety `DRZW` / `OKNO` oraz inteligentne tworzenie nowych stylów (automatyczna nazwa i U-value: 0.9 dla okien, 1.3 dla drzwi).
 - **Pliki**: `src/lib/dxfWattExtractor.ts`, `src/lib/wattTypes.ts`, `src/components/Building3DViewer.tsx`, `src/components/ZonePropertiesPanel.tsx`.
