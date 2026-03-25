@@ -93,6 +93,7 @@ export type Floor = {
   heightTotal: number;     // H_brutto: od podłogi do podłogi (lub dachu)
   heightNet: number;       // H_netto: od podłogi do stropu
   heightSuspended: number; // H_hvac: od podłogi do sufitu podwieszanego
+  maxWallThickness?: number; // Graniczna grubość ściany zewnętrznej [m]
 };
 
 export type HorizontalBoundary = {

@@ -24,6 +24,7 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
   const [hTotal, setHTotal] = useState(floor?.heightTotal || 3.5);
   const [hNet, setHNet] = useState(floor?.heightNet || 3.0);
   const [hHvac, setHHvac] = useState(floor?.heightSuspended || 2.7);
+  const [maxWallThickness, setMaxWallThickness] = useState(floor?.maxWallThickness || 1.2);
 
   useEffect(() => {
     if (floor) {
@@ -33,6 +34,7 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
       setHTotal(floor.heightTotal || 3.5);
       setHNet(floor.heightNet || 3.0);
       setHHvac(floor.heightSuspended || 2.7);
+      setMaxWallThickness(floor.maxWallThickness || 1.2);
     }
   }, [floor]);
 
@@ -49,7 +51,8 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
       originDescription: originDescription.trim(),
       heightTotal: hTotal,
       heightNet: hNet,
-      heightSuspended: hHvac
+      heightSuspended: hHvac,
+      maxWallThickness: maxWallThickness
     });
     onClose();
   };
@@ -188,6 +191,18 @@ export function FloorSettingsModal({ floorId, onClose }: FloorSettingsModalProps
                 <input
                   type="number" step="0.01" value={hHvac}
                   onChange={(e) => setHHvac(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 ml-1">
+                   <span>Max. Grubość Ściany (Cap)</span>
+                   <span className="text-indigo-600">Filtr szachtów</span>
+                </div>
+                <input
+                  type="number" step="0.05" value={maxWallThickness}
+                  onChange={(e) => setMaxWallThickness(Number(e.target.value))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:border-indigo-500 outline-none"
                 />
               </div>

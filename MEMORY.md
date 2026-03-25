@@ -1128,10 +1128,9 @@ s" z obsługą wielu jednostek (W, kW, g/s, kg/h) i trybów manualnych.
     - Dzięki temu analiza obrysu budynku poprawnie klasyfikuje przerwy (np. przy patiach) jako `EXTERIOR`.
 - **Pliki**: `src/lib/geometryUtils/topology.ts`.
 
-### FAZA 2.15: Logika Drzwi w WATT (Import, Rendering i UI) - 2026-03-25
-- **Import DXF**: Rozszerzono `dxfWattExtractor.ts` o detekcję drzwi na podstawie nazw warstw zawierających "DRZWI" lub "DOOR".
-- **Sill Height (Ho)**: Poprawiono parser metadanych otworów. Obsługuje teraz jednostki `cm`/`mm` w nazwie warstwy (np. `H150cm_Ho90cm`) oraz liczby zmiennoprzecinkowe. Wartości są inteligentnie konwertowane na metry.
-- **Typowanie**: Dodano pole `type` do `OpeningInstance`, co pozwala na zachowanie informacji o typie otworu z DXF.
-- **3D Viewer**: Drzwi (`type: DOOR`) są renderowane jako nieprzezroczyste bryły (brązowe). Dodano legendę.
-- **Topologia UI**: W tabeli przegród (`ZonePropertiesPanel`) wprowadzono etykiety `DRZW` / `OKNO` oraz inteligentne tworzenie nowych stylów (automatyczna nazwa i U-value: 0.9 dla okien, 1.3 dla drzwi).
-- **Pliki**: `src/lib/dxfWattExtractor.ts`, `src/lib/wattTypes.ts`, `src/components/Building3DViewer.tsx`, `src/components/ZonePropertiesPanel.tsx`.
+### FAZA 2.15: Logika Drzwi i Poprawki Geometrii - 2026-03-25
+- **Import DXF**: Rozszerzono `dxfWattExtractor.ts` o detekcję drzwi oraz obsługę jednostek `cm`/`mm` w nazwach warstw (Ho).
+- **Poprawka Skalowania**: Rozwiązano problem "pływających okien" poprzez dodanie mnożnika `scaleFactor` w funkcji `snapOpeningsToEdges`. Centroidy otworu z DXF są teraz poprawnie rzutowane na wyskalowane ściany.
+- **Konfigurowalna Grubość Ścian**: Dodano parametr `maxWallThickness` do kondygnacji. Pozwala on użytkownikowi ręcznie określić limit grubości ścian zewnętrznych w `FloorSettingsModal`. Domyślnie 1.2m.
+- **3D & UI**: Drzwi są renderowane jako nieprzezroczyste (brązowe). Tabela topologii wyświetla etykiety `DRZW` / `OKNO` oraz inteligentne tworzenie nowych stylów (U=1.3 dla drzwi).
+- **Pliki**: `src/lib/geometryUtils/topology.ts`, `src/lib/dxfWattExtractor.ts`, `src/stores/useZoneStore.ts`, `src/components/Building3DViewer.tsx`.

@@ -59,7 +59,8 @@ function createDefaultFloors(): Record<string, Floor> {
       order: 0,
       heightTotal: 3.5,
       heightNet: 3.0,
-      heightSuspended: 2.7
+      heightSuspended: 2.7,
+      maxWallThickness: 1.2
     }
   };
 }
@@ -607,12 +608,14 @@ export const useZoneStore = create<ZoneStore>()(
 
         // 2. Detect Exterior Boundaries (Building Footprint)
         if (state.buildingFootprint && state.buildingFootprint.outer && state.buildingFootprint.outer.length > 0) {
-          boundaries = checkBoundary(boundaries, state.buildingFootprint);
+          const floor = state.floors[zone.floorId];
+          const maxThick = floor?.maxWallThickness ?? 1.2;
+          boundaries = checkBoundary(boundaries, state.buildingFootprint, 1.2, maxThick);
         }
 
         // 3. Snap Windows from pending list
         if (state.pendingWindows && state.pendingWindows.length > 0) {
-          boundaries = snapOpeningsToEdges(boundaries, state.pendingWindows);
+          boundaries = snapOpeningsToEdges(boundaries, state.pendingWindows, scaleFactor);
         }
 
         // 4. Vertical Analysis (Horizontal Boundaries)
@@ -854,7 +857,8 @@ export const useZoneStore = create<ZoneStore>()(
             ...floor,
             heightTotal: floor.heightTotal ?? 3.5,
             heightNet: floor.heightNet ?? 3.0,
-            heightSuspended: floor.heightSuspended ?? 2.7
+            heightSuspended: floor.heightSuspended ?? 2.7,
+            maxWallThickness: floor.maxWallThickness ?? 1.2
           };
         });
 
@@ -934,7 +938,8 @@ export const useZoneStore = create<ZoneStore>()(
           originDescription: (floorData as any).originDescription || "",
           heightTotal: 3.5,
           heightNet: 3.0,
-          heightSuspended: 2.7
+          heightSuspended: 2.7,
+          maxWallThickness: 1.2
         };
         set((s) => ({ floors: { ...s.floors, [newFloor.id]: newFloor } }));
         return newFloor.id;

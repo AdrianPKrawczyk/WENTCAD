@@ -188,7 +188,8 @@ function createBoundary(
 export function checkBoundary(
   edges: ZoneBoundary[], 
   footprint: { outer: {x:number, y:number}[]; courtyards: {x:number, y:number}[][] }, 
-  maxDist: number = 1.2 // Increased tolerance for exterior detection
+  maxDist: number = 1.2, // Increased tolerance for exterior detection
+  maxThickness: number = 1.2 // Capping for auto-thickness
 ): ZoneBoundary[] {
   return edges.map(edge => {
     if (edge.type !== 'UNRESOLVED') return edge;
@@ -235,7 +236,10 @@ export function checkBoundary(
 
     if (matched) {
        // L_osi LOGIC: Add detected thickness to the length to approximate axial length
-       const thickness = distFound > 0.05 ? distFound : 0.35;
+       // CAP thickness to user-defined value to avoid shafts causing massive walls
+       let thickness = distFound > 0.05 ? distFound : 0.35;
+       if (thickness > maxThickness) thickness = 0.35; // Fallback to standard if it looks like a shaft/far boundary
+
        return {
          ...edge,
          type: 'EXTERIOR',
@@ -255,11 +259,15 @@ export function checkBoundary(
 /**
  * Snaps loose openings to the nearest wall segments
  */
-export function snapOpeningsToEdges(edges: ZoneBoundary[], openings: OpeningInstance[], maxSnapDist: number = 1.0): ZoneBoundary[] {
+export function snapOpeningsToEdges(edges: ZoneBoundary[], openings: OpeningInstance[], scale: number = 1.0, maxSnapDist: number = 1.0): ZoneBoundary[] {
   const result = [...edges];
 
   openings.forEach(op => {
     if (!op.centroid) return;
+
+    // SCALE centroid to match the already scaled edges
+    const scx = op.centroid.x * scale;
+    const scy = op.centroid.y * scale;
 
     let bestDist = Infinity;
     let bestEdgeIdx = -1;
@@ -271,9 +279,9 @@ export function snapOpeningsToEdges(edges: ZoneBoundary[], openings: OpeningInst
       const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
       if (l2 === 0) return;
 
-      let t = ((op.centroid!.x - v.x) * (w.x - v.x) + (op.centroid!.y - v.y) * (w.y - v.y)) / l2;
+      let t = ((scx - v.x) * (w.x - v.x) + (scy - v.y) * (w.y - v.y)) / l2;
       t = Math.max(0, Math.min(1, t));
-      const dist = Math.hypot(op.centroid!.x - (v.x + t * (w.x - v.x)), op.centroid!.y - (v.y + t * (w.y - v.y)));
+      const dist = Math.hypot(scx - (v.x + t * (w.x - v.x)), scy - (v.y + t * (w.y - v.y)));
 
       if (dist < bestDist && dist <= maxSnapDist) {
         bestDist = dist;
